@@ -7,7 +7,8 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 /** false, wenn die .env-Datei fehlt – dann zeigt die App eine Einrichtungs-Hilfe. */
 export const supabaseConfigured = Boolean(url && anonKey)
 
-export const supabase = createClient(url ?? 'http://localhost', anonKey ?? 'fehlt', {
+// "||" statt "??": GitHub setzt ein fehlendes Secret als leeren Text "" ein, nicht als undefined.
+export const supabase = createClient(url || 'http://localhost', anonKey || 'fehlt', {
   auth: {
     persistSession: true, // Login bleibt nach dem Schließen der App erhalten
     autoRefreshToken: true,
