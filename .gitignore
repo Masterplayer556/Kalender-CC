@@ -1,0 +1,16 @@
+node_modules
+dist
+dev-dist
+*.local
+
+# Enthält deine Supabase-Schlüssel – gehört NICHT ins Repository
+.env
+.env.*
+!.env.example
+
+.claude/
+.DS_Store
+Thumbs.db
+
+# Persönliche Notizen
+anleitung-*.txt

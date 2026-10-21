@@ -1,0 +1,3 @@
+# Einheitliche Zeilenenden (LF) auf Windows, Mac und GitHub
+* text=auto eol=lf
+*.png binary
