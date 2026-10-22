@@ -41,6 +41,7 @@ export interface Grade {
   date: string // "JJJJ-MM-TT"
   grade: number // 1–6
   weight: number // 1 = normal
+  entry_id: string | null // optional verknüpfter Test
   created_at: string
 }
 
@@ -51,7 +52,27 @@ export interface GradeInput {
   date: string
   grade: number
   weight: number
+  entry_id: string | null
 }
+
+/** Anhang an einem Eintrag: hochgeladene Datei oder Link */
+export interface Attachment {
+  id: string
+  user_id: string
+  entry_id: string
+  kind: 'file' | 'link'
+  name: string
+  url: string | null // nur bei Links
+  storage_path: string | null // nur bei Dateien
+  size: number | null
+  mime: string | null
+  created_at: string
+}
+
+/** Anhang im Formular, der noch nicht gespeichert ist */
+export type PendingAttachment =
+  | { kind: 'file'; file: File; name: string }
+  | { kind: 'link'; url: string; name: string }
 
 /** Was das Formular beim Speichern eines Eintrags übergibt. */
 export interface EntryInput {

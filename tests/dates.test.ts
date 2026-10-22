@@ -5,6 +5,7 @@ import {
   countdown,
   daysBetween,
   formatDate,
+  isoWeek,
   isoToLocal,
   localToIso,
   minutesToTime,
@@ -101,5 +102,17 @@ describe('Lokale Zeit ↔ Datenbank (UTC)', () => {
   })
   it('Hin und zurück ergibt wieder dasselbe', () => {
     expect(isoToLocal(localToIso('2026-10-25', '18:45'))).toEqual({ date: '2026-10-25', time: '18:45' })
+  })
+})
+
+describe('Kalenderwoche (ISO)', () => {
+  it.each([
+    ['2026-10-20', 43],
+    ['2026-01-01', 1], // Donnerstag → KW 1
+    ['2027-01-01', 53], // Freitag → gehört noch zu KW 53 von 2026
+    ['2027-01-04', 1],
+    ['2026-12-31', 53],
+  ])('%s → KW %i', (date, week) => {
+    expect(isoWeek(date)).toBe(week)
   })
 })

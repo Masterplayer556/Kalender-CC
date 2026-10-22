@@ -3,13 +3,14 @@
 import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
 import { formatGrade } from '../lib/grades'
-import { todayKey } from '../lib/dates'
+import { formatDate, todayKey } from '../lib/dates'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 
 export interface GradeRequest {
   gradeId?: string // bestehende Note bearbeiten
   subjectId?: string // vorausgewähltes Fach (z. B. "+ Note" in der Fach-Karte)
+  entryId?: string // Note zu diesem Test eintragen (Fach, Titel, Datum werden übernommen)
 }
 
 /** "4,75" oder "4.75" → 4.75; ungültig → NaN */
@@ -20,13 +21,33 @@ function parseDecimal(text: string): number {
 const WEIGHT_PRESETS = [0.5, 1, 2]
 
 export function GradeEditor({ request, onClose }: { request: GradeRequest; onClose: () => void }) {
-  const { grades, subjects, online, saveGrade, deleteGrade, restoreGrade } = useData()
+  const { grades, subjects, entries, entryById, gradeByEntry, online, saveGrade, deleteGrade, restoreGrade } = useData()
   const showToast = useToast()
   const existing = request.gradeId ? grades.find((g) => g.id === request.gradeId) : undefined
+  const fromTest = request.entryId ? entryById.get(request.entryId) : undefined
 
-  const [subjectId, setSubjectId] = useState(existing?.subject_id ?? request.subjectId ?? subjects[0]?.id ?? '')
-  const [title, setTitle] = useState(existing?.title ?? '')
-  const [date, setDate] = useState(existing?.date ?? todayKey())
+  const [subjectId, setSubjectId] = useState(
+    existing?.subject_id ?? fromTest?.subject_id ?? request.subjectId ?? subjects[0]?.id ?? '',
+  )
+  const [entryId, setEntryId] = useState(existing?.entry_id ?? fromTest?.id ?? '')
+  const [title, setTitle] = useState(existing?.title ?? fromTest?.title ?? '')
+  const [date, setDate] = useState(existing?.date ?? fromTest?.date ?? todayKey())
+
+  // Tests dieses Fachs, die man verknüpfen kann: noch ohne Note (oder mit genau dieser Note), neueste zuerst
+  const linkableTests = entries
+    .filter((e) => e.category === 'test' && e.subject_id === subjectId)
+    .filter((e) => !gradeByEntry.has(e.id) || gradeByEntry.get(e.id)!.id === existing?.id)
+    .sort((a, b) => b.date.localeCompare(a.date))
+
+  /** Test gewählt → Titel und Datum vom Test übernehmen (lassen sich danach noch ändern). */
+  function chooseTest(id: string) {
+    setEntryId(id)
+    const test = entryById.get(id)
+    if (test) {
+      setTitle(test.title)
+      setDate(test.date)
+    }
+  }
   const [gradeText, setGradeText] = useState(existing ? formatGrade(existing.grade) : '')
   const [weightText, setWeightText] = useState(existing ? formatGrade(existing.weight) : '1')
   const [saving, setSaving] = useState(false)
@@ -56,6 +77,7 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
         date,
         grade: parseDecimal(gradeText),
         weight: parseDecimal(weightText),
+        entry_id: entryId || null,
       })
       onClose()
     } catch (err) {
@@ -116,7 +138,10 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
               className="input"
               value={subjectId}
               disabled={readOnly}
-              onChange={(e) => setSubjectId(e.target.value)}
+              onChange={(e) => {
+                setSubjectId(e.target.value)
+                setEntryId('') // ein Test gehört immer zu genau einem Fach
+              }}
             >
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -134,6 +159,27 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
               onChange={(e) => e.target.value && setDate(e.target.value)}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="g-entry">Test verknüpfen (optional)</label>
+          <select
+            id="g-entry"
+            className="input"
+            value={entryId}
+            disabled={readOnly}
+            onChange={(e) => chooseTest(e.target.value)}
+          >
+            <option value="">– kein Test –</option>
+            {linkableTests.map((t) => (
+              <option key={t.id} value={t.id}>
+                {formatDate(t.date)} · {t.title}
+              </option>
+            ))}
+          </select>
+          {linkableTests.length === 0 && (
+            <p className="mt-1 text-xs text-slate-500">Für dieses Fach gibt es keinen Test ohne Note im Kalender.</p>
+          )}
         </div>
 
         <div>

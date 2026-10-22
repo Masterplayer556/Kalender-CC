@@ -27,6 +27,8 @@ export function friendlyError(err: unknown): string {
   if (/signups not allowed|signup is disabled/i.test(msg)) return 'Neue Konten sind in Supabase deaktiviert.'
   if (/jwt|refresh token|session (missing|expired)/i.test(msg))
     return 'Deine Anmeldung ist abgelaufen. Bitte ab- und wieder anmelden.'
+  if (/grades_entry_unique/i.test(msg)) return 'Dieser Test hat schon eine Note. Bearbeite die bestehende Note.'
+  if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) return 'Die Datei ist zu gross (maximal 50 MB).'
   if (/grades_subject_fk/i.test(msg))
     return 'Dieses Fach hat noch Noten. Lösche zuerst die Noten oder behalte das Fach.'
   if (/rate limit/i.test(msg)) return 'Zu viele Versuche. Bitte warte kurz und versuche es erneut.'

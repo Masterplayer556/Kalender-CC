@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon } from './Icon'
 
 /** Dialogfenster: auf dem Handy bildschirmfüllend, auf iPad/Computer als Karte in der Mitte. */
@@ -13,23 +13,30 @@ export function Modal({
   children: ReactNode
   footer?: ReactNode
 }) {
-  // Escape-Taste schließt den Dialog (am Computer)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Escape-Taste schließt den Dialog (am Computer) – bei übereinanderliegenden Dialogen nur den obersten
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const dialogs = document.querySelectorAll('[role="dialog"]')
+      if (dialogs[dialogs.length - 1] === dialogRef.current) onClose()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 sm:items-center sm:p-6"
+      className="modal-backdrop fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 sm:items-center sm:p-6"
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="flex w-full flex-col bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-xl sm:rounded-2xl dark:bg-slate-900"
+        className="modal-sheet flex w-full flex-col bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-xl sm:rounded-2xl dark:bg-slate-900"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -17,6 +17,10 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Duplizieren:** Im geöffneten Eintrag auf „Duplizieren“ tippen, z. B. für „Vokabeltest Unité 4“.
 - **Rückgängig:** Nach dem Löschen bleibt ein paar Sekunden lang „Rückgängig“ eingeblendet.
 - **Noten** (eigener Tab): Noten pro Fach mit Gewichtung, gewichteter Schnitt, Zeugnisnote (auf halbe Noten gerundet), Gesamtschnitt und Semester-Auswahl (1. Semester Aug–Jan, 2. Semester Feb–Jul). Der **Notenrechner** sagt dir, welche Note du in der nächsten Prüfung brauchst. Frühere Tests trägst du einfach mit ihrem Datum ein.
+- **Note ↔ Test:** Noten lassen sich mit einem Test aus dem Kalender verknüpfen. Im Test steht dann die Note, und vergangene Tests ohne Note erscheinen 30 Tage lang in der Liste unter „Note eintragen?“.
+- **Anhänge:** Dateien (Word, PowerPoint, PDF, Fotos … aus der Dateien-App, max. 50 MB) und Links (OneDrive, iCloud, Teams …) an jedem Eintrag, z. B. das Lernzielblatt zum Test.
+- **Wischen:** In Monat, Woche und Tag nach links/rechts wischen, um den Zeitraum zu wechseln.
+- **Heute-Übersicht** oben in der Liste (und im iPad-Querformat als Seitenleiste neben dem Kalender): heutige Einträge und Lernzeiten, nächster Test mit Lernfortschritt.
 - **Offline:** Die zuletzt geladenen Einträge bleiben sichtbar. Ändern geht erst wieder mit Internet.
 - Hell- und Dunkelmodus richten sich automatisch nach der Systemeinstellung.
 
@@ -34,6 +38,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
    - Klicke auf **Create new project** und warte etwa 1–2 Minuten.
 3. **Tabellen anlegen:** Klicke links auf **SQL Editor** und dann auf **New query**. Öffne im Projektordner die Datei `supabase/migrations/001_init.sql`, kopiere den ganzen Inhalt in das Feld und klicke auf **Run**. Unten sollte „Success. No rows returned“ stehen.
    Danach dasselbe mit `supabase/migrations/002_grades.sql` (Noten): wieder **New query**, Inhalt einfügen, **Run**.
+   Zum Schluss `supabase/migrations/003_links_and_files.sql` (Noten mit Tests verknüpfen, Anhänge und Datei-Speicher).
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)
    - **anon / public key**: Steht unter „Legacy API keys“ bzw. als **Publishable key** (`sb_publishable_…`). Beide funktionieren.
@@ -121,7 +126,9 @@ src/
 │  ├─ layout.ts      Position der Blöcke im Zeitraster, Überlappungen
 │  ├─ grouping.ts    Gruppen der Liste „Als Nächstes“
 │  ├─ grades.ts      Notenschnitt, Zeugnisnote, Notenrechner, Semester
-│  ├─ overdue.ts     Gruppe „Überfällig“
+│  ├─ overdue.ts     Gruppen „Überfällig“ und „Note eintragen?“
+│  ├─ files.ts       Anhänge: Symbole, Grössen, Links prüfen
+│  ├─ swipe.ts       Wischgesten erkennen
 │  ├─ filters.ts     Filter und Suche
 │  ├─ categories.ts  Kategorien mit Symbolen, Farbvorschläge für Fächer
 │  ├─ cache.ts       Offline-Speicher

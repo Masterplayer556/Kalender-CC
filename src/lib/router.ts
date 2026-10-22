@@ -2,7 +2,7 @@
 // GitHub Pages bekommt den Teil nach "#" nie zu sehen – deshalb klappt Neuladen auf jeder Seite.
 
 import { useCallback, useEffect, useState } from 'react'
-import { isDateKey, todayKey, type DateKey } from './dates'
+import { addDays, addMonths, isDateKey, todayKey, type DateKey } from './dates'
 import { loadPref, savePref } from './cache'
 
 export type ViewName = 'monat' | 'woche' | 'tag' | 'liste' | 'noten' | 'faecher'
@@ -26,6 +26,13 @@ export function toHash(route: Route): string {
   return route.view === 'liste' || route.view === 'noten' || route.view === 'faecher'
     ? `#/${route.view}`
     : `#/${route.view}/${route.date}`
+}
+
+/** Einen Schritt vor/zurück: ein Monat, eine Woche oder ein Tag */
+export function stepDate(route: Route, direction: 1 | -1): DateKey {
+  if (route.view === 'monat') return addMonths(route.date, direction)
+  if (route.view === 'woche') return addDays(route.date, 7 * direction)
+  return addDays(route.date, direction)
 }
 
 /** React-Hook: aktuelle Route + Funktion zum Wechseln */

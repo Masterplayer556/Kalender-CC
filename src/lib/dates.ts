@@ -61,6 +61,16 @@ export function weekDays(key: DateKey): DateKey[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
 }
 
+/**
+ * Kalenderwoche nach ISO 8601 (wie in der Schweiz üblich): Die KW 1 ist die Woche mit dem ersten Donnerstag.
+ * Deshalb kann der 1. Januar noch zur KW 52/53 des Vorjahres gehören.
+ */
+export function isoWeek(key: DateKey): number {
+  const thursday = addDays(startOfWeek(key), 3) // Donnerstag derselben Woche bestimmt das Jahr
+  const jan1 = `${thursday.slice(0, 4)}-01-01`
+  return Math.floor(daysBetween(jan1, thursday) / 7) + 1
+}
+
 /** Monatsraster: Liste von Wochen (je 7 Tage, ab Montag), die den ganzen Monat abdecken. */
 export function monthGrid(key: DateKey): DateKey[][] {
   const first = startOfMonth(key)

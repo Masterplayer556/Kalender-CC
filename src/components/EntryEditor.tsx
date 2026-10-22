@@ -4,7 +4,10 @@ import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, CATEGORY_KEYS } from '../lib/categories'
 import { formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
-import type { Category, StudyBlockInput } from '../types'
+import { formatGrade, gradeClass } from '../lib/grades'
+import type { Attachment, Category, PendingAttachment, StudyBlockInput } from '../types'
+import { AttachmentsEditor } from './AttachmentsEditor'
+import type { GradeRequest } from './GradeEditor'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { StudyBlocksEditor } from './StudyBlocksEditor'
@@ -17,8 +20,27 @@ export interface EditorRequest {
   time?: string // vorausgefüllt (z. B. angetippte Uhrzeit im Raster)
 }
 
-export function EntryEditor({ request, onClose }: { request: EditorRequest; onClose: () => void }) {
-  const { entryById, blocksByEntry, subjects, online, saveEntry, deleteEntry, restoreEntry } = useData()
+export function EntryEditor({
+  request,
+  onClose,
+  onOpenGrade,
+}: {
+  request: EditorRequest
+  onClose: () => void
+  onOpenGrade: (req: GradeRequest) => void // öffnet das Noten-Formular über diesem Dialog
+}) {
+  const {
+    entryById,
+    blocksByEntry,
+    attachmentsByEntry,
+    gradeByEntry,
+    subjects,
+    online,
+    saveEntry,
+    deleteEntry,
+    restoreEntry,
+    purgeAttachmentFiles,
+  } = useData()
   const showToast = useToast()
   const existing = request.entryId ? entryById.get(request.entryId) : undefined
   // Nach "Duplizieren" zeigt das Formular eine Kopie, die als neuer Eintrag gespeichert wird.
@@ -44,6 +66,10 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
       return { id: b.id, date: s.date, start: s.time, end: isoToLocal(b.ends_at).time, done: b.done }
     }),
   )
+  const savedAttachments = existing ? (attachmentsByEntry.get(existing.id) ?? []) : []
+  const [keptAttachments, setKeptAttachments] = useState<Attachment[]>(savedAttachments)
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const linkedGrade = editingId ? gradeByEntry.get(editingId) : undefined
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -79,6 +105,11 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
           done,
         },
         blocks,
+        {
+          added: pendingAttachments,
+          // Beim Duplizieren gehören die gespeicherten Anhänge dem Original – nichts löschen
+          removed: isCopy ? [] : savedAttachments.filter((a) => !keptAttachments.includes(a)),
+        },
       )
       onClose()
     } catch (err) {
@@ -92,13 +123,16 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
     if (!existing) return
     // Gespeicherten Stand merken, damit "Rückgängig" ihn wiederherstellen kann
     const savedBlocks = blocksByEntry.get(existing.id) ?? []
+    const gradeIds = linkedGrade ? [linkedGrade.id] : []
     setSaving(true)
     try {
       await deleteEntry(existing.id)
       onClose()
       showToast({
         message: `„${existing.title}“ gelöscht`,
-        action: { label: 'Rückgängig', run: () => restoreEntry(existing, savedBlocks) },
+        action: { label: 'Rückgängig', run: () => restoreEntry(existing, savedBlocks, savedAttachments, gradeIds) },
+        // Erst wenn "Rückgängig" nicht mehr möglich ist, die Dateien wirklich aus dem Speicher löschen
+        onExpire: () => void purgeAttachmentFiles(savedAttachments),
       })
     } catch (err) {
       setError((err as Error).message)
@@ -106,13 +140,23 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
     }
   }
 
-  /** Formular in eine Kopie verwandeln: gleiche Angaben, aber neu, offen und ohne Lernzeiten. */
+  /** Formular in eine Kopie verwandeln: gleiche Angaben, aber neu, offen, ohne Lernzeiten und Dateien.
+   *  Links werden übernommen (sie kosten keinen Speicher). */
   function handleDuplicate() {
     setIsCopy(true)
     setDone(false)
     setBlocks([])
+    setPendingAttachments([
+      ...keptAttachments
+        .filter((a) => a.kind === 'link')
+        .map((a) => ({ kind: 'link' as const, url: a.url!, name: a.name })),
+      ...pendingAttachments.filter((p) => p.kind === 'link'),
+    ])
+    setKeptAttachments([])
     setError(null)
   }
+
+  const uploading = saving && pendingAttachments.some((p) => p.kind === 'file')
 
   return (
     <Modal
@@ -135,7 +179,7 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
             Abbrechen
           </button>
           <button type="submit" form="entry-form" className="btn-primary" disabled={readOnly}>
-            {saving ? 'Speichert …' : 'Speichern'}
+            {uploading ? 'Lädt hoch …' : saving ? 'Speichert …' : 'Speichern'}
           </button>
         </>
       }
@@ -147,8 +191,8 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
       )}
       {isCopy && (
         <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900 dark:bg-blue-950 dark:text-blue-200">
-          Das ist eine Kopie. Passe z. B. Titel und Datum an und tippe auf „Speichern“. Lernzeiten werden nicht
-          übernommen, das Original bleibt unverändert.
+          Das ist eine Kopie. Passe z. B. Titel und Datum an und tippe auf „Speichern“. Lernzeiten und Dateien werden
+          nicht übernommen (Links schon), das Original bleibt unverändert.
         </p>
       )}
 
@@ -257,7 +301,47 @@ export function EntryEditor({ request, onClose }: { request: EditorRequest; onCl
           erledigt
         </label>
 
+        {/* Note: nur bei gespeicherten Tests (eine Note braucht einen bestehenden Eintrag) */}
+        {editingId && category === 'test' && (
+          <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
+            <h3 className="font-semibold">🎓 Note</h3>
+            {linkedGrade ? (
+              <>
+                <span className={`${gradeClass(linkedGrade.grade)} rounded-lg px-2 py-0.5 text-lg font-bold tabular-nums`}>
+                  {formatGrade(linkedGrade.grade)}
+                </span>
+                {linkedGrade.weight !== 1 && <span className="text-sm text-slate-500">zählt {formatGrade(linkedGrade.weight)}×</span>}
+                <div className="flex-1" />
+                <button type="button" className="btn-secondary" onClick={() => onOpenGrade({ gradeId: linkedGrade.id })}>
+                  Note bearbeiten
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-slate-500">noch keine</span>
+                <div className="flex-1" />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!online}
+                  onClick={() => onOpenGrade({ entryId: editingId })}
+                >
+                  Note eintragen
+                </button>
+              </>
+            )}
+          </section>
+        )}
+
         <StudyBlocksEditor blocks={blocks} onChange={setBlocks} entryDate={date} disabled={readOnly} />
+
+        <AttachmentsEditor
+          kept={keptAttachments}
+          pending={pendingAttachments}
+          onChangeKept={setKeptAttachments}
+          onChangePending={setPendingAttachments}
+          disabled={readOnly}
+        />
 
         {error && (
           <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">

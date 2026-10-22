@@ -1,11 +1,11 @@
 // Oberste Ebene der App:
 //   App → (Einrichtung fehlt?) → AuthProvider → (angemeldet?) → DataProvider → ToastProvider → Shell (Ansichten)
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AuthProvider, useAuth } from './data/AuthProvider'
 import { DataProvider, useData } from './data/DataProvider'
 import { supabaseConfigured } from './lib/supabase'
-import { useRoute } from './lib/router'
+import { stepDate, useRoute, type Route } from './lib/router'
 import { todayKey, weekDays } from './lib/dates'
 import { loadPref, savePref } from './lib/cache'
 import { EMPTY_FILTERS, isFilterActive, matchesFilters, type Filters } from './lib/filters'
@@ -18,6 +18,9 @@ import { StudyBlockMenu } from './components/StudyBlockMenu'
 import { GradeEditor, type GradeRequest } from './components/GradeEditor'
 import { GradesView } from './views/GradesView'
 import { ToastProvider } from './components/Toast'
+import { TodayPanel } from './components/TodayPanel'
+import { useMediaQuery } from './components/useMediaQuery'
+import { useSwipe } from './components/useSwipe'
 import { MonthView } from './views/MonthView'
 import { TimeGrid } from './views/TimeGrid'
 import { UpcomingView } from './views/UpcomingView'
@@ -59,6 +62,29 @@ function Shell() {
   const [blockMenu, setBlockMenu] = useState<string | null>(null) // id des angetippten Lernblocks
   const [gradeEditor, setGradeEditor] = useState<GradeRequest | null>(null)
   const onGradesTab = route.view === 'noten' && !search.trim()
+  const isCalendar = !search.trim() && (route.view === 'monat' || route.view === 'woche' || route.view === 'tag')
+  // iPad im Querformat / Computer: "Heute" als Seitenleiste neben dem Kalender
+  const wide = useMediaQuery('(min-width: 1100px)')
+
+  // Animation beim Wechsel: vorwärts gleitet von rechts herein, rückwärts von links, sonst Einblenden
+  const [animation, setAnimation] = useState<'view-next' | 'view-prev' | 'view-fade'>('view-fade')
+  const changeView = (next: Partial<Route>) => {
+    setAnimation('view-fade')
+    navigate(next)
+  }
+  const goStep = (direction: 1 | -1) => {
+    setAnimation(direction === 1 ? 'view-next' : 'view-prev')
+    navigate({ date: stepDate(route, direction) })
+  }
+  const goToday = () => {
+    const today = todayKey()
+    setAnimation(today > route.date ? 'view-next' : today < route.date ? 'view-prev' : 'view-fade')
+    navigate({ date: today })
+  }
+
+  // Wischen im Kalender = vor/zurück
+  const mainRef = useRef<HTMLElement>(null)
+  useSwipe(mainRef, goStep, isCalendar)
 
   const setFilters = (f: Filters) => {
     setFiltersState(f)
@@ -73,7 +99,7 @@ function Shell() {
   }, [entries, blocks, filters])
 
   const openEntry = (entryId: string) => setEditor({ entryId })
-  const openDay = (date: string) => navigate({ view: 'tag', date })
+  const openDay = (date: string) => changeView({ view: 'tag', date })
   const createAt = (date: string, time?: string) => online && setEditor({ date, time })
 
   function renderView() {
@@ -95,9 +121,17 @@ function Shell() {
           />
         )
       case 'liste':
-        return <UpcomingView entries={visibleEntries} onOpenEntry={openEntry} />
+        return (
+          <UpcomingView
+            entries={visibleEntries}
+            onOpenEntry={openEntry}
+            onOpenGrade={setGradeEditor}
+            onOpenBlock={setBlockMenu}
+            showToday
+          />
+        )
       case 'noten':
-        return <GradesView onOpenGrade={setGradeEditor} onGoSubjects={() => navigate({ view: 'faecher' })} />
+        return <GradesView onOpenGrade={setGradeEditor} onGoSubjects={() => changeView({ view: 'faecher' })} />
       case 'faecher':
         return <SubjectsView />
     }
@@ -107,7 +141,9 @@ function Shell() {
     <div className="app-root">
       <Header
         route={route}
-        navigate={navigate}
+        navigate={changeView}
+        onStep={goStep}
+        onToday={goToday}
         search={search}
         onSearch={setSearch}
         filtersOpen={filtersOpen}
@@ -117,9 +153,23 @@ function Shell() {
       {filtersOpen && <FilterBar filters={filters} onChange={setFilters} />}
       <StatusBanner />
 
-      <main className="relative min-h-0 flex-1">
-        {loading ? <p className="p-6 text-center text-slate-500">Lädt Einträge …</p> : renderView()}
-      </main>
+      <div className="flex min-h-0 flex-1">
+        <main ref={mainRef} className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+          {loading ? (
+            <p className="p-6 text-center text-slate-500">Lädt Einträge …</p>
+          ) : (
+            // key: Bei jedem Wechsel neu aufbauen → die Animation spielt ab
+            <div key={`${search ? 'suche' : route.view}-${route.date}`} className={`h-full ${animation}`}>
+              {renderView()}
+            </div>
+          )}
+        </main>
+        {wide && isCalendar && !loading && (
+          <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 p-3 pb-28 dark:border-slate-800">
+            <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} />
+          </aside>
+        )}
+      </div>
 
       {/* Schnelles Hinzufügen */}
       <button
@@ -136,7 +186,14 @@ function Shell() {
       </button>
 
       {/* key: bei jedem Öffnen ein frisches Formular */}
-      {editor && <EntryEditor key={JSON.stringify(editor)} request={editor} onClose={() => setEditor(null)} />}
+      {editor && (
+        <EntryEditor
+          key={JSON.stringify(editor)}
+          request={editor}
+          onClose={() => setEditor(null)}
+          onOpenGrade={setGradeEditor}
+        />
+      )}
       {gradeEditor && (
         <GradeEditor key={JSON.stringify(gradeEditor)} request={gradeEditor} onClose={() => setGradeEditor(null)} />
       )}

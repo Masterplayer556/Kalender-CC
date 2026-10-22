@@ -61,6 +61,17 @@
   @apply inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm;
 }
 
+/* Notenfarben: ab 4.5 gut, ab 4 genügend, darunter ungenügend (siehe gradeTone in lib/grades.ts) */
+@utility grade-good {
+  @apply bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300;
+}
+@utility grade-ok {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300;
+}
+@utility grade-bad {
+  @apply bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300;
+}
+
 /* Segment-Umschalter (z. B. Monat / Woche / Tag / Liste) */
 @layer components {
   .segment {
@@ -99,4 +110,47 @@
     color-mix(in srgb, var(--c) 22%, transparent) 0 6px,
     color-mix(in srgb, var(--c) 8%, transparent) 6px 12px
   );
+}
+
+/* ---------------------------------------------------------------------
+   Animationen – kurz und dezent. Bei "Bewegung reduzieren" (iPad: Einstellungen →
+   Bedienungshilfen → Bewegung) werden sie ganz abgeschaltet.
+   --------------------------------------------------------------------- */
+@keyframes slide-from-right {
+  from { transform: translateX(32px); opacity: 0; }
+}
+@keyframes slide-from-left {
+  from { transform: translateX(-32px); opacity: 0; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes sheet-in {
+  from { transform: translateY(24px) scale(0.98); opacity: 0; }
+}
+@keyframes pop-in {
+  from { transform: translateY(12px); opacity: 0; }
+}
+
+/* Zeitraum gewechselt (Pfeile, "Heute" oder Wischen) */
+.view-next { animation: slide-from-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.view-prev { animation: slide-from-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.view-fade { animation: fade-in 180ms ease-out; }
+/* Dialoge: Hintergrund blendet ein, Fenster gleitet hoch */
+.modal-backdrop { animation: fade-in 160ms ease-out; }
+.modal-sheet { animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* Meldung unten ("Rückgängig") */
+.toast-in { animation: pop-in 200ms ease-out; }
+
+/* Knöpfe geben beim Antippen kurz nach */
+button:not(:disabled):active {
+  transform: scale(0.97);
+  transition: transform 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

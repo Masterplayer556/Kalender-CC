@@ -68,3 +68,8 @@ export function gradeTone(x: number): 'good' | 'ok' | 'bad' {
   if (x >= 4) return 'ok'
   return 'bad'
 }
+
+/** CSS-Klasse für die Notenfarbe. Die Namen stehen hier ausgeschrieben, damit Tailwind sie findet. */
+export function gradeClass(x: number): string {
+  return { good: 'grade-good', ok: 'grade-ok', bad: 'grade-bad' }[gradeTone(x)]
+}

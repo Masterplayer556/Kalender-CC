@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { overdueEntries } from '../src/lib/overdue'
+import { overdueEntries, testsAwaitingGrade } from '../src/lib/overdue'
 import type { Entry } from '../src/types'
 
 const entry = (partial: Partial<Entry>): Entry => ({
@@ -31,5 +31,20 @@ describe('Überfällig', () => {
 
   it('nur vergangene, offene Nicht-Tests – älteste zuerst', () => {
     expect(overdueEntries(list, today).map((e) => e.title)).toEqual(['ältere Aufgabe', 'neuere Aufgabe', 'Sonstiges'])
+  })
+})
+
+describe('Note eintragen?', () => {
+  const today = '2026-10-20'
+  const list = [
+    entry({ title: 'gestern', category: 'test', date: '2026-10-19' }),
+    entry({ title: 'benotet', category: 'test', date: '2026-10-18' }),
+    entry({ title: 'vor 30 Tagen', category: 'test', date: '2026-09-20' }),
+    entry({ title: 'vor 31 Tagen', category: 'test', date: '2026-09-19' }),
+    entry({ title: 'heute', category: 'test', date: '2026-10-20' }),
+    entry({ title: 'Aufgabe', category: 'aufgabe', date: '2026-10-19' }),
+  ]
+  it('nur vergangene Tests der letzten 30 Tage ohne Note, neueste zuerst', () => {
+    expect(testsAwaitingGrade(list, new Set(['benotet']), today).map((e) => e.title)).toEqual(['gestern', 'vor 30 Tagen'])
   })
 })

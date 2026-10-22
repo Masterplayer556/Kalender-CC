@@ -11,7 +11,17 @@ import * as api from './api'
 import { useOnline } from './useOnline'
 import { loadSnapshot, saveSnapshot } from '../lib/cache'
 import { friendlyError } from '../lib/supabase'
-import type { Entry, EntryInput, Grade, GradeInput, StudyBlock, StudyBlockInput, Subject } from '../types'
+import type {
+  Attachment,
+  Entry,
+  EntryInput,
+  Grade,
+  GradeInput,
+  PendingAttachment,
+  StudyBlock,
+  StudyBlockInput,
+  Subject,
+} from '../types'
 
 interface DataValue {
   subjects: Subject[]
@@ -19,6 +29,7 @@ interface DataValue {
   blocks: StudyBlock[]
   grades: Grade[]
   gradesMissing: boolean // true, solange 002_grades.sql nicht ausgeführt wurde
+  attachments: Attachment[]
   loading: boolean // true nur beim allerersten Laden ohne Cache
   error: string | null // letzter Ladefehler
   lastSync: string | null // Zeitpunkt der letzten erfolgreichen Synchronisation
@@ -26,10 +37,20 @@ interface DataValue {
   subjectById: Map<string, Subject>
   entryById: Map<string, Entry>
   blocksByEntry: Map<string, StudyBlock[]>
+  attachmentsByEntry: Map<string, Attachment[]>
+  gradeByEntry: Map<string, Grade> // verknüpfte Note eines Tests
   reload: () => Promise<void>
-  saveEntry: (id: string | null, input: EntryInput, blocks: StudyBlockInput[]) => Promise<void>
+  saveEntry: (
+    id: string | null,
+    input: EntryInput,
+    blocks: StudyBlockInput[],
+    attachments?: { added: PendingAttachment[]; removed: Attachment[] },
+  ) => Promise<void>
   deleteEntry: (id: string) => Promise<void>
-  restoreEntry: (entry: Entry, blocks: StudyBlock[]) => Promise<void>
+  restoreEntry: (entry: Entry, blocks: StudyBlock[], attachments: Attachment[], linkedGradeIds: string[]) => Promise<void>
+  /** Dateien endgültig aus dem Speicher löschen (nach Ablauf von "Rückgängig") */
+  purgeAttachmentFiles: (list: Attachment[]) => Promise<void>
+  attachmentUrl: (a: Attachment) => Promise<string>
   setEntryDone: (id: string, done: boolean) => Promise<void>
   setBlockDone: (id: string, done: boolean) => Promise<void>
   saveSubject: (id: string | null, name: string, color: string) => Promise<void>
@@ -48,6 +69,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [blocks, setBlocks] = useState<StudyBlock[]>(cached?.blocks ?? [])
   const [grades, setGrades] = useState<Grade[]>(cached?.grades ?? [])
   const [gradesMissing, setGradesMissing] = useState(cached?.gradesMissing ?? false)
+  const [attachments, setAttachments] = useState<Attachment[]>(cached?.attachments ?? [])
   const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +84,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       setBlocks(data.blocks)
       setGrades(data.grades)
       setGradesMissing(data.gradesMissing)
+      setAttachments(data.attachments)
       setLastSync(savedAt)
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
@@ -102,6 +125,10 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const value = useMemo<DataValue>(() => {
     const blocksByEntry = new Map<string, StudyBlock[]>()
     for (const b of blocks) blocksByEntry.set(b.entry_id, [...(blocksByEntry.get(b.entry_id) ?? []), b])
+    const attachmentsByEntry = new Map<string, Attachment[]>()
+    for (const a of attachments) attachmentsByEntry.set(a.entry_id, [...(attachmentsByEntry.get(a.entry_id) ?? []), a])
+    const gradeByEntry = new Map<string, Grade>()
+    for (const g of grades) if (g.entry_id) gradeByEntry.set(g.entry_id, g)
 
     return {
       subjects,
@@ -109,6 +136,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       blocks,
       grades,
       gradesMissing,
+      attachments,
       loading,
       error,
       lastSync,
@@ -116,11 +144,18 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       subjectById: new Map(subjects.map((s) => [s.id, s])),
       entryById: new Map(entries.map((e) => [e.id, e])),
       blocksByEntry,
+      attachmentsByEntry,
+      gradeByEntry,
       reload,
-      saveEntry: (id, input, newBlocks) =>
-        mutate(() => api.saveEntry(id, input, newBlocks, id ? (blocksByEntry.get(id) ?? []).map((b) => b.id) : [])),
+      saveEntry: (id, input, newBlocks, att) =>
+        mutate(async () => {
+          const previousBlockIds = id ? (blocksByEntry.get(id) ?? []).map((b) => b.id) : []
+          await api.saveEntry(id, input, newBlocks, previousBlockIds, att)
+        }),
       deleteEntry: (id) => mutate(() => api.deleteEntry(id)),
-      restoreEntry: (entry, entryBlocks) => mutate(() => api.restoreEntry(entry, entryBlocks)),
+      restoreEntry: (entry, entryBlocks, att, gradeIds) => mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
+      purgeAttachmentFiles: (list) => api.deleteAttachmentFiles(list),
+      attachmentUrl: (a) => api.attachmentUrl(a),
       setEntryDone: (id, done) => mutate(() => api.setEntryDone(id, done)),
       setBlockDone: (id, done) => mutate(() => api.setBlockDone(id, done)),
       saveSubject: (id, name, color) => mutate(() => api.saveSubject(id, name, color)),
@@ -129,7 +164,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       deleteGrade: (id) => mutate(() => api.deleteGrade(id)),
       restoreGrade: (grade) => mutate(() => api.restoreGrade(grade)),
     }
-  }, [subjects, entries, blocks, grades, gradesMissing, loading, error, lastSync, online, reload, mutate])
+  }, [subjects, entries, blocks, grades, gradesMissing, attachments, loading, error, lastSync, online, reload, mutate])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

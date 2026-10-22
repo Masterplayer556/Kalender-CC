@@ -1,12 +1,13 @@
 // Offline-Zwischenspeicher: Die zuletzt geladenen Daten werden im Browser (localStorage)
 // abgelegt, damit die App sie ohne Internet anzeigen kann.
 
-import type { Entry, Grade, StudyBlock, Subject } from '../types'
+import type { Attachment, Entry, Grade, StudyBlock, Subject } from '../types'
 
 export interface Snapshot {
   subjects: Subject[]
   grades?: Grade[] // optional: ältere Zwischenspeicher haben noch keine Noten
   gradesMissing?: boolean
+  attachments?: Attachment[] // optional: ältere Zwischenspeicher haben noch keine Anhänge
   entries: Entry[]
   blocks: StudyBlock[]
   savedAt: string // ISO-Zeitpunkt des letzten erfolgreichen Ladens

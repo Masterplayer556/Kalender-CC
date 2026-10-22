@@ -4,7 +4,17 @@
 
 import { supabase } from '../lib/supabase'
 import { localToIso } from '../lib/dates'
-import type { Entry, EntryInput, Grade, GradeInput, StudyBlock, StudyBlockInput, Subject } from '../types'
+import type {
+  Attachment,
+  Entry,
+  EntryInput,
+  Grade,
+  GradeInput,
+  PendingAttachment,
+  StudyBlock,
+  StudyBlockInput,
+  Subject,
+} from '../types'
 
 const PAGE_SIZE = 1000 // Supabase liefert pro Abfrage höchstens 1000 Zeilen
 
@@ -25,24 +35,31 @@ async function fetchAll<T>(table: string, orderBy: string): Promise<T[]> {
 }
 
 export async function fetchEverything() {
-  const [subjects, entries, blocks, grades] = await Promise.all([
+  const [subjects, entries, blocks, grades, attachments] = await Promise.all([
     fetchAll<Subject>('subjects', 'name'),
     fetchAll<Entry>('entries', 'date'),
     fetchAll<StudyBlock>('study_blocks', 'starts_at'),
-    fetchGrades(),
+    fetchOptional<Grade>('grades', 'date'),
+    fetchOptional<Attachment>('attachments', 'created_at'),
   ])
-  return { subjects, entries, blocks, grades: grades ?? [], gradesMissing: grades === null }
+  return {
+    subjects,
+    entries,
+    blocks,
+    // Postgres liefert "numeric" je nach Einstellung als Text → sicherheitshalber in Zahlen umwandeln
+    grades: (grades ?? []).map((g) => ({ ...g, grade: Number(g.grade), weight: Number(g.weight), entry_id: g.entry_id ?? null })),
+    gradesMissing: grades === null,
+    attachments: attachments ?? [],
+  }
 }
 
 /**
- * Noten laden. Gibt null zurück, wenn es die Tabelle noch nicht gibt
- * (002_grades.sql noch nicht ausgeführt) – der Rest der App funktioniert dann trotzdem.
+ * Wie fetchAll, gibt aber null zurück, wenn es die Tabelle noch nicht gibt
+ * (Migration noch nicht ausgeführt) – der Rest der App funktioniert dann trotzdem.
  */
-async function fetchGrades(): Promise<Grade[] | null> {
+async function fetchOptional<T>(table: string, orderBy: string): Promise<T[] | null> {
   try {
-    const rows = await fetchAll<Grade>('grades', 'date')
-    // Postgres liefert "numeric" je nach Einstellung als Text → sicherheitshalber in Zahlen umwandeln
-    return rows.map((g) => ({ ...g, grade: Number(g.grade), weight: Number(g.weight) }))
+    return await fetchAll<T>(table, orderBy)
   } catch (err) {
     const code = (err as { code?: string }).code
     if (code === 'PGRST205' || code === '42P01') return null // Tabelle existiert nicht
@@ -55,16 +72,18 @@ async function fetchGrades(): Promise<Grade[] | null> {
 // ---------------------------------------------------------------------
 
 /**
- * Speichert einen Eintrag samt Lernzeiten.
+ * Speichert einen Eintrag samt Lernzeiten und Anhängen.
  * - entryId = null → neuer Eintrag
  * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, entfernte gelöscht.
+ * - Anhänge: neue Dateien werden hochgeladen, neue Links gespeichert, entfernte gelöscht.
  */
 export async function saveEntry(
   entryId: string | null,
   input: EntryInput,
   blocks: StudyBlockInput[],
   previousBlockIds: string[],
-): Promise<void> {
+  attachments: { added: PendingAttachment[]; removed: Attachment[] } = { added: [], removed: [] },
+): Promise<string> {
   // 1. Eintrag speichern und seine id erhalten
   const query = entryId
     ? supabase.from('entries').update(input).eq('id', entryId)
@@ -99,6 +118,80 @@ export async function saveEntry(
     const { error: insError } = await supabase.from('study_blocks').insert(created)
     if (insError) throw insError
   }
+
+  // 4. Anhänge
+  if (attachments.removed.length) await deleteAttachments(attachments.removed)
+  for (const a of attachments.added) await addAttachment(id, a)
+
+  return id
+}
+
+// ---------------------------------------------------------------------
+// Anhänge (Dateien im Supabase-Speicher "attachments", Links nur als Zeile)
+// ---------------------------------------------------------------------
+
+const BUCKET = 'attachments'
+
+/** Dateiname für den Speicher: nur sichere Zeichen, Umlaute werden ersetzt. */
+export function safeFileName(name: string): string {
+  const cleaned = name
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '') // ä → a, é → e
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  return cleaned.slice(-100) || 'datei'
+}
+
+async function addAttachment(entryId: string, a: PendingAttachment): Promise<void> {
+  if (a.kind === 'link') {
+    const { error } = await supabase.from('attachments').insert({ entry_id: entryId, kind: 'link', name: a.name, url: a.url })
+    if (error) throw error
+    return
+  }
+  // Pfad beginnt mit der eigenen user_id – nur dort darf man laut Speicher-Regeln hochladen
+  const { data: auth } = await supabase.auth.getSession()
+  const userId = auth.session?.user.id
+  if (!userId) throw new Error('Nicht angemeldet.')
+  const path = `${userId}/${entryId}/${crypto.randomUUID().slice(0, 8)}-${safeFileName(a.name)}`
+
+  const { error: upError } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, a.file, { contentType: a.file.type || undefined })
+  if (upError) throw upError
+
+  const { error } = await supabase.from('attachments').insert({
+    entry_id: entryId,
+    kind: 'file',
+    name: a.name,
+    storage_path: path,
+    size: a.file.size,
+    mime: a.file.type || null,
+  })
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]) // hochgeladene Datei nicht verwaist liegen lassen
+    throw error
+  }
+}
+
+/** Löscht Anhang-Zeilen und die zugehörigen Dateien. */
+export async function deleteAttachments(list: Attachment[]): Promise<void> {
+  const { error } = await supabase.from('attachments').delete().in('id', list.map((a) => a.id))
+  if (error) throw error
+  await deleteAttachmentFiles(list)
+}
+
+/** Nur die Dateien im Speicher löschen (z. B. wenn das Rückgängig-Fenster abgelaufen ist). */
+export async function deleteAttachmentFiles(list: Attachment[]): Promise<void> {
+  const paths = list.map((a) => a.storage_path).filter((p): p is string => !!p)
+  if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+}
+
+/** Adresse zum Öffnen eines Anhangs. Dateien: zeitlich begrenzter Link (1 Stunde), da der Speicher privat ist. */
+export async function attachmentUrl(a: Attachment): Promise<string> {
+  if (a.kind === 'link') return a.url!
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(a.storage_path!, 60 * 60)
+  if (error) throw error
+  return data.signedUrl
 }
 
 export async function deleteEntry(id: string): Promise<void> {
@@ -111,7 +204,12 @@ export async function deleteEntry(id: string): Promise<void> {
  * Stellt einen gelöschten Eintrag samt Lernzeiten wieder her ("Rückgängig").
  * Gleiche ids wie vorher, damit z. B. eine spätere Verknüpfung (Noten, .ics) wieder passt.
  */
-export async function restoreEntry(entry: Entry, blocks: StudyBlock[]): Promise<void> {
+export async function restoreEntry(
+  entry: Entry,
+  blocks: StudyBlock[],
+  attachments: Attachment[] = [],
+  linkedGradeIds: string[] = [],
+): Promise<void> {
   const row = {
     id: entry.id,
     title: entry.title,
@@ -134,6 +232,22 @@ export async function restoreEntry(entry: Entry, blocks: StudyBlock[]): Promise<
       blocks.map((b) => ({ id: b.id, entry_id: b.entry_id, starts_at: b.starts_at, ends_at: b.ends_at, done: b.done })),
     )
     if (blockError) throw blockError
+  }
+
+  // Anhänge: Die Dateien liegen noch im Speicher (sie werden erst nach dem Rückgängig-Fenster gelöscht)
+  if (attachments.length) {
+    const { error: attError } = await supabase.from('attachments').insert(
+      attachments.map(({ id, entry_id, kind, name, url, storage_path, size, mime, created_at }) => ({
+        id, entry_id, kind, name, url, storage_path, size, mime, created_at,
+      })),
+    )
+    if (attError) throw attError
+  }
+
+  // Verknüpfte Noten wieder mit dem Test verbinden (beim Löschen wurde entry_id auf null gesetzt)
+  if (linkedGradeIds.length) {
+    const { error: gradeError } = await supabase.from('grades').update({ entry_id: entry.id }).in('id', linkedGradeIds)
+    if (gradeError) throw gradeError
   }
 }
 
@@ -189,6 +303,7 @@ export async function restoreGrade(g: Grade): Promise<void> {
     date: g.date,
     grade: g.grade,
     weight: g.weight,
+    entry_id: g.entry_id,
     created_at: g.created_at,
   })
   if (error) throw error

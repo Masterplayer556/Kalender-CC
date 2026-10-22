@@ -8,7 +8,7 @@ import { loadPref, savePref } from '../lib/cache'
 import { formatDate, todayKey } from '../lib/dates'
 import {
   formatGrade,
-  gradeTone,
+  gradeClass,
   requiredGrade,
   roundToHalf,
   semesterOf,
@@ -19,16 +19,10 @@ import type { Grade, Subject } from '../types'
 
 const ALL = 'alle'
 
-const TONE_CLASSES = {
-  good: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
-  ok: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  bad: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
-}
-
 function GradeBadge({ value, big }: { value: number; big?: boolean }) {
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-lg font-bold tabular-nums ${TONE_CLASSES[gradeTone(value)]} ${
+      className={`inline-flex items-center justify-center rounded-lg font-bold tabular-nums ${gradeClass(value)} ${
         big ? 'min-w-12 px-2 py-1 text-lg' : 'min-w-10 px-1.5 py-0.5'
       }`}
     >
@@ -119,7 +113,10 @@ function SubjectCard({
           <li key={g.id}>
             <button className="flex min-h-11 w-full items-center gap-3 py-1 text-left" onClick={() => onOpenGrade({ gradeId: g.id })}>
               <span className="w-24 shrink-0 text-sm text-slate-500 tabular-nums">{formatDate(g.date)}</span>
-              <span className="min-w-0 flex-1 truncate">{g.title}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {g.title}
+                {g.entry_id && <span className="ml-1.5 text-xs" title="Mit Test im Kalender verknüpft">📝</span>}
+              </span>
               {g.weight !== 1 && <span className="text-xs text-slate-500">{formatGrade(g.weight)}×</span>}
               <GradeBadge value={g.grade} />
             </button>

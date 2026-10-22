@@ -1,4 +1,4 @@
-import { addDays, addMonths, formatLongDate, formatMonthYear, formatWeekRange, todayKey } from '../lib/dates'
+import { formatLongDate, formatMonthYear, formatWeekRange, isoWeek } from '../lib/dates'
 import type { Route, ViewName } from '../lib/router'
 import { Icon } from './Icon'
 
@@ -14,19 +14,12 @@ const VIEW_BUTTONS: { view: ViewName; label: string }[] = [
 function periodLabel(route: Route): string {
   switch (route.view) {
     case 'monat': return formatMonthYear(route.date)
-    case 'woche': return formatWeekRange(route.date)
+    case 'woche': return `KW ${isoWeek(route.date)} · ${formatWeekRange(route.date)}`
     case 'tag': return formatLongDate(route.date)
     case 'liste': return 'Als Nächstes'
     case 'noten': return 'Noten'
     case 'faecher': return 'Fächer & Konto'
   }
-}
-
-/** Einen Schritt vor/zurück: ein Monat, eine Woche oder ein Tag */
-function step(route: Route, direction: 1 | -1): string {
-  if (route.view === 'monat') return addMonths(route.date, direction)
-  if (route.view === 'woche') return addDays(route.date, 7 * direction)
-  return addDays(route.date, direction)
 }
 
 export function Header({
@@ -37,6 +30,8 @@ export function Header({
   filtersOpen,
   filterActive,
   onToggleFilters,
+  onStep,
+  onToday,
 }: {
   route: Route
   navigate: (next: Partial<Route>) => void
@@ -45,6 +40,8 @@ export function Header({
   filtersOpen: boolean
   filterActive: boolean
   onToggleFilters: () => void
+  onStep: (direction: 1 | -1) => void // vor/zurück (mit Animation, siehe App)
+  onToday: () => void
 }) {
   const isCalendar = route.view === 'monat' || route.view === 'woche' || route.view === 'tag'
 
@@ -53,13 +50,13 @@ export function Header({
       <div className="flex flex-wrap items-center gap-2">
         {isCalendar && !search && (
           <div className="flex items-center gap-1">
-            <button className="btn-icon" aria-label="Zurück" onClick={() => navigate({ date: step(route, -1) })}>
+            <button className="btn-icon" aria-label="Zurück" onClick={() => onStep(-1)}>
               <Icon name="left" />
             </button>
-            <button className="btn-secondary" onClick={() => navigate({ date: todayKey() })}>
+            <button className="btn-secondary" onClick={onToday}>
               Heute
             </button>
-            <button className="btn-icon" aria-label="Weiter" onClick={() => navigate({ date: step(route, 1) })}>
+            <button className="btn-icon" aria-label="Weiter" onClick={() => onStep(1)}>
               <Icon name="right" />
             </button>
           </div>

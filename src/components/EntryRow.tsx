@@ -3,10 +3,21 @@
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, NO_SUBJECT_COLOR } from '../lib/categories'
 import { addDays, countdown, formatDate, formatTime, formatWeekday, todayKey } from '../lib/dates'
+import { formatGrade, gradeClass } from '../lib/grades'
 import type { Entry } from '../types'
 
-export function EntryRow({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
-  const { subjectById, blocksByEntry, online, setEntryDone } = useData()
+export function EntryRow({
+  entry,
+  onOpen,
+  onEnterGrade,
+}: {
+  entry: Entry
+  onOpen: () => void
+  onEnterGrade?: () => void // zeigt den Knopf "Note eintragen"
+}) {
+  const { subjectById, blocksByEntry, attachmentsByEntry, gradeByEntry, online, setEntryDone } = useData()
+  const grade = gradeByEntry.get(entry.id)
+  const attachmentCount = attachmentsByEntry.get(entry.id)?.length ?? 0
   const subject = entry.subject_id ? subjectById.get(entry.subject_id) : undefined
   const color = subject?.color ?? NO_SUBJECT_COLOR
   const blocks = blocksByEntry.get(entry.id) ?? []
@@ -37,6 +48,11 @@ export function EntryRow({ entry, onOpen }: { entry: Entry; onOpen: () => void }
           <span className={`min-w-0 flex-1 font-medium ${entry.done ? 'text-slate-400 line-through' : ''}`}>
             {CATEGORIES[entry.category].icon} {entry.title}
           </span>
+          {grade && (
+            <span className={`shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-bold tabular-nums ${gradeClass(grade.grade)}`} title="Note">
+              {formatGrade(grade.grade)}
+            </span>
+          )}
           <span
             className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
               urgent
@@ -63,8 +79,14 @@ export function EntryRow({ entry, onOpen }: { entry: Entry; onOpen: () => void }
               📖 {doneBlocks}/{blocks.length} Lernzeiten erledigt
             </span>
           )}
+          {attachmentCount > 0 && <span>📎 {attachmentCount}</span>}
         </div>
       </button>
+      {onEnterGrade && (
+        <button className="btn-secondary my-2 mr-2 shrink-0 self-center text-sm" disabled={!online} onClick={onEnterGrade}>
+          🎓 Note
+        </button>
+      )}
     </li>
   )
 }
