@@ -22,11 +22,25 @@ jobs:
           URL: ${{ secrets.VITE_SUPABASE_URL }}
           KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
+          # Häufige Fehler beim Eintragen der Secrets zuerst prüfen, damit die Meldung klar ist
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::Secret VITE_SUPABASE_URL oder VITE_SUPABASE_ANON_KEY ist leer (nicht unter Repository-Secrets gespeichert?)"
+            exit 1
+          fi
+          if [[ "$URL" =~ [[:space:]] ]]; then
+            echo "::error::VITE_SUPABASE_URL enthält ein Leerzeichen oder einen Zeilenumbruch – Secret neu eintragen"
+            exit 1
+          fi
+          URL="${URL%/}" # Schrägstrich am Ende entfernen
+          # Die URL ist nicht geheim (sie steckt auch in der App), daher darf der Anfang ins Log
+          echo "URL: ${URL:0:30}… (Länge ${#URL})"
+
           # Die Anfrage erreicht die Datenbank. Dass sie als "nicht angemeldet" abgelehnt wird (401),
           # ist gewollt – deine Daten bleiben durch die RLS-Regeln geschützt.
-          status=$(curl -s -o /dev/null -w '%{http_code}' \
+          # "|| true": sonst bricht bash bei einem curl-Fehler ab, bevor wir den Grund ausgeben
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
             -H "apikey: $KEY" \
-            "$URL/rest/v1/subjects?select=id&limit=1")
+            "$URL/rest/v1/subjects?select=id&limit=1") || true
           echo "Antwort von Supabase: $status"
           if [ "$status" = "000" ] || [ "$status" -ge 500 ]; then
             echo "::error::Supabase nicht erreichbar (Projekt pausiert?). Siehe README: 'Supabase-Projekt pausiert?'"
