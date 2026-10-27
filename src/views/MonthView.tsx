@@ -1,10 +1,12 @@
 // Monatsansicht: klassischer Kalender, Woche beginnt am Montag.
+// Ferien & freie Tage erscheinen als farbiges Band über die Tage (Name am Anfang und jeden Montag).
 
 import { useMemo } from 'react'
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, NO_SUBJECT_COLOR } from '../lib/categories'
+import { CATEGORIES, entryColor } from '../lib/categories'
 import { compareEntries } from '../lib/grouping'
-import { isoToLocal, monthGrid, todayKey, type DateKey } from '../lib/dates'
+import { daysBetween, isoToLocal, monthGrid, todayKey, type DateKey } from '../lib/dates'
+import { PERIOD_KINDS, periodsByDay } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
 
 const MAX_VISIBLE = 3 // so viele Einträge pro Tag, danach "+2 weitere"
@@ -21,10 +23,11 @@ export function MonthView({
   blocks: StudyBlock[]
   onOpenDay: (date: DateKey) => void
 }) {
-  const { subjectById } = useData()
+  const { subjectById, periods } = useData()
   const today = todayKey()
   const month = date.slice(0, 7)
   const weeks = monthGrid(date)
+  const periodsOn = useMemo(() => periodsByDay(periods, monthGrid(date).flat()), [periods, date])
 
   // Einträge und Anzahl Lernzeiten pro Tag nachschlagen
   const { entriesByDay, studyByDay } = useMemo(() => {
@@ -51,8 +54,10 @@ export function MonthView({
       </div>
 
       <div className="grid flex-1 grid-cols-7" style={{ gridAutoRows: 'minmax(6rem, 1fr)' }}>
-        {weeks.flat().map((day) => {
+        {weeks.flat().map((day, index) => {
           const dayEntries = entriesByDay.get(day) ?? []
+          const dayPeriods = periodsOn.get(day) ?? []
+          const tint = dayPeriods[0] && PERIOD_KINDS[dayPeriods[0].kind].color
           const studyCount = studyByDay.get(day) ?? 0
           const inMonth = day.startsWith(month)
           const isToday = day === today
@@ -64,6 +69,7 @@ export function MonthView({
               className={`flex min-w-0 flex-col items-stretch gap-0.5 border-r border-b border-slate-200 p-1 text-left hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900 ${
                 inMonth ? '' : 'bg-slate-50/60 text-slate-400 dark:bg-slate-900/40'
               }`}
+              style={tint ? { backgroundColor: `color-mix(in srgb, ${tint} ${inMonth ? 8 : 4}%, transparent)` } : undefined}
             >
               <span
                 className={`mb-0.5 flex h-7 w-7 items-center justify-center self-start rounded-full text-sm font-semibold ${
@@ -72,8 +78,37 @@ export function MonthView({
               >
                 {Number(day.slice(8))}
               </span>
+              {dayPeriods.map((p) => {
+                const meta = PERIOD_KINDS[p.kind]
+                const first = p.start_date === day
+                const last = p.end_date === day
+                // Name am Anfang und an jedem Montag (neue Zeile im Raster). Er darf über die
+                // folgenden Tage derselben Zeile laufen, solange das Band dort weitergeht.
+                const label = first || index % 7 === 0
+                const span = Math.min(daysBetween(day, p.end_date) + 1, 7 - (index % 7))
+                return (
+                  <span
+                    key={p.id}
+                    className={`relative py-px text-[11px] leading-tight font-semibold sm:text-xs ${
+                      first ? 'rounded-l-full pl-1.5' : '-ml-1 pl-1'
+                    } ${last ? 'rounded-r-full pr-1.5' : '-mr-1 pr-1'}`}
+                    style={{ background: `color-mix(in srgb, ${meta.color} 28%, transparent)` }}
+                    title={p.name}
+                  >
+                    {'\u00a0'}
+                    {label && (
+                      <span
+                        className="absolute inset-y-0 left-0 truncate py-px pl-[inherit]"
+                        style={{ width: `calc(${span * 100}% + ${span - 1}px)` }}
+                      >
+                        {meta.icon} {p.name}
+                      </span>
+                    )}
+                  </span>
+                )
+              })}
               {dayEntries.slice(0, MAX_VISIBLE).map((e) => {
-                const color = (e.subject_id && subjectById.get(e.subject_id)?.color) || NO_SUBJECT_COLOR
+                const color = entryColor(e, subjectById)
                 return (
                   <span
                     key={e.id}

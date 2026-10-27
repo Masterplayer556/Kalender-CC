@@ -1,9 +1,10 @@
 // Eine Zeile in der Liste "Als Nächstes" und in den Suchergebnissen.
 
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, NO_SUBJECT_COLOR } from '../lib/categories'
+import { CATEGORIES, entryColor } from '../lib/categories'
 import { addDays, countdown, formatDate, formatTime, formatWeekday, todayKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
+import { canBeOverdue } from '../lib/overdue'
 import type { Entry } from '../types'
 
 export function EntryRow({
@@ -19,14 +20,14 @@ export function EntryRow({
   const grade = gradeByEntry.get(entry.id)
   const attachmentCount = attachmentsByEntry.get(entry.id)?.length ?? 0
   const subject = entry.subject_id ? subjectById.get(entry.subject_id) : undefined
-  const color = subject?.color ?? NO_SUBJECT_COLOR
+  const color = entryColor(entry, subjectById)
   const blocks = blocksByEntry.get(entry.id) ?? []
   const doneBlocks = blocks.filter((b) => b.done).length
   const today = todayKey()
   const when = countdown(today, entry.date)
-  // Rot hervorheben: heute, morgen oder überfällig (vorbei, nicht erledigt, kein Test – wie in overdue.ts)
+  // Rot hervorheben: heute, morgen oder überfällig (vorbei, nicht erledigt – wie in overdue.ts)
   const urgent =
-    !entry.done && entry.date <= addDays(today, 1) && (entry.date >= today || entry.category !== 'test')
+    !entry.done && entry.date <= addDays(today, 1) && (entry.date >= today || canBeOverdue(entry))
 
   return (
     <li

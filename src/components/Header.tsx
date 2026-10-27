@@ -18,7 +18,7 @@ function periodLabel(route: Route): string {
     case 'tag': return formatLongDate(route.date)
     case 'liste': return 'Als Nächstes'
     case 'noten': return 'Noten'
-    case 'faecher': return 'Fächer & Konto'
+    case 'faecher': return 'Fächer, Ferien & Konto'
   }
 }
 
@@ -92,8 +92,8 @@ export function Header({
         </button>
         <button
           className="btn-icon"
-          aria-label="Fächer & Konto"
-          title="Fächer & Konto"
+          aria-label="Fächer, Ferien & Konto"
+          title="Fächer, Ferien & Konto"
           onClick={() => navigate({ view: 'faecher' })}
         >
           <Icon name="tag" />

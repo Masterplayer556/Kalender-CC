@@ -3,16 +3,17 @@
 // Aufbau (ein einziger Scroll-Bereich, damit Kopfzeile und Raster beim Wischen zusammenbleiben):
 //   ┌──────┬────────┬────────┬───
 //   │      │ Mo 19  │ Di 20  │      ← Kopfzeile (bleibt oben kleben)
-//   │ ganz │ 📝 …   │        │      ← ganztägige Einträge
+//   │ ganz │ 🏖️ …   │ 📝 …   │      ← Ferien/freie Tage und ganztägige Einträge
 //   ├──────┼────────┼────────┼───
 //   │ 07:00│ ▓▓▓▓   │ ////   │      ← Einträge (gefüllt) und Lernblöcke (gestreift)
 //   │ 08:00│        │ ─────● │      ← rote Linie = jetzt
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, NO_SUBJECT_COLOR } from '../lib/categories'
+import { CATEGORIES, entryColor } from '../lib/categories'
 import { formatWeekday, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { MINUTES_PER_DAY, clipToDay, layoutDay } from '../lib/layout'
+import { PERIOD_KINDS, periodsByDay } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
 
 const HOUR_HEIGHT = 48 // Pixel pro Stunde
@@ -50,6 +51,7 @@ export function TimeGrid({
   onOpenBlock,
   onCreateAt,
   onOpenDay,
+  onOpenPeriod,
 }: {
   days: DateKey[]
   entries: Entry[] // bereits gefiltert
@@ -58,13 +60,14 @@ export function TimeGrid({
   onOpenBlock: (blockId: string) => void // Lernblock angetippt → Menü zum Abhaken
   onCreateAt: (date: DateKey, time: string) => void
   onOpenDay?: (date: DateKey) => void
+  onOpenPeriod: (periodId: string) => void
 }) {
-  const { subjectById, entryById } = useData()
+  const { subjectById, entryById, periods } = useData()
   const today = todayKey()
   const now = useNowMinutes()
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const colorOf = (e: Entry) => (e.subject_id && subjectById.get(e.subject_id)?.color) || NO_SUBJECT_COLOR
+  const colorOf = (e: Entry) => entryColor(e, subjectById)
 
   // Pro Tag: ganztägige Einträge und platzierte Blöcke berechnen
   const columns = useMemo(
@@ -87,6 +90,7 @@ export function TimeGrid({
       }),
     [days, entries, blocks, entryById],
   )
+  const periodsOn = useMemo(() => periodsByDay(periods, days), [periods, days])
 
   // Beim Öffnen zur aktuellen Uhrzeit (wenn heute sichtbar) bzw. zu 7 Uhr scrollen.
   // Absichtlich nur beim Wechsel des Zeitraums – nicht jede Minute, wenn sich "now" ändert.
@@ -139,6 +143,17 @@ export function TimeGrid({
           </div>
           {columns.map(({ day, allDay }) => (
             <div key={day} className="min-h-9 space-y-1 border-l border-slate-200 p-1 dark:border-slate-800">
+              {(periodsOn.get(day) ?? []).map((p) => (
+                <button
+                  key={p.id}
+                  className="block w-full truncate rounded-full px-2 py-1 text-left text-xs font-semibold"
+                  style={{ background: `color-mix(in srgb, ${PERIOD_KINDS[p.kind].color} 28%, transparent)` }}
+                  title={`${PERIOD_KINDS[p.kind].label}: ${p.name}`}
+                  onClick={() => onOpenPeriod(p.id)}
+                >
+                  {PERIOD_KINDS[p.kind].icon} {p.name}
+                </button>
+              ))}
               {allDay.map((e) => (
                 <button
                   key={e.id}

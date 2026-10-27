@@ -11,6 +11,8 @@ import type {
   Grade,
   GradeInput,
   PendingAttachment,
+  Period,
+  PeriodInput,
   StudyBlock,
   StudyBlockInput,
   Subject,
@@ -35,12 +37,13 @@ async function fetchAll<T>(table: string, orderBy: string): Promise<T[]> {
 }
 
 export async function fetchEverything() {
-  const [subjects, entries, blocks, grades, attachments] = await Promise.all([
+  const [subjects, entries, blocks, grades, attachments, periods] = await Promise.all([
     fetchAll<Subject>('subjects', 'name'),
     fetchAll<Entry>('entries', 'date'),
     fetchAll<StudyBlock>('study_blocks', 'starts_at'),
     fetchOptional<Grade>('grades', 'date'),
     fetchOptional<Attachment>('attachments', 'created_at'),
+    fetchOptional<Period>('periods', 'start_date'),
   ])
   return {
     subjects,
@@ -50,6 +53,8 @@ export async function fetchEverything() {
     grades: (grades ?? []).map((g) => ({ ...g, grade: Number(g.grade), weight: Number(g.weight), entry_id: g.entry_id ?? null })),
     gradesMissing: grades === null,
     attachments: attachments ?? [],
+    periods: periods ?? [],
+    periodsMissing: periods === null,
   }
 }
 
@@ -306,5 +311,28 @@ export async function restoreGrade(g: Grade): Promise<void> {
     entry_id: g.entry_id,
     created_at: g.created_at,
   })
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------
+// Zeiträume (Ferien, schulfreie Tage, Lager)
+// ---------------------------------------------------------------------
+
+export async function savePeriod(id: string | null, input: PeriodInput): Promise<void> {
+  const { error } = id
+    ? await supabase.from('periods').update(input).eq('id', id)
+    : await supabase.from('periods').insert(input)
+  if (error) throw error
+}
+
+export async function deletePeriod(id: string): Promise<void> {
+  const { error } = await supabase.from('periods').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Gelöschten Zeitraum wiederherstellen ("Rückgängig"), mit derselben id. */
+export async function restorePeriod(p: Period): Promise<void> {
+  const { id, name, kind, start_date, end_date, created_at } = p
+  const { error } = await supabase.from('periods').insert({ id, name, kind, start_date, end_date, created_at })
   if (error) throw error
 }

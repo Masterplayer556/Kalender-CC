@@ -1,11 +1,14 @@
-// Fächer verwalten: anlegen, umbenennen, Farbe wählen, löschen.
+// Fächer verwalten (anlegen, umbenennen, Farbe wählen, löschen), Ferien & freie Tage, Konto.
 
 import { useState } from 'react'
 import { useAuth } from '../data/AuthProvider'
 import { useData } from '../data/DataProvider'
 import { Icon } from '../components/Icon'
 import { SUBJECT_PALETTE } from '../lib/categories'
-import type { Subject } from '../types'
+import { countdown, formatDate, formatWeekday, todayKey } from '../lib/dates'
+import { PERIOD_KINDS, comparePeriods, periodLength } from '../lib/periods'
+import type { PeriodRequest } from '../components/PeriodEditor'
+import type { Period, Subject } from '../types'
 
 function ColorPicker({ value, onChange, disabled }: { value: string; onChange: (c: string) => void; disabled?: boolean }) {
   return (
@@ -94,6 +97,97 @@ function SubjectRow({ subject }: { subject: Subject }) {
   )
 }
 
+function PeriodRow({ period, onOpen }: { period: Period; onOpen: () => void }) {
+  const meta = PERIOD_KINDS[period.kind]
+  const today = todayKey()
+  const length = periodLength(period)
+  const when =
+    period.end_date < today ? null : period.start_date <= today ? 'läuft gerade' : countdown(today, period.start_date)
+  return (
+    <li>
+      <button
+        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-200 p-3 text-left dark:border-slate-800"
+        style={{ borderLeft: `6px solid ${meta.color}` }}
+        onClick={onOpen}
+      >
+        <span className="text-xl">{meta.icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{period.name}</span>
+          <span className="block text-sm text-slate-500">
+            {formatWeekday(period.start_date)}, {formatDate(period.start_date)}
+            {length > 1 && ` – ${formatWeekday(period.end_date)}, ${formatDate(period.end_date)}`} · {length}{' '}
+            {length === 1 ? 'Tag' : 'Tage'}
+          </span>
+        </span>
+        {when && (
+          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            {when}
+          </span>
+        )}
+      </button>
+    </li>
+  )
+}
+
+/** Ferien, schulfreie Tage und Lager: kommende zuerst, vergangene aufklappbar. */
+function PeriodsSection({ onOpenPeriod }: { onOpenPeriod: (req: PeriodRequest) => void }) {
+  const { periods, periodsMissing, online } = useData()
+  const [showPast, setShowPast] = useState(false)
+  const today = todayKey()
+  const sorted = [...periods].sort(comparePeriods)
+  const upcoming = sorted.filter((p) => p.end_date >= today)
+  const past = sorted.filter((p) => p.end_date < today).reverse() // zuletzt vergangene zuerst
+
+  return (
+    <section className="space-y-3 border-t border-slate-200 pt-6 dark:border-slate-800">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-semibold">🏖️ Ferien & freie Tage</h2>
+        <button className="btn-primary" disabled={!online || periodsMissing} onClick={() => onOpenPeriod({})}>
+          <Icon name="plus" /> Neu
+        </button>
+      </div>
+
+      {periodsMissing ? (
+        <div className="space-y-1 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+          <p className="font-semibold">Noch nicht eingerichtet</p>
+          <p>
+            Führe im Supabase-Dashboard unter <strong>SQL Editor → New query</strong> den Inhalt der Datei{' '}
+            <code>supabase/migrations/004_events_and_periods.sql</code> aus und lade die App danach neu. Damit
+            funktionieren auch Events.
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-slate-500">
+            Erscheinen als farbiges Band im Kalender. Für Ferien zeigt „Heute“ einen Countdown mit den verbleibenden
+            Schultagen.
+          </p>
+          <ul className="space-y-2">
+            {upcoming.map((p) => (
+              <PeriodRow key={p.id} period={p} onOpen={() => onOpenPeriod({ periodId: p.id })} />
+            ))}
+          </ul>
+          {upcoming.length === 0 && <p className="text-center text-slate-500">Keine kommenden Ferien eingetragen.</p>}
+          {past.length > 0 && (
+            <>
+              <button className="btn-secondary w-full" onClick={() => setShowPast(!showPast)}>
+                {showPast ? 'Vergangene ausblenden' : `Vergangene anzeigen (${past.length})`}
+              </button>
+              {showPast && (
+                <ul className="space-y-2 opacity-70">
+                  {past.map((p) => (
+                    <PeriodRow key={p.id} period={p} onOpen={() => onOpenPeriod({ periodId: p.id })} />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
 /** Konto: wer angemeldet ist + Abmelden. Bewusst hier unten statt in der Kopfzeile,
  *  damit man nicht versehentlich draufkommt – normalerweise bleibt man dauerhaft angemeldet. */
 function AccountSection() {
@@ -111,7 +205,7 @@ function AccountSection() {
   )
 }
 
-export function SubjectsView() {
+export function SubjectsView({ onOpenPeriod }: { onOpenPeriod: (req: PeriodRequest) => void }) {
   const { subjects, online, saveSubject } = useData()
   const [name, setName] = useState('')
   const [color, setColor] = useState(SUBJECT_PALETTE[subjects.length % SUBJECT_PALETTE.length])
@@ -164,6 +258,8 @@ export function SubjectsView() {
           ))}
         </ul>
         {subjects.length === 0 && <p className="text-center text-slate-500">Noch keine Fächer angelegt.</p>}
+
+        <PeriodsSection onOpenPeriod={onOpenPeriod} />
 
         <AccountSection />
       </div>

@@ -19,6 +19,11 @@ const entry = (partial: Partial<Entry>): Entry => ({
 })
 
 describe('Überfällig', () => {
+  it('vergangene Events sind nie überfällig', () => {
+    const list = [entry({ title: 'Konzert', category: 'event', date: '2026-10-10' })]
+    expect(overdueEntries(list, '2026-10-20')).toEqual([])
+  })
+
   const today = '2026-10-20'
   const list = [
     entry({ title: 'heute', date: '2026-10-20' }),

@@ -9,6 +9,7 @@ import { useData } from '../data/DataProvider'
 import { overdueEntries, testsAwaitingGrade } from '../lib/overdue'
 import type { GradeRequest } from '../components/GradeEditor'
 import { TodayPanel } from '../components/TodayPanel'
+import type { PeriodRequest } from '../components/PeriodEditor'
 import type { Entry } from '../types'
 
 export function UpcomingView({
@@ -16,12 +17,14 @@ export function UpcomingView({
   onOpenEntry,
   onOpenGrade,
   onOpenBlock,
+  onOpenPeriod,
   showToday,
 }: {
   entries: Entry[]
   onOpenEntry: (id: string) => void
   onOpenGrade: (req: GradeRequest) => void
   onOpenBlock: (blockId: string) => void
+  onOpenPeriod: (req: PeriodRequest) => void
   showToday: boolean // auf breiten Bildschirmen steht "Heute" schon in der Seitenleiste
 }) {
   const { gradeByEntry, gradesMissing } = useData()
@@ -34,7 +37,7 @@ export function UpcomingView({
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-6 p-3 pb-28">
-        {showToday && <TodayPanel onOpenEntry={onOpenEntry} onOpenBlock={onOpenBlock} />}
+        {showToday && <TodayPanel onOpenEntry={onOpenEntry} onOpenBlock={onOpenBlock} onOpenPeriod={onOpenPeriod} />}
 
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input

@@ -1,6 +1,6 @@
 // Datentypen – entsprechen den Tabellen in supabase/migrations/001_init.sql
 
-export type Category = 'test' | 'aufgabe' | 'sonstiges'
+export type Category = 'test' | 'aufgabe' | 'event' | 'sonstiges'
 
 export interface Subject {
   id: string
@@ -93,4 +93,26 @@ export interface StudyBlockInput {
   start: string // "HH:MM"
   end: string // "HH:MM"
   done: boolean
+}
+
+/** Art eines Zeitraums: Ferien, einzelne schulfreie Tage, Lager/Reise/Projektwoche */
+export type PeriodKind = 'ferien' | 'frei' | 'lager'
+
+/** Zeitraum über mehrere Tage, z. B. "Herbstferien" vom 03.10. bis 18.10. (beide Tage inklusive) */
+export interface Period {
+  id: string
+  user_id: string
+  name: string
+  kind: PeriodKind
+  start_date: string // "JJJJ-MM-TT"
+  end_date: string // "JJJJ-MM-TT", gleich oder nach start_date
+  created_at: string
+}
+
+/** Was das Zeitraum-Formular beim Speichern übergibt. */
+export interface PeriodInput {
+  name: string
+  kind: PeriodKind
+  start_date: string
+  end_date: string
 }

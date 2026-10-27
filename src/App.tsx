@@ -16,6 +16,7 @@ import { EntryEditor, type EditorRequest } from './components/EntryEditor'
 import { Icon } from './components/Icon'
 import { StudyBlockMenu } from './components/StudyBlockMenu'
 import { GradeEditor, type GradeRequest } from './components/GradeEditor'
+import { PeriodEditor, type PeriodRequest } from './components/PeriodEditor'
 import { GradesView } from './views/GradesView'
 import { ToastProvider } from './components/Toast'
 import { TodayPanel } from './components/TodayPanel'
@@ -61,6 +62,7 @@ function Shell() {
   const [editor, setEditor] = useState<EditorRequest | null>(null)
   const [blockMenu, setBlockMenu] = useState<string | null>(null) // id des angetippten Lernblocks
   const [gradeEditor, setGradeEditor] = useState<GradeRequest | null>(null)
+  const [periodEditor, setPeriodEditor] = useState<PeriodRequest | null>(null)
   const onGradesTab = route.view === 'noten' && !search.trim()
   const isCalendar = !search.trim() && (route.view === 'monat' || route.view === 'woche' || route.view === 'tag')
   // iPad im Querformat / Computer: "Heute" als Seitenleiste neben dem Kalender
@@ -133,6 +135,7 @@ function Shell() {
             onOpenBlock={setBlockMenu}
             onCreateAt={createAt}
             onOpenDay={route.view === 'woche' ? openDay : undefined}
+            onOpenPeriod={(periodId) => setPeriodEditor({ periodId })}
           />
         )
       case 'liste':
@@ -142,13 +145,14 @@ function Shell() {
             onOpenEntry={openEntry}
             onOpenGrade={setGradeEditor}
             onOpenBlock={setBlockMenu}
+            onOpenPeriod={setPeriodEditor}
             showToday
           />
         )
       case 'noten':
         return <GradesView onOpenGrade={setGradeEditor} onGoSubjects={() => changeView({ view: 'faecher' })} />
       case 'faecher':
-        return <SubjectsView />
+        return <SubjectsView onOpenPeriod={setPeriodEditor} />
     }
   }
 
@@ -195,7 +199,7 @@ function Shell() {
         </main>
         {wide && isCalendar && !loading && (
           <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 p-3 pb-28 dark:border-slate-800">
-            <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} />
+            <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} onOpenPeriod={setPeriodEditor} />
           </aside>
         )}
       </div>
@@ -225,6 +229,9 @@ function Shell() {
       )}
       {gradeEditor && (
         <GradeEditor key={JSON.stringify(gradeEditor)} request={gradeEditor} onClose={() => setGradeEditor(null)} />
+      )}
+      {periodEditor && (
+        <PeriodEditor key={JSON.stringify(periodEditor)} request={periodEditor} onClose={() => setPeriodEditor(null)} />
       )}
       {blockMenu && (
         <StudyBlockMenu

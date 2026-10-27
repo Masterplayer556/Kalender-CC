@@ -1,4 +1,4 @@
-// Hält alle Fächer, Einträge und Lernzeiten des angemeldeten Benutzers im Speicher
+// Hält alle Fächer, Einträge, Lernzeiten, Noten und Zeiträume des angemeldeten Benutzers im Speicher
 // und stellt Funktionen zum Ändern bereit. Jede Ansicht holt sich die Daten über useData().
 //
 // Ablauf beim Start:
@@ -18,6 +18,8 @@ import type {
   Grade,
   GradeInput,
   PendingAttachment,
+  Period,
+  PeriodInput,
   StudyBlock,
   StudyBlockInput,
   Subject,
@@ -30,6 +32,8 @@ interface DataValue {
   grades: Grade[]
   gradesMissing: boolean // true, solange 002_grades.sql nicht ausgeführt wurde
   attachments: Attachment[]
+  periods: Period[] // Ferien, schulfreie Tage, Lager
+  periodsMissing: boolean // true, solange 004_events_and_periods.sql nicht ausgeführt wurde
   loading: boolean // true nur beim allerersten Laden ohne Cache
   error: string | null // letzter Ladefehler
   lastSync: string | null // Zeitpunkt der letzten erfolgreichen Synchronisation
@@ -58,6 +62,9 @@ interface DataValue {
   saveGrade: (id: string | null, input: GradeInput) => Promise<void>
   deleteGrade: (id: string) => Promise<void>
   restoreGrade: (grade: Grade) => Promise<void>
+  savePeriod: (id: string | null, input: PeriodInput) => Promise<void>
+  deletePeriod: (id: string) => Promise<void>
+  restorePeriod: (period: Period) => Promise<void>
 }
 
 const DataContext = createContext<DataValue | null>(null)
@@ -70,6 +77,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [grades, setGrades] = useState<Grade[]>(cached?.grades ?? [])
   const [gradesMissing, setGradesMissing] = useState(cached?.gradesMissing ?? false)
   const [attachments, setAttachments] = useState<Attachment[]>(cached?.attachments ?? [])
+  const [periods, setPeriods] = useState<Period[]>(cached?.periods ?? [])
+  const [periodsMissing, setPeriodsMissing] = useState(cached?.periodsMissing ?? false)
   const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
@@ -85,6 +94,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       setGrades(data.grades)
       setGradesMissing(data.gradesMissing)
       setAttachments(data.attachments)
+      setPeriods(data.periods)
+      setPeriodsMissing(data.periodsMissing)
       setLastSync(savedAt)
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
@@ -137,6 +148,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       grades,
       gradesMissing,
       attachments,
+      periods,
+      periodsMissing,
       loading,
       error,
       lastSync,
@@ -163,8 +176,11 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       saveGrade: (id, input) => mutate(() => api.saveGrade(id, input)),
       deleteGrade: (id) => mutate(() => api.deleteGrade(id)),
       restoreGrade: (grade) => mutate(() => api.restoreGrade(grade)),
+      savePeriod: (id, input) => mutate(() => api.savePeriod(id, input)),
+      deletePeriod: (id) => mutate(() => api.deletePeriod(id)),
+      restorePeriod: (period) => mutate(() => api.restorePeriod(period)),
     }
-  }, [subjects, entries, blocks, grades, gradesMissing, attachments, loading, error, lastSync, online, reload, mutate])
+  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, loading, error, lastSync, online, reload, mutate])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

@@ -4,14 +4,16 @@ import { addDays, type DateKey } from './dates'
 import { compareEntries } from './grouping'
 import type { Entry } from '../types'
 
-/**
- * Nicht erledigte Aufgaben und Sonstiges aus der Vergangenheit, älteste zuerst.
- * Tests zählen nicht: Ein vergangener Test lässt sich nicht nachholen,
- * er soll die Liste nicht dauerhaft verstopfen.
- */
+/** Kann ein Eintrag überfällig werden? Tests und Events nicht: Sie lassen sich nicht nachholen
+ *  und sollen die Liste nicht dauerhaft verstopfen. */
+export function canBeOverdue(entry: Entry): boolean {
+  return entry.category !== 'test' && entry.category !== 'event'
+}
+
+/** Nicht erledigte Aufgaben und Sonstiges aus der Vergangenheit, älteste zuerst. */
 export function overdueEntries(entries: Entry[], today: DateKey): Entry[] {
   return entries
-    .filter((e) => e.date < today && !e.done && e.category !== 'test')
+    .filter((e) => e.date < today && !e.done && canBeOverdue(e))
     .sort(compareEntries)
 }
 

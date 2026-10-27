@@ -4,9 +4,11 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 
 ## Was die App kann
 
-- **Einträge** anlegen, bearbeiten und löschen: Titel, Kategorie (📝 Test / ✅ Aufgabe / 📌 Sonstiges), Fach, Datum, optional eine Uhrzeit, Notizen und ein Haken „erledigt“
+- **Einträge** anlegen, bearbeiten und löschen: Titel, Kategorie (📝 Test / ✅ Aufgabe / 🎉 Event / 📌 Sonstiges), Fach, Datum, optional eine Uhrzeit, Notizen und ein Haken „erledigt“
 - **Lernzeiten** pro Eintrag, beliebig viele (z. B. Mo 17–20 Uhr, Mi 16–18 Uhr). Sie erscheinen als gestreifte Blöcke „Lernen: …“ im Kalender.
 - **Fächer** mit eigener Farbe (über das Etikett-Symbol oben rechts)
+- **Events** (🎉) für Konzerte, Geburtstage, Schulanlässe … Ohne Fach sind sie pink, und vergangene Events gelten nie als „überfällig“.
+- **Ferien & freie Tage** (Etikett-Symbol oben rechts → „Ferien & freie Tage“): Zeiträume von–bis als 🏖️ Ferien, 🎈 Schulfrei oder 🎒 Lager & Reisen. Sie erscheinen als farbiges Band im Monat und oben in Woche/Tag. Die Heute-Übersicht zeigt einen Countdown bis zu den nächsten Ferien mit den verbleibenden Schultagen.
 - **Ansichten:**
   - Monat (Woche beginnt am Montag)
   - Woche und Tag als Zeitraster von 0 bis 24 Uhr mit roter Linie für die aktuelle Uhrzeit
@@ -38,7 +40,9 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
    - Klicke auf **Create new project** und warte etwa 1–2 Minuten.
 3. **Tabellen anlegen:** Klicke links auf **SQL Editor** und dann auf **New query**. Öffne im Projektordner die Datei `supabase/migrations/001_init.sql`, kopiere den ganzen Inhalt in das Feld und klicke auf **Run**. Unten sollte „Success. No rows returned“ stehen.
    Danach dasselbe mit `supabase/migrations/002_grades.sql` (Noten): wieder **New query**, Inhalt einfügen, **Run**.
-   Zum Schluss `supabase/migrations/003_links_and_files.sql` (Noten mit Tests verknüpfen, Anhänge und Datei-Speicher).
+   Danach `supabase/migrations/003_links_and_files.sql` (Noten mit Tests verknüpfen, Anhänge und Datei-Speicher).
+   Zum Schluss `supabase/migrations/004_events_and_periods.sql` (Kategorie „Event“, Ferien & freie Tage).
+   **Schon eingerichtet?** Dann nur die neueren Dateien ausführen, die noch fehlen. Bestehende Daten bleiben erhalten.
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)
    - **anon / public key**: Steht unter „Legacy API keys“ bzw. als **Publishable key** (`sb_publishable_…`). Beide funktionieren.
@@ -127,6 +131,7 @@ src/
 │  ├─ grouping.ts    Gruppen der Liste „Als Nächstes“
 │  ├─ grades.ts      Notenschnitt, Zeugnisnote, Notenrechner, Semester
 │  ├─ overdue.ts     Gruppen „Überfällig“ und „Note eintragen?“
+│  ├─ periods.ts     Ferien & freie Tage: Arten, Tage nachschlagen, Countdown und Schultage
 │  ├─ files.ts       Anhänge: Symbole, Grössen, Links prüfen
 │  ├─ swipe.ts       Wischgesten erkennen
 │  ├─ filters.ts     Filter und Suche
@@ -143,5 +148,6 @@ tests/                Automatische Tests (npm test)
 
 Häufige Kleinigkeiten:
 - **Symbole der Kategorien ändern:** `src/lib/categories.ts`
+- **Arten und Farben von Ferien & freien Tagen:** `PERIOD_KINDS` in `src/lib/periods.ts`
 - **Höhe einer Stunde im Raster:** `HOUR_HEIGHT` in `src/views/TimeGrid.tsx`
 - **App-Icon neu erzeugen:** Farben in `scripts/generate-icons.mjs` anpassen, dann `npm run icons`

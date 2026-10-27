@@ -212,7 +212,8 @@ export function EntryEditor({
 
         <div>
           <span className="label">Kategorie</span>
-          <div className="segment">
+          {/* Handy: 2×2, damit die vier Kategorien nicht unregelmässig umbrechen */}
+          <div className="segment grid grid-cols-2 sm:inline-flex">
             {CATEGORY_KEYS.map((c) => (
               <button
                 key={c}

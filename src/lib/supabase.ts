@@ -27,6 +27,11 @@ export function friendlyError(err: unknown): string {
   if (/signups not allowed|signup is disabled/i.test(msg)) return 'Neue Konten sind in Supabase deaktiviert.'
   if (/jwt|refresh token|session (missing|expired)/i.test(msg))
     return 'Deine Anmeldung ist abgelaufen. Bitte ab- und wieder anmelden.'
+  if (/entries_category_check/i.test(msg))
+    return 'Für Events braucht die Datenbank ein Update: Führe supabase/migrations/004_events_and_periods.sql im Supabase SQL Editor aus (siehe README).'
+  if (/could not find the table 'public\.periods'/i.test(msg))
+    return 'Für Ferien & freie Tage braucht die Datenbank ein Update: Führe supabase/migrations/004_events_and_periods.sql im Supabase SQL Editor aus (siehe README).'
+  if (/periods_order/i.test(msg)) return 'Das Ende muss am oder nach dem Beginn liegen.'
   if (/grades_entry_unique/i.test(msg)) return 'Dieser Test hat schon eine Note. Bearbeite die bestehende Note.'
   if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) return 'Die Datei ist zu gross (maximal 50 MB).'
   if (/grades_subject_fk/i.test(msg))

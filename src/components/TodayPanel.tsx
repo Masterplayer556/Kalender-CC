@@ -1,22 +1,27 @@
-// "Heute"-Übersicht: was heute ansteht, die heutigen Lernzeiten und der nächste Test.
+// "Heute"-Übersicht: was heute ansteht, die heutigen Lernzeiten, der nächste Test und der Ferien-Countdown.
 // Erscheint oben in der Liste und – im iPad-Querformat – als Seitenleiste neben dem Kalender.
 
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, NO_SUBJECT_COLOR } from '../lib/categories'
+import { CATEGORIES, entryColor } from '../lib/categories'
 import { countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey } from '../lib/dates'
 import { compareEntries } from '../lib/grouping'
+import { PERIOD_KINDS, holidayStatus } from '../lib/periods'
+import type { PeriodRequest } from './PeriodEditor'
+import type { Entry } from '../types'
 
 export function TodayPanel({
   onOpenEntry,
   onOpenBlock,
+  onOpenPeriod,
 }: {
   onOpenEntry: (id: string) => void
   onOpenBlock: (blockId: string) => void
+  onOpenPeriod: (req: PeriodRequest) => void
 }) {
-  const { entries, blocks, entryById, subjectById, blocksByEntry } = useData()
+  const { entries, blocks, entryById, subjectById, blocksByEntry, periods, periodsMissing } = useData()
   const today = todayKey()
   const now = new Date().toISOString()
-  const colorOf = (subjectId: string | null) => (subjectId && subjectById.get(subjectId)?.color) || NO_SUBJECT_COLOR
+  const colorOf = (e: Entry) => entryColor(e, subjectById)
 
   const todayEntries = entries.filter((e) => e.date === today).sort(compareEntries)
   const todayBlocks = blocks
@@ -35,6 +40,7 @@ export function TodayPanel({
         .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0]
 
   const nothingToday = todayEntries.length === 0 && todayBlocks.length === 0
+  const holiday = holidayStatus(periods, today)
 
   return (
     <section className="space-y-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-900">
@@ -44,13 +50,51 @@ export function TodayPanel({
 
       {nothingToday && <p className="text-sm text-slate-500">Heute steht nichts an. 🎉</p>}
 
+      {holiday && (
+        <button
+          className="flex w-full items-center gap-2 rounded-xl p-2 text-left"
+          style={{
+            background: `color-mix(in srgb, ${PERIOD_KINDS.ferien.color} 16%, transparent)`,
+            borderLeft: `4px solid ${PERIOD_KINDS.ferien.color}`,
+          }}
+          onClick={() => onOpenPeriod({ periodId: holiday.period.id })}
+        >
+          <span className="text-2xl">{PERIOD_KINDS.ferien.icon}</span>
+          <span className="min-w-0 flex-1">
+            {holiday.state === 'during' ? (
+              <>
+                <span className="block truncate font-medium">{holiday.period.name} – geniessen!</span>
+                <span className="block text-xs text-slate-600 dark:text-slate-300">
+                  {holiday.daysLeft === 1 ? 'Letzter Tag' : `noch ${holiday.daysLeft} Tage`} · bis{' '}
+                  {formatWeekday(holiday.period.end_date)}, {formatDate(holiday.period.end_date)}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="block truncate font-medium">{holiday.period.name}</span>
+                <span className="block text-xs text-slate-600 dark:text-slate-300">
+                  {countdown(today, holiday.period.start_date)} · noch {holiday.schoolDays}{' '}
+                  {holiday.schoolDays === 1 ? 'Schultag' : 'Schultage'}
+                </span>
+              </>
+            )}
+          </span>
+        </button>
+      )}
+      {/* Noch keine Ferien eingetragen → dezenter Hinweis, wo das geht */}
+      {!holiday && !periodsMissing && (
+        <button className="text-sm text-blue-700 dark:text-blue-300" onClick={() => onOpenPeriod({})}>
+          🏖️ Ferien eintragen, um den Countdown zu sehen →
+        </button>
+      )}
+
       {todayEntries.length > 0 && (
         <ul className="space-y-1">
           {todayEntries.map((e) => (
             <li key={e.id}>
               <button
                 className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-white px-2 text-left shadow-sm dark:bg-slate-800"
-                style={{ borderLeft: `4px solid ${colorOf(e.subject_id)}` }}
+                style={{ borderLeft: `4px solid ${colorOf(e)}` }}
                 onClick={() => onOpenEntry(e.id)}
               >
                 <span>{CATEGORIES[e.category].icon}</span>
@@ -75,7 +119,7 @@ export function TodayPanel({
                   className={`study-stripes flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-2 text-left ${
                     b.done ? 'opacity-50' : ''
                   }`}
-                  style={{ ['--c' as string]: colorOf(entry.subject_id), borderColor: colorOf(entry.subject_id) }}
+                  style={{ ['--c' as string]: colorOf(entry), borderColor: colorOf(entry) }}
                   onClick={() => onOpenBlock(b.id)}
                 >
                   <span>{b.done ? '✅' : past ? '⏰' : '📖'}</span>
@@ -95,7 +139,7 @@ export function TodayPanel({
           {nextTest && (
             <button
               className="rounded-xl bg-white p-2 text-left shadow-sm dark:bg-slate-800"
-              style={{ borderLeft: `4px solid ${colorOf(nextTest.subject_id)}` }}
+              style={{ borderLeft: `4px solid ${colorOf(nextTest)}` }}
               onClick={() => onOpenEntry(nextTest.id)}
             >
               <div className="text-xs text-slate-500">Nächster Test · {countdown(today, nextTest.date)}</div>
