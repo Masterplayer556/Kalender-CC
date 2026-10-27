@@ -23,6 +23,11 @@
   button:not(:disabled) {
     cursor: pointer;
   }
+  button {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
   input, select, textarea {
     font-size: 16px; /* verhindert das automatische Hineinzoomen von Safari */
   }
@@ -33,7 +38,8 @@
 /* Knöpfe: mindestens 44 px hoch (Apple-Empfehlung für Touch) */
 @utility btn {
   @apply inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 font-medium
-    transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+    transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-180 ease-(--ease-out-smooth)
+    disabled:cursor-not-allowed disabled:opacity-40;
 }
 @utility btn-primary {
   @apply btn bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
@@ -113,39 +119,82 @@
 }
 
 /* ---------------------------------------------------------------------
-   Animationen – kurz und dezent. Bei "Bewegung reduzieren" (iPad: Einstellungen →
+   Animationen – kurz, weich und dezent. Alle verwenden dieselbe Kurve: schneller Start,
+   sanftes Auslaufen (wie bei iOS). Bei "Bewegung reduzieren" (iPad: Einstellungen →
    Bedienungshilfen → Bewegung) werden sie ganz abgeschaltet.
    --------------------------------------------------------------------- */
-@keyframes slide-from-right {
-  from { transform: translateX(32px); opacity: 0; }
+:root {
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-smooth: cubic-bezier(0.4, 0, 1, 1);
+  --slide-distance: 14%; /* so weit gleiten die Ansichten beim Vor/Zurück */
 }
-@keyframes slide-from-left {
-  from { transform: translateX(-32px); opacity: 0; }
+
+@keyframes slide-in-next {
+  from { transform: translate3d(var(--slide-distance), 0, 0); opacity: 0; }
+}
+@keyframes slide-in-prev {
+  from { transform: translate3d(calc(-1 * var(--slide-distance)), 0, 0); opacity: 0; }
+}
+/* Die alte Ansicht gleitet von dort weiter, wo der Finger sie losgelassen hat (--from-x) */
+@keyframes slide-out-next {
+  from { transform: translate3d(var(--from-x, 0px), 0, 0); opacity: 1; }
+  to { transform: translate3d(calc(var(--from-x, 0px) - var(--slide-distance)), 0, 0); opacity: 0; }
+}
+@keyframes slide-out-prev {
+  from { transform: translate3d(var(--from-x, 0px), 0, 0); opacity: 1; }
+  to { transform: translate3d(calc(var(--from-x, 0px) + var(--slide-distance)), 0, 0); opacity: 0; }
 }
 @keyframes fade-in {
   from { opacity: 0; }
 }
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+@keyframes rise-in {
+  from { transform: translate3d(0, 6px, 0); opacity: 0; }
+}
 @keyframes sheet-in {
-  from { transform: translateY(24px) scale(0.98); opacity: 0; }
+  from { transform: translate3d(0, 32px, 0) scale(0.97); opacity: 0; }
+}
+@keyframes sheet-out {
+  to { transform: translate3d(0, 20px, 0) scale(0.97); opacity: 0; }
 }
 @keyframes pop-in {
-  from { transform: translateY(12px); opacity: 0; }
+  from { transform: translate3d(0, 16px, 0) scale(0.96); opacity: 0; }
+}
+
+/* Ebenen im Kalenderbereich: alte und neue Ansicht liegen während des Wechsels übereinander.
+   Die neue Ansicht ohne "fill-mode", sonst überschreibt die Animation das Mitziehen beim Wischen. */
+.view-layer {
+  position: absolute;
+  inset: 0;
+}
+.view-leave-next, .view-leave-prev {
+  will-change: transform, opacity;
 }
 
 /* Zeitraum gewechselt (Pfeile, "Heute" oder Wischen) */
-.view-next { animation: slide-from-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-.view-prev { animation: slide-from-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-.view-fade { animation: fade-in 180ms ease-out; }
-/* Dialoge: Hintergrund blendet ein, Fenster gleitet hoch */
-.modal-backdrop { animation: fade-in 160ms ease-out; }
-.modal-sheet { animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-/* Meldung unten ("Rückgängig") */
-.toast-in { animation: pop-in 200ms ease-out; }
+.view-next { animation: slide-in-next 380ms var(--ease-out-smooth); }
+.view-prev { animation: slide-in-prev 380ms var(--ease-out-smooth); }
+.view-leave-next { animation: slide-out-next 260ms var(--ease-out-smooth) forwards; }
+.view-leave-prev { animation: slide-out-prev 260ms var(--ease-out-smooth) forwards; }
+/* Andere Ansicht (Monat → Woche, Noten, Suche …) */
+.view-fade { animation: rise-in 260ms var(--ease-out-smooth); }
+/* Titel oben wechselt */
+.title-in { animation: rise-in 240ms var(--ease-out-smooth); }
 
-/* Knöpfe geben beim Antippen kurz nach */
+/* Dialoge: Hintergrund blendet ein, Fenster gleitet hoch – beim Schliessen umgekehrt */
+.modal-backdrop { animation: fade-in 220ms ease-out; }
+.modal-sheet { animation: sheet-in 340ms var(--ease-out-smooth); }
+.modal-closing { animation: fade-out 180ms var(--ease-in-smooth) forwards; }
+.modal-closing .modal-sheet { animation: sheet-out 180ms var(--ease-in-smooth) forwards; }
+/* Meldung unten ("Rückgängig") */
+.toast-in { animation: pop-in 360ms var(--ease-out-smooth); }
+
+/* Knöpfe geben beim Antippen kurz nach und federn weich zurück (Übergang: siehe button in @layer base / btn) */
 button:not(:disabled):active {
-  transform: scale(0.97);
-  transition: transform 80ms;
+  transform: scale(0.96);
+  transition-duration: 60ms;
 }
 
 @media (prefers-reduced-motion: reduce) {

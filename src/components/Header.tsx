@@ -44,6 +44,7 @@ export function Header({
   onToday: () => void
 }) {
   const isCalendar = route.view === 'monat' || route.view === 'woche' || route.view === 'tag'
+  const title = search ? 'Suche' : periodLabel(route)
 
   return (
     <header className="space-y-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
@@ -61,8 +62,9 @@ export function Header({
             </button>
           </div>
         )}
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold sm:text-xl">
-          {search ? 'Suche' : periodLabel(route)}
+        {/* key: neuer Titel → kurz einblenden */}
+        <h1 key={title} className="title-in min-w-0 flex-1 truncate text-lg font-semibold sm:text-xl">
+          {title}
         </h1>
 
         <div className="relative">

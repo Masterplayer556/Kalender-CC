@@ -1,7 +1,7 @@
 // Oberste Ebene der App:
 //   App → (Einrichtung fehlt?) → AuthProvider → (angemeldet?) → DataProvider → ToastProvider → Shell (Ansichten)
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AuthProvider, useAuth } from './data/AuthProvider'
 import { DataProvider, useData } from './data/DataProvider'
 import { supabaseConfigured } from './lib/supabase'
@@ -66,21 +66,36 @@ function Shell() {
   // iPad im Querformat / Computer: "Heute" als Seitenleiste neben dem Kalender
   const wide = useMediaQuery('(min-width: 1100px)')
 
-  // Animation beim Wechsel: vorwärts gleitet von rechts herein, rückwärts von links, sonst Einblenden
+  // Animation beim Wechsel: vorwärts gleitet von rechts herein, rückwärts von links, sonst Einblenden.
+  // Beim Vor/Zurück bleibt die alte Ansicht kurz stehen (`leaving`) und gleitet zur anderen Seite hinaus.
   const [animation, setAnimation] = useState<'view-next' | 'view-prev' | 'view-fade'>('view-fade')
+  const [leaving, setLeaving] = useState<{ key: string; route: Route; dir: 1 | -1; offset: number } | null>(null)
+  const viewKey = `${search ? 'suche' : route.view}-${route.date}`
+
   const changeView = (next: Partial<Route>) => {
     setAnimation('view-fade')
+    setLeaving(null)
     navigate(next)
   }
-  const goStep = (direction: 1 | -1) => {
+  /** offset: wie weit die Ansicht beim Wischen schon verschoben war (0 bei den Pfeilen) */
+  const slideTo = (date: string, direction: 1 | -1, offset = 0) => {
     setAnimation(direction === 1 ? 'view-next' : 'view-prev')
-    navigate({ date: stepDate(route, direction) })
+    setLeaving({ key: viewKey, route, dir: direction, offset })
+    navigate({ date })
   }
+  const goStep = (direction: 1 | -1, offset = 0) => slideTo(stepDate(route, direction), direction, offset)
   const goToday = () => {
     const today = todayKey()
-    setAnimation(today > route.date ? 'view-next' : today < route.date ? 'view-prev' : 'view-fade')
-    navigate({ date: today })
+    if (today === route.date) return
+    slideTo(today, today > route.date ? 1 : -1)
   }
+
+  // Sicherheitsnetz: falls animationend nie kommt (z. B. "Bewegung reduzieren"), die alte Ansicht trotzdem entfernen
+  useEffect(() => {
+    if (!leaving) return
+    const timer = setTimeout(() => setLeaving(null), 600)
+    return () => clearTimeout(timer)
+  }, [leaving])
 
   // Wischen im Kalender = vor/zurück
   const mainRef = useRef<HTMLElement>(null)
@@ -102,7 +117,7 @@ function Shell() {
   const openDay = (date: string) => changeView({ view: 'tag', date })
   const createAt = (date: string, time?: string) => online && setEditor({ date, time })
 
-  function renderView() {
+  function renderView(route: Route) {
     if (search.trim()) return <SearchView query={search} entries={visibleEntries} onOpenEntry={openEntry} />
     switch (route.view) {
       case 'monat':
@@ -158,10 +173,24 @@ function Shell() {
           {loading ? (
             <p className="p-6 text-center text-slate-500">Lädt Einträge …</p>
           ) : (
-            // key: Bei jedem Wechsel neu aufbauen → die Animation spielt ab
-            <div key={`${search ? 'suche' : route.view}-${route.date}`} className={`h-full ${animation}`}>
-              {renderView()}
-            </div>
+            // Als Liste mit key: React behält die alte Ansicht (samt Scroll-Position) als `leaving`,
+            // die neue wird frisch aufgebaut → beide Animationen laufen gleichzeitig.
+            [
+              leaving && leaving.key !== viewKey && (
+                <div
+                  key={leaving.key}
+                  aria-hidden
+                  className={`view-layer pointer-events-none ${leaving.dir === 1 ? 'view-leave-next' : 'view-leave-prev'}`}
+                  style={{ '--from-x': `${leaving.offset}px` } as CSSProperties}
+                  onAnimationEnd={(e) => e.target === e.currentTarget && setLeaving(null)}
+                >
+                  {renderView(leaving.route)}
+                </div>
+              ),
+              <div key={viewKey} data-view-current className={`view-layer ${animation}`}>
+                {renderView(route)}
+              </div>,
+            ]
           )}
         </main>
         {wide && isCalendar && !loading && (
