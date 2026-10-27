@@ -77,3 +77,34 @@ export function layoutDay<T extends Span>(items: T[], minDuration = 20): Positio
   closeGroup()
   return result
 }
+
+// ---------------------------------------------------------------------
+// Bänder über mehrere Tage in der Monatsansicht (Ferien, mehrtägige Events)
+// ---------------------------------------------------------------------
+
+/**
+ * Verteilt Bänder einer Kalenderzeile (Woche) auf feste Spuren, damit ein Band an allen
+ * seinen Tagen auf derselben Höhe liegt. Ergebnis: pro Tag die Spuren von oben nach unten;
+ * null = Spur an diesem Tag frei (Platzhalter), damit die Bänder darunter nicht hochrutschen.
+ * Bei gleichem Beginn kommt das längere Band nach oben; sonst bleibt die Reihenfolge von `items`.
+ */
+export function bandLanes<T extends { start: DateKey; end: DateKey }>(items: T[], days: DateKey[]): (T | null)[][] {
+  const first = days[0]
+  const last = days[days.length - 1]
+  const inRow = items
+    .filter((it) => it.start <= last && it.end >= first)
+    .sort((a, b) => a.start.localeCompare(b.start) || b.end.localeCompare(a.end))
+  const laneEnds: DateKey[] = [] // letzter Tag des untersten Bands pro Spur
+  const laneOf = new Map<T, number>()
+  for (const it of inRow) {
+    let lane = laneEnds.findIndex((end) => end < it.start)
+    if (lane === -1) lane = laneEnds.length
+    laneEnds[lane] = it.end
+    laneOf.set(it, lane)
+  }
+  return days.map((day) => {
+    const row: (T | null)[] = []
+    for (const it of inRow) if (it.start <= day && day <= it.end) row[laneOf.get(it)!] = it
+    return Array.from(row, (it) => it ?? null) // Lücken (sparse array) als null
+  })
+}

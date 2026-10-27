@@ -7,7 +7,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Einträge** anlegen, bearbeiten und löschen: Titel, Kategorie (📝 Test / ✅ Aufgabe / 🎉 Event / 📌 Sonstiges), Fach, Datum, optional eine Uhrzeit, Notizen und ein Haken „erledigt“
 - **Lernzeiten** pro Eintrag, beliebig viele (z. B. Mo 17–20 Uhr, Mi 16–18 Uhr). Sie erscheinen als gestreifte Blöcke „Lernen: …“ im Kalender.
 - **Fächer** mit eigener Farbe (über das Etikett-Symbol oben rechts)
-- **Events** (🎉) für Konzerte, Geburtstage, Schulanlässe … Ohne Fach sind sie pink, und vergangene Events gelten nie als „überfällig“.
+- **Events** (🎉) für Schulanlässe, Exkursionen, Aufführungen … Ohne Fach sind sie pink, und vergangene Events gelten nie als „überfällig“. Mit „mehrtägig“ dauert ein Event mehrere Tage (ganztägig) und erscheint im Monat als durchgehendes Band.
 - **Ferien & freie Tage** (Etikett-Symbol oben rechts → „Ferien & freie Tage“): Zeiträume von–bis als 🏖️ Ferien, 🎈 Schulfrei oder 🎒 Lager & Reisen. Sie erscheinen als farbiges Band im Monat und oben in Woche/Tag. Die Heute-Übersicht zeigt einen Countdown bis zu den nächsten Ferien mit den verbleibenden Schultagen.
 - **Ansichten:**
   - Monat (Woche beginnt am Montag)
@@ -41,7 +41,8 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 3. **Tabellen anlegen:** Klicke links auf **SQL Editor** und dann auf **New query**. Öffne im Projektordner die Datei `supabase/migrations/001_init.sql`, kopiere den ganzen Inhalt in das Feld und klicke auf **Run**. Unten sollte „Success. No rows returned“ stehen.
    Danach dasselbe mit `supabase/migrations/002_grades.sql` (Noten): wieder **New query**, Inhalt einfügen, **Run**.
    Danach `supabase/migrations/003_links_and_files.sql` (Noten mit Tests verknüpfen, Anhänge und Datei-Speicher).
-   Zum Schluss `supabase/migrations/004_events_and_periods.sql` (Kategorie „Event“, Ferien & freie Tage).
+   Danach `supabase/migrations/004_events_and_periods.sql` (Kategorie „Event“, Ferien & freie Tage).
+   Zum Schluss `supabase/migrations/005_multiday_events.sql` (Events über mehrere Tage).
    **Schon eingerichtet?** Dann nur die neueren Dateien ausführen, die noch fehlen. Bestehende Daten bleiben erhalten.
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)

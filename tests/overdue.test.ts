@@ -9,6 +9,7 @@ const entry = (partial: Partial<Entry>): Entry => ({
   category: 'aufgabe',
   subject_id: null,
   date: '2026-10-20',
+  end_date: null,
   start_time: null,
   end_time: null,
   notes: null,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clipToDay, layoutDay } from '../src/lib/layout'
+import { bandLanes, clipToDay, layoutDay } from '../src/lib/layout'
 
 const at = (iso: string) => new Date(iso) // ohne "Z" = lokale Zeit (Europe/Zurich)
 
@@ -75,5 +75,33 @@ describe('layoutDay: überlappende Blöcke nebeneinander', () => {
       { id: 'a', start: 600, end: 605 },
       { id: 'b', start: 605, end: 610 },
     ])).toEqual({ a: [0, 2], b: [1, 2] })
+  })
+})
+
+describe('Bänder in der Monatsansicht', () => {
+  const week = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01']
+  const band = (name: string, start: string, end: string) => ({ name, start, end })
+  const names = (rows: ({ name: string } | null)[][]) => rows.map((r) => r.map((b) => b?.name ?? '-').join(','))
+
+  it('ein Band bleibt an allen Tagen auf derselben Höhe', () => {
+    const theater = band('Theater', '2026-10-29', '2026-11-03')
+    const frei = band('Frei', '2026-10-30', '2026-10-30')
+    expect(names(bandLanes([frei, theater], week))).toEqual(['', '', '', 'Theater', 'Theater,Frei', 'Theater', 'Theater'])
+  })
+
+  it('freie Spur oben bleibt als Platzhalter stehen', () => {
+    const a = band('A', '2026-10-26', '2026-10-27')
+    const b = band('B', '2026-10-26', '2026-10-28')
+    // B ist länger → oben; A darunter. Am 28. ist nur noch B da.
+    expect(names(bandLanes([a, b], week)).slice(0, 3)).toEqual(['B,A', 'B,A', 'B'])
+    const c = band('C', '2026-10-27', '2026-10-29')
+    // C passt in keine Spur, die am 27. frei ist → dritte Spur; am 29. stehen zwei Platzhalter darüber
+    expect(names(bandLanes([a, b, c], week)).slice(1, 4)).toEqual(['B,A,C', 'B,-,C', '-,-,C'])
+  })
+
+  it('Spur wird wieder frei, wenn das Band davor geendet hat', () => {
+    const a = band('A', '2026-10-26', '2026-10-27')
+    const b = band('B', '2026-10-29', '2026-10-30')
+    expect(names(bandLanes([a, b], week)).slice(0, 5)).toEqual(['A', 'A', '', 'B', 'B'])
   })
 })

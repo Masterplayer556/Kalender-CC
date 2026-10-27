@@ -221,6 +221,7 @@ export async function restoreEntry(
     category: entry.category,
     subject_id: entry.subject_id,
     date: entry.date,
+    end_date: entry.end_date ?? null,
     start_time: entry.start_time,
     end_time: entry.end_time,
     notes: entry.notes,

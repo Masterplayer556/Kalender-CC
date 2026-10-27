@@ -4,7 +4,7 @@
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey } from '../lib/dates'
-import { compareEntries } from '../lib/grouping'
+import { compareEntries, entryCovers } from '../lib/grouping'
 import { PERIOD_KINDS, holidayStatus } from '../lib/periods'
 import type { PeriodRequest } from './PeriodEditor'
 import type { Entry } from '../types'
@@ -23,7 +23,7 @@ export function TodayPanel({
   const now = new Date().toISOString()
   const colorOf = (e: Entry) => entryColor(e, subjectById)
 
-  const todayEntries = entries.filter((e) => e.date === today).sort(compareEntries)
+  const todayEntries = entries.filter((e) => entryCovers(e, today)).sort(compareEntries)
   const todayBlocks = blocks
     .filter((b) => isoToLocal(b.starts_at).date === today && entryById.has(b.entry_id))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, CATEGORY_KEYS } from '../lib/categories'
-import { formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
+import { addDays, daysBetween, formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
 import type { Attachment, Category, PendingAttachment, StudyBlockInput } from '../types'
 import { AttachmentsEditor } from './AttachmentsEditor'
@@ -54,6 +54,10 @@ export function EntryEditor({
   const [subjectId, setSubjectId] = useState(existing?.subject_id ?? '')
   const [date, setDate] = useState<DateKey>(existing?.date ?? request.date ?? todayKey())
   const [hasTime, setHasTime] = useState(Boolean(existing ? existing.start_time : request.time))
+  // Mehrtägig (nur bei Events): dann ganztägig, mit letztem Tag
+  const [multiDay, setMultiDay] = useState(Boolean(existing?.end_date))
+  const [endDate, setEndDate] = useState<DateKey>(existing?.end_date ?? addDays(existing?.date ?? request.date ?? todayKey(), 2))
+  const isMultiDay = category === 'event' && multiDay
   const [start, setStart] = useState(initialStart)
   const [end, setEnd] = useState(
     existing?.end_time ? formatTime(existing.end_time) : minutesToTime(Math.min(timeToMinutes(initialStart) + 60, 1435)),
@@ -75,11 +79,18 @@ export function EntryEditor({
 
   const readOnly = !online || saving
 
+  /** Erster Tag verschoben: Bei mehrtägigen bleibt die Dauer gleich, das Ende wandert mit. */
+  function changeDate(next: DateKey) {
+    if (endDate > date) setEndDate(addDays(next, daysBetween(date, endDate)))
+    setDate(next)
+  }
+
   /** Prüft die Eingaben; gibt eine Fehlermeldung zurück oder null. */
   function validate(): string | null {
     if (!title.trim()) return 'Bitte gib einen Titel ein.'
     if (!date) return 'Bitte wähle ein Datum.'
-    if (hasTime && timeToMinutes(end) <= timeToMinutes(start)) return 'Die Endzeit muss nach der Startzeit liegen.'
+    if (isMultiDay && endDate <= date) return 'Der letzte Tag muss nach dem ersten liegen.'
+    if (!isMultiDay && hasTime && timeToMinutes(end) <= timeToMinutes(start)) return 'Die Endzeit muss nach der Startzeit liegen.'
     if (blocks.some((b) => timeToMinutes(b.end) <= timeToMinutes(b.start)))
       return 'Bei einer Lernzeit liegt das Ende vor dem Start.'
     return null
@@ -99,8 +110,9 @@ export function EntryEditor({
           category,
           subject_id: subjectId || null,
           date,
-          start_time: hasTime ? start : null,
-          end_time: hasTime ? end : null,
+          end_date: isMultiDay ? endDate : null,
+          start_time: hasTime && !isMultiDay ? start : null,
+          end_time: hasTime && !isMultiDay ? end : null,
           notes: notes.trim() || null,
           done,
         },
@@ -247,19 +259,49 @@ export function EntryEditor({
             </select>
           </div>
           <div>
-            <label className="label" htmlFor="date">Datum</label>
+            <label className="label" htmlFor="date">{isMultiDay ? 'Von' : 'Datum'}</label>
             <input
               id="date"
               type="date"
               className="input"
               value={date}
               disabled={readOnly}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
+              onChange={(e) => e.target.value && changeDate(e.target.value)}
             />
           </div>
+          {isMultiDay && (
+            <div className="sm:col-start-2">
+              <label className="label" htmlFor="end-date">Bis (inklusive)</label>
+              <input
+                id="end-date"
+                type="date"
+                className="input"
+                value={endDate}
+                min={addDays(date, 1)}
+                disabled={readOnly}
+                onChange={(e) => e.target.value && setEndDate(e.target.value)}
+              />
+            </div>
+          )}
         </div>
 
-        <div>
+        {category === 'event' && (
+          <label className="flex min-h-11 items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={multiDay}
+              disabled={readOnly}
+              onChange={(e) => setMultiDay(e.target.checked)}
+            />
+            mehrtägig
+            {isMultiDay && endDate > date && (
+              <span className="text-sm text-slate-500">· {daysBetween(date, endDate) + 1} Tage, ganztägig</span>
+            )}
+          </label>
+        )}
+
+        <div className={isMultiDay ? 'hidden' : ''}>
           <label className="flex min-h-11 items-center gap-2">
             <input
               type="checkbox"

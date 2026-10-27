@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { matchesFilters, matchesSearch, NO_SUBJECT } from '../src/lib/filters'
-import { compareEntries, groupFor, groupUpcoming } from '../src/lib/grouping'
+import { compareEntries, entryCovers, groupFor, groupUpcoming } from '../src/lib/grouping'
 import type { Entry } from '../src/types'
 
 function entry(partial: Partial<Entry>): Entry {
@@ -11,6 +11,7 @@ function entry(partial: Partial<Entry>): Entry {
     category: 'test',
     subject_id: null,
     date: '2026-10-20',
+    end_date: null,
     start_time: null,
     end_time: null,
     notes: null,
@@ -69,6 +70,18 @@ describe('Liste "Als Nächstes"', () => {
       groupUpcoming(list, '2026-10-20', showDone).flatMap((g) => g.entries.map((e) => e.title))
     expect(titles(false)).toEqual(['offen'])
     expect(titles(true)).toEqual(['offen', 'erledigt'])
+  })
+  it('mehrtägiges Event, das noch läuft, steht unter "Heute"', () => {
+    const lager = entry({ title: 'Musiklager', category: 'event', date: '2026-10-18', end_date: '2026-10-21' })
+    const vorbei = entry({ title: 'vorbei', category: 'event', date: '2026-10-16', end_date: '2026-10-19' })
+    expect(groupUpcoming([lager, vorbei], '2026-10-20', false)).toEqual([{ group: 'Heute', entries: [lager] }])
+  })
+  it('entryCovers: an jedem Tag von Beginn bis Ende', () => {
+    const e = entry({ date: '2026-10-23', end_date: '2026-10-25' })
+    expect(['2026-10-22', '2026-10-23', '2026-10-25', '2026-10-26'].map((d) => entryCovers(e, d))).toEqual([
+      false, true, true, false,
+    ])
+    expect(entryCovers(entry({ date: '2026-10-23' }), '2026-10-23')).toBe(true)
   })
 })
 

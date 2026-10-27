@@ -16,6 +16,7 @@ export interface Entry {
   category: Category
   subject_id: string | null
   date: string // "JJJJ-MM-TT"
+  end_date: string | null // letzter Tag bei mehrtägigen Einträgen (dann ganztägig), sonst null
   start_time: string | null // "HH:MM:SS" (so liefert Postgres den Typ "time")
   end_time: string | null
   notes: string | null
@@ -80,6 +81,7 @@ export interface EntryInput {
   category: Category
   subject_id: string | null
   date: string
+  end_date: string | null
   start_time: string | null // "HH:MM"
   end_time: string | null
   notes: string | null

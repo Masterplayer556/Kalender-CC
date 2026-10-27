@@ -31,6 +31,9 @@ export function friendlyError(err: unknown): string {
     return 'Für Events braucht die Datenbank ein Update: Führe supabase/migrations/004_events_and_periods.sql im Supabase SQL Editor aus (siehe README).'
   if (/could not find the table 'public\.periods'/i.test(msg))
     return 'Für Ferien & freie Tage braucht die Datenbank ein Update: Führe supabase/migrations/004_events_and_periods.sql im Supabase SQL Editor aus (siehe README).'
+  if (/column "?end_date"? .*entries|entries.*end_date/i.test(msg))
+    return 'Für mehrtägige Events braucht die Datenbank ein Update: Führe supabase/migrations/005_multiday_events.sql im Supabase SQL Editor aus (siehe README).'
+  if (/entries_end_date_order/i.test(msg)) return 'Der letzte Tag muss nach dem ersten liegen.'
   if (/periods_order/i.test(msg)) return 'Das Ende muss am oder nach dem Beginn liegen.'
   if (/grades_entry_unique/i.test(msg)) return 'Dieser Test hat schon eine Note. Bearbeite die bestehende Note.'
   if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) return 'Die Datei ist zu gross (maximal 50 MB).'

@@ -4,6 +4,7 @@ import { useData } from '../data/DataProvider'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { addDays, countdown, formatDate, formatTime, formatWeekday, todayKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
+import { entryEnd } from '../lib/grouping'
 import { canBeOverdue } from '../lib/overdue'
 import type { Entry } from '../types'
 
@@ -24,7 +25,8 @@ export function EntryRow({
   const blocks = blocksByEntry.get(entry.id) ?? []
   const doneBlocks = blocks.filter((b) => b.done).length
   const today = todayKey()
-  const when = countdown(today, entry.date)
+  const end = entryEnd(entry)
+  const when = entry.date < today && end >= today ? (end === today ? 'letzter Tag' : 'läuft') : countdown(today, entry.date)
   // Rot hervorheben: heute, morgen oder überfällig (vorbei, nicht erledigt – wie in overdue.ts)
   const urgent =
     !entry.done && entry.date <= addDays(today, 1) && (entry.date >= today || canBeOverdue(entry))
@@ -67,6 +69,7 @@ export function EntryRow({
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
           <span>
             {formatWeekday(entry.date)}, {formatDate(entry.date)}
+            {end !== entry.date && ` – ${formatWeekday(end)}, ${formatDate(end)}`}
             {entry.start_time && `, ${formatTime(entry.start_time)}`}
             {entry.end_time && `–${formatTime(entry.end_time)}`}
           </span>

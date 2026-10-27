@@ -19,6 +19,16 @@ export function groupFor(today: DateKey, date: DateKey): UpcomingGroup {
   return 'Später'
 }
 
+/** Letzter Tag eines Eintrags (bei eintägigen = sein Datum) */
+export function entryEnd(entry: Pick<Entry, 'date' | 'end_date'>): DateKey {
+  return entry.end_date ?? entry.date
+}
+
+/** Findet der Eintrag an diesem Tag statt? (mehrtägige an jedem ihrer Tage) */
+export function entryCovers(entry: Pick<Entry, 'date' | 'end_date'>, day: DateKey): boolean {
+  return entry.date <= day && day <= entryEnd(entry)
+}
+
 /** Sortiert Einträge chronologisch: nach Datum, dann Uhrzeit (ganztägige zuerst), dann Titel. */
 export function compareEntries(a: Entry, b: Entry): number {
   return (
@@ -30,6 +40,7 @@ export function compareEntries(a: Entry, b: Entry): number {
 
 /**
  * Kommende Einträge (ab heute), chronologisch sortiert und gruppiert.
+ * Mehrtägige, die schon begonnen haben und noch laufen, stehen unter "Heute".
  * Leere Gruppen werden weggelassen.
  */
 export function groupUpcoming(
@@ -38,12 +49,12 @@ export function groupUpcoming(
   showDone: boolean,
 ): { group: UpcomingGroup; entries: Entry[] }[] {
   const upcoming = entries
-    .filter((e) => e.date >= today && (showDone || !e.done))
+    .filter((e) => entryEnd(e) >= today && (showDone || !e.done))
     .sort(compareEntries)
 
   const byGroup = new Map<UpcomingGroup, Entry[]>()
   for (const entry of upcoming) {
-    const g = groupFor(today, entry.date)
+    const g = groupFor(today, entry.date < today ? today : entry.date)
     byGroup.set(g, [...(byGroup.get(g) ?? []), entry])
   }
   return GROUP_ORDER.filter((g) => byGroup.has(g)).map((g) => ({ group: g, entries: byGroup.get(g)! }))

@@ -12,6 +12,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent 
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { formatWeekday, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
+import { entryCovers } from '../lib/grouping'
 import { MINUTES_PER_DAY, clipToDay, layoutDay } from '../lib/layout'
 import { PERIOD_KINDS, periodsByDay } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
@@ -73,7 +74,7 @@ export function TimeGrid({
   const columns = useMemo(
     () =>
       days.map((day) => {
-        const allDay = entries.filter((e) => e.date === day && !e.start_time)
+        const allDay = entries.filter((e) => entryCovers(e, day) && !e.start_time)
         const items: GridItem[] = []
         for (const e of entries) {
           if (e.date !== day || !e.start_time) continue
