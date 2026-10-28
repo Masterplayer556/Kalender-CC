@@ -54,7 +54,7 @@ interface DataValue {
   restoreEntry: (entry: Entry, blocks: StudyBlock[], attachments: Attachment[], linkedGradeIds: string[]) => Promise<void>
   /** Dateien endgültig aus dem Speicher löschen (nach Ablauf von "Rückgängig") */
   purgeAttachmentFiles: (list: Attachment[]) => Promise<void>
-  attachmentUrl: (a: Attachment) => Promise<string>
+  attachmentUrls: (list: Attachment[]) => Promise<Map<string, string>>
   setEntryDone: (id: string, done: boolean) => Promise<void>
   setBlockDone: (id: string, done: boolean) => Promise<void>
   saveSubject: (id: string | null, name: string, color: string) => Promise<void>
@@ -168,7 +168,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       deleteEntry: (id) => mutate(() => api.deleteEntry(id)),
       restoreEntry: (entry, entryBlocks, att, gradeIds) => mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
       purgeAttachmentFiles: (list) => api.deleteAttachmentFiles(list),
-      attachmentUrl: (a) => api.attachmentUrl(a),
+      attachmentUrls: (list) => api.attachmentUrls(list),
       setEntryDone: (id, done) => mutate(() => api.setEntryDone(id, done)),
       setBlockDone: (id, done) => mutate(() => api.setBlockDone(id, done)),
       saveSubject: (id, name, color) => mutate(() => api.saveSubject(id, name, color)),

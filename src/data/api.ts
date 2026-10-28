@@ -191,12 +191,30 @@ export async function deleteAttachmentFiles(list: Attachment[]): Promise<void> {
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
 }
 
-/** Adresse zum Öffnen eines Anhangs. Dateien: zeitlich begrenzter Link (1 Stunde), da der Speicher privat ist. */
-export async function attachmentUrl(a: Attachment): Promise<string> {
-  if (a.kind === 'link') return a.url!
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(a.storage_path!, 60 * 60)
-  if (error) throw error
-  return data.signedUrl
+/** So lange gelten die Datei-Links (Sekunden). */
+export const SIGNED_URL_SECONDS = 60 * 60
+
+/**
+ * Adressen zum Öffnen von Anhängen (Anhang-id → Adresse).
+ * Dateien: zeitlich begrenzte Links, da der Speicher privat ist – alle in einer Anfrage.
+ */
+export async function attachmentUrls(list: Attachment[]): Promise<Map<string, string>> {
+  const urls = new Map<string, string>()
+  for (const a of list) if (a.kind === 'link' && a.url) urls.set(a.id, a.url)
+
+  const files = list.filter((a) => a.kind === 'file' && a.storage_path)
+  if (files.length) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrls(files.map((a) => a.storage_path!), SIGNED_URL_SECONDS)
+    if (error) throw error
+    const byPath = new Map(data.map((d) => [d.path, d.signedUrl]))
+    for (const a of files) {
+      const url = byPath.get(a.storage_path!)
+      if (url) urls.set(a.id, url)
+    }
+  }
+  return urls
 }
 
 export async function deleteEntry(id: string): Promise<void> {
