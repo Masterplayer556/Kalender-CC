@@ -4,6 +4,7 @@
 
 import { supabase } from '../lib/supabase'
 import { localToIso } from '../lib/dates'
+import { officeViewerUrl } from '../lib/files'
 import type {
   Attachment,
   Entry,
@@ -197,6 +198,7 @@ export const SIGNED_URL_SECONDS = 60 * 60
 /**
  * Adressen zum Öffnen von Anhängen (Anhang-id → Adresse).
  * Dateien: zeitlich begrenzte Links, da der Speicher privat ist – alle in einer Anfrage.
+ * Word, PowerPoint und Excel laufen über den Office-Viewer (siehe officeViewerUrl).
  */
 export async function attachmentUrls(list: Attachment[]): Promise<Map<string, string>> {
   const urls = new Map<string, string>()
@@ -211,7 +213,7 @@ export async function attachmentUrls(list: Attachment[]): Promise<Map<string, st
     const byPath = new Map(data.map((d) => [d.path, d.signedUrl]))
     for (const a of files) {
       const url = byPath.get(a.storage_path!)
-      if (url) urls.set(a.id, url)
+      if (url) urls.set(a.id, officeViewerUrl(url, a.name, a.size) ?? url)
     }
   }
   return urls

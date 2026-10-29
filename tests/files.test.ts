@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fileIcon, formatSize, linkLabel, normalizeUrl } from '../src/lib/files'
+import { fileIcon, formatSize, linkLabel, normalizeUrl, officeViewerUrl } from '../src/lib/files'
 import { safeFileName } from '../src/data/api'
 
 describe('Anhänge', () => {
@@ -10,6 +10,18 @@ describe('Anhänge', () => {
     expect(fileIcon('IMG_0001.HEIC')).toBe('🖼️')
     expect(fileIcon('irgendwas', 'image/png')).toBe('🖼️')
     expect(fileIcon('archiv.zip')).toBe('📎')
+  })
+
+  it('Office-Dateien über den Office-Viewer', () => {
+    const file = 'https://x.supabase.co/storage/v1/object/sign/attachments/a/b.docx?token=abc&x=1'
+    expect(officeViewerUrl(file, 'Sentence List.DOCX', 32_678)).toBe(
+      `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(file)}`,
+    )
+    expect(officeViewerUrl(file, 'Vortrag.pptx', null)).not.toBeNull()
+    expect(officeViewerUrl(file, 'Lernziele.pdf', 1000)).toBeNull() // PDF öffnet direkt
+    expect(officeViewerUrl(file, 'Foto.jpg', 1000)).toBeNull()
+    expect(officeViewerUrl(file, 'Gross.docx', 11 * 1024 * 1024)).toBeNull() // über 10 MB
+    expect(officeViewerUrl(file, 'Tabelle.xlsx', 6 * 1024 * 1024)).toBeNull() // Excel nur bis 5 MB
   })
 
   it('Grösse lesbar', () => {

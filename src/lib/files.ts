@@ -47,3 +47,21 @@ export function linkLabel(url: string): string {
     return url
   }
 }
+
+// Grenzen des Office-Viewers von Microsoft: Word/PowerPoint bis 10 MB, Excel bis 5 MB
+const OFFICE_VIEWER_LIMITS: Record<string, number> = {
+  doc: 10, docx: 10, ppt: 10, pptx: 10, pps: 10, ppsx: 10, xls: 5, xlsx: 5,
+}
+
+/**
+ * Adresse zum Anzeigen einer Word-, PowerPoint- oder Excel-Datei im Office-Viewer von Microsoft.
+ * Grund: Die Home-Bildschirm-App auf dem iPad öffnet Dateien in einem eingebauten Fenster, das
+ * Office-Dateien weder anzeigen noch herunterladen kann – es bliebe leer. Der Viewer zeigt sie als Webseite.
+ * Gibt null zurück für andere Dateitypen (PDF, Fotos … öffnen direkt) und zu grosse Dateien.
+ */
+export function officeViewerUrl(fileUrl: string, name: string, size: number | null): string | null {
+  const ext = name.toLowerCase().split('.').pop() ?? ''
+  const limitMb = OFFICE_VIEWER_LIMITS[ext]
+  if (!limitMb || (size != null && size > limitMb * 1024 * 1024)) return null
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}`
+}
