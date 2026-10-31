@@ -67,6 +67,8 @@ function Shell() {
   const isCalendar = !search.trim() && (route.view === 'monat' || route.view === 'woche' || route.view === 'tag')
   // iPad im Querformat / Computer: "Heute" als Seitenleiste neben dem Kalender
   const wide = useMediaQuery('(min-width: 1100px)')
+  // iPhone (Hochformat): kompakte Monats- und Wochenansicht
+  const compact = useMediaQuery('(max-width: 639px)')
 
   // Animation beim Wechsel: vorwärts gleitet von rechts herein, rückwärts von links, sonst Einblenden.
   // Beim Vor/Zurück bleibt die alte Ansicht kurz stehen (`leaving`) und gleitet zur anderen Seite hinaus.
@@ -123,7 +125,18 @@ function Shell() {
     if (search.trim()) return <SearchView query={search} entries={visibleEntries} onOpenEntry={openEntry} />
     switch (route.view) {
       case 'monat':
-        return <MonthView date={route.date} entries={visibleEntries} blocks={visibleBlocks} onOpenDay={openDay} />
+        return (
+          <MonthView
+            date={route.date}
+            entries={visibleEntries}
+            blocks={visibleBlocks}
+            onOpenDay={openDay}
+            onOpenEntry={openEntry}
+            onOpenBlock={setBlockMenu}
+            onOpenPeriod={(periodId) => setPeriodEditor({ periodId })}
+            compact={compact}
+          />
+        )
       case 'woche':
       case 'tag':
         return (
@@ -136,6 +149,7 @@ function Shell() {
             onCreateAt={createAt}
             onOpenDay={route.view === 'woche' ? openDay : undefined}
             onOpenPeriod={(periodId) => setPeriodEditor({ periodId })}
+            compact={compact}
           />
         )
       case 'liste':

@@ -87,8 +87,13 @@ export function EntryRow({
         </div>
       </button>
       {onEnterGrade && (
-        <button className="btn-secondary my-2 mr-2 shrink-0 self-center text-sm" disabled={!online} onClick={onEnterGrade}>
-          🎓 Note
+        <button
+          className="btn-secondary my-2 mr-2 shrink-0 self-center px-2.5 text-sm sm:px-4"
+          aria-label="Note eintragen"
+          disabled={!online}
+          onClick={onEnterGrade}
+        >
+          🎓<span className="hidden sm:inline">Note</span>
         </button>
       )}
     </li>

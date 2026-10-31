@@ -53,7 +53,9 @@ export function TimeGrid({
   onCreateAt,
   onOpenDay,
   onOpenPeriod,
+  compact = false,
 }: {
+  compact?: boolean // iPhone: alle Tage passen auf die Breite (kein waagrechtes Scrollen, das das Wischen blockiert)
   days: DateKey[]
   entries: Entry[] // bereits gefiltert
   blocks: StudyBlock[] // bereits gefiltert
@@ -98,7 +100,8 @@ export function TimeGrid({
   const firstDay = days[0]
   useLayoutEffect(() => {
     const target = days.includes(today) ? Math.max(0, now - 60) : 7 * 60
-    scrollRef.current?.scrollTo({ top: target * PX_PER_MIN })
+    // etwas Luft, damit die Stundenzahl oben nicht unter der Kopfzeile verschwindet
+    scrollRef.current?.scrollTo({ top: Math.max(0, target - 15) * PX_PER_MIN })
   }, [firstDay, days.length])
 
   function handleColumnClick(day: DateKey, e: MouseEvent<HTMLDivElement>) {
@@ -107,30 +110,35 @@ export function TimeGrid({
     onCreateAt(day, minutesToTime(Math.min(minutes, MINUTES_PER_DAY - 60)))
   }
 
-  const gridCols = { gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` }
-  const minWidth = days.length > 1 ? 'min-w-[44rem]' : ''
+  // narrow = mehrere Tage auf dem iPhone: schmale Spalten, kleinere Schrift
+  const narrow = compact && days.length > 1
+  const gridCols = { gridTemplateColumns: `${narrow ? '2rem' : '3.5rem'} repeat(${days.length}, minmax(0, 1fr))` }
+  const minWidth = days.length > 1 && !compact ? 'min-w-[44rem]' : ''
 
   return (
-    <div ref={scrollRef} className="h-full overflow-auto">
+    <div ref={scrollRef} className={`h-full overscroll-contain ${compact ? 'overflow-x-hidden overflow-y-auto' : 'overflow-auto'}`}>
       <div className={minWidth}>
         {/* Kopfzeile mit Tagen und ganztägigen Einträgen */}
         <div
           className="sticky top-0 z-20 grid border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
           style={gridCols}
         >
-          <div className="sticky left-0 z-10 bg-white dark:bg-slate-950" />
-          {columns.map(({ day }) => {
+          {/* Tagesansicht auf dem iPhone: Datum steht schon im Titel → Zeile weglassen */}
+          {!(compact && days.length === 1) && <div className="sticky left-0 z-10 bg-white dark:bg-slate-950" />}
+          {!(compact && days.length === 1) && columns.map(({ day }) => {
             const isToday = day === today
             return (
               <button
                 key={day}
-                className="flex min-h-11 items-center justify-center gap-1.5 border-l border-slate-200 py-1 text-sm dark:border-slate-800"
+                className={`flex min-h-11 min-w-0 items-center justify-center border-l border-slate-200 py-1 text-sm dark:border-slate-800 ${
+                  narrow ? 'flex-col gap-0' : 'gap-1.5'
+                }`}
                 disabled={!onOpenDay}
                 onClick={() => onOpenDay?.(day)}
               >
-                <span className="text-slate-500">{formatWeekday(day)}</span>
+                <span className={`text-slate-500 ${narrow ? 'text-[11px] leading-tight' : ''}`}>{formatWeekday(day)}</span>
                 <span
-                  className={`flex h-8 min-w-8 items-center justify-center rounded-full font-semibold ${
+                  className={`flex items-center justify-center rounded-full font-semibold ${narrow ? 'h-7 w-7' : 'h-8 min-w-8'} ${
                     isToday ? 'bg-red-600 text-white' : ''
                   }`}
                 >
@@ -139,35 +147,42 @@ export function TimeGrid({
               </button>
             )
           })}
-          <div className="sticky left-0 z-10 flex items-start bg-white py-1 pr-1 text-right text-[11px] leading-tight text-slate-500 dark:bg-slate-950">
-            ganz&shy;tägig
+          <div
+            className="sticky left-0 z-10 flex items-start justify-end bg-white py-1 pr-1 text-right text-[10px] leading-tight text-slate-500 dark:bg-slate-950"
+            title="ganztägig"
+          >
+            {narrow ? '' : <span className="hyphens-auto" lang="de">ganz&shy;tägig</span>}
           </div>
           {columns.map(({ day, allDay }) => (
-            <div key={day} className="min-h-9 space-y-1 border-l border-slate-200 p-1 dark:border-slate-800">
+            <div key={day} className={`min-h-9 min-w-0 border-l border-slate-200 dark:border-slate-800 ${narrow ? 'space-y-0.5 p-0.5' : 'space-y-1 p-1'}`}>
               {(periodsOn.get(day) ?? []).map((p) => (
                 <button
                   key={p.id}
-                  className="block w-full truncate rounded-full px-2 py-1 text-left text-xs font-semibold"
+                  className={`block w-full truncate rounded-full text-left font-semibold ${narrow ? 'px-1 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'}`}
                   style={{ background: `color-mix(in srgb, ${PERIOD_KINDS[p.kind].color} 28%, transparent)` }}
                   title={`${PERIOD_KINDS[p.kind].label}: ${p.name}`}
                   onClick={() => onOpenPeriod(p.id)}
                 >
-                  {PERIOD_KINDS[p.kind].icon} {p.name}
+                  {PERIOD_KINDS[p.kind].icon}
+                  {!narrow && ` ${p.name}`}
                 </button>
               ))}
               {allDay.map((e) => (
                 <button
                   key={e.id}
-                  className={`block w-full truncate rounded-md px-1.5 py-1 text-left text-xs font-medium ${
+                  className={`block w-full rounded-md text-left font-medium ${
+                    narrow ? 'line-clamp-2 px-0.5 py-0.5 text-[10px] leading-tight break-words hyphens-auto' : 'truncate px-1.5 py-1 text-xs'
+                  } ${
                     e.done ? 'line-through opacity-50' : ''
                   }`}
                   style={{
                     background: `color-mix(in srgb, ${colorOf(e)} 22%, transparent)`,
                     borderLeft: `3px solid ${colorOf(e)}`,
                   }}
+                  lang="de"
                   onClick={() => onOpenEntry(e.id)}
                 >
-                  {CATEGORIES[e.category].icon} {e.title}
+                  {narrow ? e.title : `${CATEGORIES[e.category].icon} ${e.title}`}
                 </button>
               ))}
             </div>
@@ -180,10 +195,10 @@ export function TimeGrid({
             {Array.from({ length: 24 }, (_, h) => (
               <div
                 key={h}
-                className="relative pr-1 text-right text-[11px] text-slate-500"
+                className={`relative text-right text-slate-500 ${narrow ? 'pr-0.5 text-[10px]' : 'pr-1 text-[11px]'}`}
                 style={{ height: HOUR_HEIGHT }}
               >
-                {h > 0 && <span className="relative -top-2">{String(h).padStart(2, '0')}:00</span>}
+                {h > 0 && <span className="relative -top-2">{String(h).padStart(2, '0')}{narrow ? '' : ':00'}</span>}
               </div>
             ))}
           </div>
@@ -202,18 +217,20 @@ export function TimeGrid({
                 return (
                   <button
                     key={it.key}
-                    className={`absolute overflow-hidden rounded-md px-1.5 py-0.5 text-left text-xs leading-tight ${
+                    className={`absolute overflow-hidden text-left leading-tight ${
+                      narrow ? 'rounded px-0.5 py-0.5 text-[10px] break-words hyphens-auto' : 'rounded-md px-1.5 py-0.5 text-xs'
+                    } ${
                       it.kind === 'study' ? 'study-stripes border border-dashed' : ''
                     } ${done ? 'opacity-50' : ''}`}
                     style={{
                       top: it.start * PX_PER_MIN + 1,
                       height: height - 2,
-                      left: `calc(${(it.column / it.columns) * 100}% + 2px)`,
-                      width: `calc(${100 / it.columns}% - 4px)`,
+                      left: `calc(${(it.column / it.columns) * 100}% + ${narrow ? 1 : 2}px)`,
+                      width: `calc(${100 / it.columns}% - ${narrow ? 2 : 4}px)`,
                       ['--c' as string]: color,
                       borderColor: it.kind === 'study' ? color : undefined,
                       background: it.kind === 'entry' ? `color-mix(in srgb, ${color} 25%, transparent)` : undefined,
-                      borderLeft: it.kind === 'entry' ? `3px solid ${color}` : undefined,
+                      borderLeft: it.kind === 'entry' ? `${narrow ? 2 : 3}px solid ${color}` : undefined,
                     }}
                     onClick={(e) => {
                       e.stopPropagation() // sonst würde zusätzlich "Neuer Eintrag" aufgehen
@@ -221,10 +238,12 @@ export function TimeGrid({
                       else onOpenEntry(it.entry.id)
                     }}
                   >
-                    <div className={`font-semibold ${done ? 'line-through' : ''}`}>
-                      {it.kind === 'study' ? `📖 Lernen: ${it.entry.title}` : `${CATEGORIES[it.entry.category].icon} ${it.entry.title}`}
+                    <div className={`font-semibold ${done ? 'line-through' : ''}`} lang="de">
+                      {narrow
+                        ? it.kind === 'study' ? `📖 ${it.entry.title}` : it.entry.title
+                        : it.kind === 'study' ? `📖 Lernen: ${it.entry.title}` : `${CATEGORIES[it.entry.category].icon} ${it.entry.title}`}
                     </div>
-                    {height >= 32 && (
+                    {height >= 32 && !narrow && (
                       <div className="text-slate-600 dark:text-slate-300">
                         {minutesToTime(it.start)}–{it.end === MINUTES_PER_DAY ? '24:00' : minutesToTime(it.end)}
                       </div>
