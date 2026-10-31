@@ -3,7 +3,10 @@
 /* Hell-/Dunkelmodus folgt automatisch der Systemeinstellung (Tailwind-Standard: "dark:" = prefers-color-scheme). */
 
 @layer base {
+  /* Hintergrund auch auf <html>: iOS färbt damit die Leiste mit der Uhrzeit oben (sonst grau) */
   html {
+    color-scheme: light dark;
+    @apply bg-white dark:bg-slate-950;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }

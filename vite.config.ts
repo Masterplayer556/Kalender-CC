@@ -26,7 +26,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'any',
         // start_url und scope übernimmt das Plugin automatisch vom Pfad (base)
-        theme_color: '#2563eb',
+        theme_color: '#ffffff',
         background_color: '#ffffff',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

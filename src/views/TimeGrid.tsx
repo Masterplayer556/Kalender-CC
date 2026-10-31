@@ -217,7 +217,7 @@ export function TimeGrid({
                 return (
                   <button
                     key={it.key}
-                    className={`absolute overflow-hidden text-left leading-tight ${
+                    className={`absolute flex flex-col items-stretch justify-start overflow-hidden text-left leading-tight ${
                       narrow ? 'rounded px-0.5 py-0.5 text-[10px] break-words hyphens-auto' : 'rounded-md px-1.5 py-0.5 text-xs'
                     } ${
                       it.kind === 'study' ? 'study-stripes border border-dashed' : ''
