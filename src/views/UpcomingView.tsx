@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { EntryRow } from '../components/EntryRow'
+import { InlineIcon } from '../components/Icon'
 import { loadPref, savePref } from '../lib/cache'
 import { todayKey } from '../lib/dates'
 import { groupUpcoming } from '../lib/grouping'
@@ -55,7 +56,7 @@ export function UpcomingView({
         {awaitingGrade.length > 0 && (
           <section>
             <h2 className="mb-2 text-sm font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-300">
-              🎓 Note eintragen?
+              <InlineIcon name="award" />Note eintragen?
             </h2>
             <ul className="space-y-2">
               {awaitingGrade.map((e) => (
@@ -73,7 +74,7 @@ export function UpcomingView({
         {overdue.length > 0 && (
           <section>
             <h2 className="mb-2 text-sm font-semibold tracking-wide text-red-600 uppercase dark:text-red-400">
-              ⚠️ Überfällig
+              <InlineIcon name="alert" />Überfällig
             </h2>
             <ul className="space-y-2">
               {overdue.map((e) => (

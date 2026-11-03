@@ -10,7 +10,7 @@ import { addDays, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal
 import { bandLanes } from '../lib/layout'
 import { PERIOD_KINDS, comparePeriods, periodCovers } from '../lib/periods'
 import type { Entry, Period, StudyBlock } from '../types'
-import { Icon } from '../components/Icon'
+import { Icon, InlineIcon, type IconName } from '../components/Icon'
 
 const MAX_VISIBLE = 3 // so viele Einträge pro Tag, danach "+2 weitere"
 const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -26,6 +26,7 @@ interface BandItem {
   end: DateKey // inklusive
   color: string
   label: string
+  icon: IconName
   done?: boolean
 }
 
@@ -51,6 +52,7 @@ function Band({ day, index, band }: { day: DateKey; index: number; band: BandIte
           className="absolute inset-y-0 left-0 truncate py-px pl-[inherit]"
           style={{ width: `calc(${span * 100}% + ${span - 1}px)` }}
         >
+          <InlineIcon name={band.icon} />
           {label}
         </span>
       )}
@@ -132,14 +134,16 @@ function FullMonth({
         start: p.start_date,
         end: p.end_date,
         color: PERIOD_KINDS[p.kind].color,
-        label: `${PERIOD_KINDS[p.kind].icon} ${p.name}`,
+        label: p.name,
+        icon: PERIOD_KINDS[p.kind].icon,
       })),
       ...multiDay.map((e) => ({
         key: e.id,
         start: e.date,
         end: entryEnd(e),
         color: entryColor(e, subjectById),
-        label: `${CATEGORIES[e.category].icon} ${e.title}`,
+        label: e.title,
+        icon: CATEGORIES[e.category].icon,
         done: e.done,
       })),
     ]
@@ -157,7 +161,7 @@ function FullMonth({
 
   return (
     <div className="flex h-full flex-col overflow-auto">
-      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-white text-center text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950">
+      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-(--surface) text-center text-xs font-medium text-slate-500 dark:border-slate-800">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="py-2">
             {label}
@@ -184,7 +188,7 @@ function FullMonth({
             >
               <span
                 className={`mb-0.5 flex h-7 w-7 items-center justify-center self-start rounded-full text-sm font-semibold ${
-                  isToday ? 'bg-red-600 text-white' : ''
+                  isToday ? 'today-dot' : ''
                 }`}
               >
                 {Number(day.slice(8))}
@@ -207,9 +211,10 @@ function FullMonth({
                     className={`truncate rounded px-1 py-0.5 text-[11px] leading-tight font-medium sm:text-xs ${
                       e.done ? 'line-through opacity-50' : ''
                     }`}
-                    style={{ background: `color-mix(in srgb, ${color} 22%, transparent)`, borderLeft: `3px solid ${color}` }}
+                    style={{ background: `color-mix(in srgb, ${color} 20%, transparent)` }}
                   >
-                    {CATEGORIES[e.category].icon} {e.title}
+                    <InlineIcon name={CATEGORIES[e.category].icon} style={{ color }} />
+                    {e.title}
                   </span>
                 )
               })}
@@ -217,7 +222,7 @@ function FullMonth({
                 <span className="px-1 text-[11px] text-slate-500">+{dayEntries.length - MAX_VISIBLE} weitere</span>
               )}
               {studyCount > 0 && (
-                <span className="px-1 text-[11px] text-slate-500">📖 {studyCount}× lernen</span>
+                <span className="px-1 text-[11px] text-slate-500"><InlineIcon name="book" />{studyCount}× lernen</span>
               )}
             </button>
           )
@@ -275,7 +280,7 @@ function CompactMonth({
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain pb-28">
-      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-white text-center text-[11px] font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950">
+      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-(--surface) text-center text-[11px] font-medium text-slate-500 dark:border-slate-800">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="py-1.5">
             {label}
@@ -305,7 +310,7 @@ function CompactMonth({
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-[15px] ${
                   isToday
-                    ? 'bg-red-600 font-semibold text-white'
+                    ? 'today-dot'
                     : isSelected
                       ? 'bg-slate-900 font-semibold text-white dark:bg-slate-100 dark:text-slate-900'
                       : ''
@@ -361,7 +366,7 @@ function CompactMonth({
                 style={{ background: `color-mix(in srgb, ${PERIOD_KINDS[p.kind].color} 22%, transparent)` }}
                 onClick={() => onOpenPeriod(p.id)}
               >
-                <span>{PERIOD_KINDS[p.kind].icon}</span>
+                <Icon name={PERIOD_KINDS[p.kind].icon} className="h-4 w-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 <span className="shrink-0 text-xs font-normal text-slate-500">{PERIOD_KINDS[p.kind].label}</span>
               </button>
@@ -378,11 +383,12 @@ function CompactMonth({
               <li key={e.id}>
                 <button
                   className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm"
-                  style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, borderLeft: `4px solid ${color}` }}
+                  style={{ background: `color-mix(in srgb, ${color} 14%, transparent)` }}
                   onClick={() => onOpenEntry(e.id)}
                 >
                   <span className={`min-w-0 flex-1 font-medium ${e.done ? 'text-slate-400 line-through' : ''}`}>
-                    {CATEGORIES[e.category].icon} {e.title}
+                    <InlineIcon name={CATEGORIES[e.category].icon} style={{ color }} />
+                    {e.title}
                   </span>
                   <span className="shrink-0 text-xs text-slate-500 tabular-nums">{time}</span>
                 </button>
@@ -400,7 +406,8 @@ function CompactMonth({
                   onClick={() => onOpenBlock(b.id)}
                 >
                   <span className={`min-w-0 flex-1 font-medium ${b.done ? 'text-slate-400 line-through' : ''}`}>
-                    📖 Lernen: {entry.title}
+                    <InlineIcon name="book" />
+                    Lernen: {entry.title}
                   </span>
                   <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                     {isoToLocal(b.starts_at).time}–{isoToLocal(b.ends_at).time}

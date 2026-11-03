@@ -1,5 +1,6 @@
 // Dialog "Neue Ferien / freie Tage" bzw. Zeitraum bearbeiten.
 
+import { Icon, InlineIcon } from './Icon'
 import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
 import { addDays, daysBetween, formatDate, formatWeekday, todayKey, type DateKey } from '../lib/dates'
@@ -84,7 +85,9 @@ export function PeriodEditor({ request, onClose }: { request: PeriodRequest; onC
 
   return (
     <Modal
-      title={existing ? `${meta.icon} ${existing.name}` : 'Ferien & freie Tage'}
+      title={existing ? existing.name : 'Neuer Zeitraum'}
+      eyebrow={existing ? meta.label : 'Ferien & freie Tage'}
+      icon={meta.icon}
       onClose={onClose}
       footer={
         <>
@@ -112,10 +115,11 @@ export function PeriodEditor({ request, onClose }: { request: PeriodRequest; onC
       <form id="period-form" onSubmit={handleSave} className="space-y-4">
         <div>
           <span className="label">Art</span>
-          <div className="segment flex-wrap">
+          <div className="grid grid-cols-3 gap-2">
             {PERIOD_KIND_KEYS.map((k) => (
-              <button key={k} type="button" aria-pressed={kind === k} disabled={readOnly} onClick={() => setKind(k)}>
-                {PERIOD_KINDS[k].icon} {PERIOD_KINDS[k].label}
+              <button key={k} type="button" className="choice" aria-pressed={kind === k} disabled={readOnly} onClick={() => setKind(k)}>
+                <Icon name={PERIOD_KINDS[k].icon} className="h-6 w-6" strokeWidth={2.2} />
+                {PERIOD_KINDS[k].label}
               </button>
             ))}
           </div>
@@ -166,11 +170,7 @@ export function PeriodEditor({ request, onClose }: { request: PeriodRequest; onC
             <button
               key={preset.days}
               type="button"
-              className={`chip ${
-                length === preset.days
-                  ? 'border-blue-600 bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200'
-                  : 'border-slate-300 dark:border-slate-700'
-              }`}
+              className={`chip font-semibold ${length === preset.days ? 'border-transparent bg-(--accent) text-(--on-accent)' : 'border-(--line) bg-(--surface)'}`}
               disabled={readOnly}
               onClick={() => setEnd(addDays(start, preset.days - 1))}
             >
@@ -182,11 +182,11 @@ export function PeriodEditor({ request, onClose }: { request: PeriodRequest; onC
         {/* Zusammenfassung – so sieht man sofort, ob Wochentage und Länge stimmen */}
         <p
           className="rounded-xl p-3 text-sm"
-          style={{ background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, borderLeft: `4px solid ${meta.color}` }}
+          style={{ background: `color-mix(in srgb, ${meta.color} 16%, transparent)` }}
         >
           {valid ? (
             <>
-              {meta.icon} {formatWeekday(start)}, {formatDate(start)}
+              <InlineIcon name={meta.icon} style={{ color: meta.color }} />{formatWeekday(start)}, {formatDate(start)}
               {end !== start && ` – ${formatWeekday(end)}, ${formatDate(end)}`}
               <span className="text-slate-500">
                 {' '}

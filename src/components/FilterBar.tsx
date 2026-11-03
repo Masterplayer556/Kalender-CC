@@ -1,4 +1,5 @@
 import { useData } from '../data/DataProvider'
+import { Icon } from './Icon'
 import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR } from '../lib/categories'
 import { EMPTY_FILTERS, NO_SUBJECT, isFilterActive, type Filters } from '../lib/filters'
 
@@ -10,9 +11,7 @@ function toggle<T>(list: T[], value: T): T[] {
 export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
   const { subjects } = useData()
   const chipClass = (active: boolean) =>
-    `chip ${active
-      ? 'border-blue-600 bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200'
-      : 'border-slate-300 dark:border-slate-700'}`
+    `chip font-semibold ${active ? 'border-transparent bg-(--accent) text-(--on-accent)' : 'border-(--line) bg-(--surface)'}`
 
   const subjectOptions = [
     ...subjects.map((s) => ({ id: s.id, name: s.name, color: s.color })),
@@ -20,7 +19,7 @@ export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (
   ]
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+    <div className="no-scrollbar flex flex-wrap items-center gap-2 px-4 pb-3 md:px-6">
       {CATEGORY_KEYS.map((c) => (
         <button
           key={c}
@@ -28,7 +27,7 @@ export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (
           aria-pressed={filters.categories.includes(c)}
           onClick={() => onChange({ ...filters, categories: toggle(filters.categories, c) })}
         >
-          {CATEGORIES[c].icon} {CATEGORIES[c].label}
+          <Icon name={CATEGORIES[c].icon} className="h-4 w-4" /> {CATEGORIES[c].label}
         </button>
       ))}
       <span className="mx-1 h-6 w-px bg-slate-300 dark:bg-slate-700" />
@@ -44,7 +43,7 @@ export function FilterBar({ filters, onChange }: { filters: Filters; onChange: (
         </button>
       ))}
       {isFilterActive(filters) && (
-        <button className="chip border-transparent text-blue-700 dark:text-blue-300" onClick={() => onChange(EMPTY_FILTERS)}>
+        <button className="chip ink-accent border-transparent font-bold" onClick={() => onChange(EMPTY_FILTERS)}>
           Zurücksetzen
         </button>
       )}

@@ -22,9 +22,12 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Note ↔ Test:** Noten lassen sich mit einem Test aus dem Kalender verknüpfen. Im Test steht dann die Note, und vergangene Tests ohne Note erscheinen 30 Tage lang in der Liste unter „Note eintragen?“.
 - **Anhänge:** Dateien (Word, PowerPoint, PDF, Fotos … aus der Dateien-App, max. 50 MB) und Links (OneDrive, iCloud, Teams …) an jedem Eintrag, z. B. das Lernzielblatt zum Test.
 - **Wischen:** In Monat, Woche und Tag nach links/rechts wischen, um den Zeitraum zu wechseln.
-- **Heute-Übersicht** oben in der Liste (und im iPad-Querformat als Seitenleiste neben dem Kalender): heutige Einträge und Lernzeiten, nächster Test mit Lernfortschritt.
+- **Navigation** mit vier Bereichen: **Heute · Kalender · Noten · Mehr**. Auf dem iPad als Leiste links, auf dem iPhone als Leiste unten, jeweils mit „+“ für neue Einträge. Im Kalender schaltest du oben zwischen Monat, Woche, Tag, Liste und Heatmap um.
+- **Heute-Übersicht** (Startseite) in Kacheln: Countdown bis zum nächsten Test mit Lernfortschritt, **Tage bis zu den Ferien** mit den verbleibenden Schultagen, Notenschnitt mit Mini-Graph, Lernzeiten der Woche, Tests/Aufgaben/Überfälliges dieser Woche, „Dein Tag“ als Zeitstrahl (zum Abhaken) und „Als Nächstes“. Im iPad-Querformat steht „Heute“ zusätzlich als Seitenleiste neben dem Kalender.
+- **Heatmap** (im Kalender): der Monat als „Belastung pro Tag“ – je kräftiger ein Tag, desto mehr steht an (Test = 2 Punkte, andere Einträge und Lernzeiten je 1). Punkt = Test, gestrichelter Rand = Ferien, freie Tage oder Lager. Daneben: stressigste Woche, Monat in Zahlen und die Einträge des gewählten Tags (nochmals antippen öffnet den Tag).
+- **Noten-Graphen:** Verlauf des Gesamtschnitts und pro Fach ein eigener Graph (Punkte = einzelne Noten, grösser = höheres Gewicht; Linie = laufender Schnitt; gestrichelt = Grenze 4). Ein Punkt öffnet die Note. Pro Fach und für den Gesamtschnitt lässt sich ein **Ziel** setzen (z. B. 5.5 im Zeugnis): Der Graph zeigt die Ziellinie, die Karte sagt, welche Note es in der nächsten Prüfung mindestens braucht (gespeichert auf diesem Gerät).
+- **Design** (unter „Mehr“): **Sunset** (warm, grosse Kacheln und Zahlen) oder **Neon** (Raster, Mono-Schrift, Lime) – jeweils **hell, dunkel oder automatisch** nach Systemeinstellung. Gilt pro Gerät.
 - **Offline:** Die zuletzt geladenen Einträge bleiben sichtbar. Ändern geht erst wieder mit Internet.
-- Hell- und Dunkelmodus richten sich automatisch nach der Systemeinstellung.
 
 ---
 

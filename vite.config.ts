@@ -36,7 +36,7 @@ export default defineConfig({
       },
       workbox: {
         // Alle App-Dateien zwischenspeichern, damit die App auch offline startet.
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
         navigateFallback: 'index.html',
       },
     }),

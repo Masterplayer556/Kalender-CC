@@ -109,15 +109,15 @@ export function AttachmentsEditor({
   const empty = kept.length === 0 && pending.length === 0
 
   return (
-    <section className="rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
-      <h3 className="mb-2 font-semibold">📎 Anhänge</h3>
+    <section className="tile p-4">
+      <h3 className="mb-2 flex items-center gap-2 font-bold"><Icon name="clip" className="ink-accent h-5 w-5" /> Anhänge</h3>
       {empty && <p className="mb-2 text-sm text-slate-500">z. B. Lernzielblatt, Zusammenfassung, Präsentation oder ein Link.</p>}
 
       <ul className="space-y-1">
         {kept.map((a) => {
           const url = online ? urls.get(a.id) : undefined
           return (
-            <li key={a.id} className="flex items-center gap-1 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <li key={a.id} className="flex items-center gap-1 rounded-(--r-ctl) bg-(--surface-2)">
               {/* Echter Link statt Button: öffnet zuverlässig in einem neuen Tab (auch auf dem iPad) */}
               <a
                 href={url}
@@ -128,7 +128,7 @@ export function AttachmentsEditor({
                 title={!online ? 'Offline – Anhänge nicht verfügbar' : url ? 'Öffnen' : 'Wird geladen …'}
                 onClick={(e) => onOpenClick(e, a)}
               >
-                <span className="text-lg">{a.kind === 'link' ? '🔗' : fileIcon(a.name, a.mime)}</span>
+                <Icon name={a.kind === 'link' ? 'link' : fileIcon(a.name, a.mime)} className="h-5 w-5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-blue-700 underline-offset-2 hover:underline dark:text-blue-300">
                   {a.name}
                 </span>
@@ -149,7 +149,7 @@ export function AttachmentsEditor({
         {pending.map((p, i) => (
           <li key={`neu-${i}`} className="flex items-center gap-1 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
             <span className="flex min-h-11 min-w-0 flex-1 items-center gap-2 px-2">
-              <span className="text-lg">{p.kind === 'link' ? '🔗' : fileIcon(p.name, p.file.type)}</span>
+              <Icon name={p.kind === 'link' ? 'link' : fileIcon(p.name, p.file.type)} className="h-5 w-5 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
               <span className="shrink-0 text-xs text-slate-500">
                 {p.kind === 'file' ? `${formatSize(p.file.size)} · ` : ''}neu
@@ -206,7 +206,7 @@ export function AttachmentsEditor({
       <input ref={fileInput} type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
       <div className="mt-3 flex gap-2">
         <button type="button" className="btn-secondary flex-1" disabled={disabled} onClick={() => fileInput.current?.click()}>
-          📄 Datei
+          <Icon name="doc" className="h-4 w-4" /> Datei
         </button>
         <button
           type="button"
@@ -214,7 +214,7 @@ export function AttachmentsEditor({
           disabled={disabled || linkFormOpen}
           onClick={() => setLinkFormOpen(true)}
         >
-          🔗 Link
+          <Icon name="link" className="h-4 w-4" /> Link
         </button>
       </div>
     </section>

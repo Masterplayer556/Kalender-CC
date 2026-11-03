@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '../data/AuthProvider'
 import { useData } from '../data/DataProvider'
 import { Icon } from '../components/Icon'
+import { ThemePicker } from '../components/ThemePicker'
 import { SUBJECT_PALETTE } from '../lib/categories'
 import { countdown, formatDate, formatWeekday, todayKey } from '../lib/dates'
 import { PERIOD_KINDS, comparePeriods, periodLength } from '../lib/periods'
@@ -59,7 +60,7 @@ function SubjectRow({ subject }: { subject: Subject }) {
   }
 
   return (
-    <li className="space-y-2 rounded-2xl border border-slate-200 p-3 dark:border-slate-800" style={{ borderLeft: `6px solid ${color}` }}>
+    <li className="tile space-y-2 p-3" style={{ boxShadow: `inset 5px 0 0 ${color}, var(--tile-shadow)` }}>
       <div className="flex gap-2">
         <input
           className="input"
@@ -106,11 +107,11 @@ function PeriodRow({ period, onOpen }: { period: Period; onOpen: () => void }) {
   return (
     <li>
       <button
-        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-200 p-3 text-left dark:border-slate-800"
-        style={{ borderLeft: `6px solid ${meta.color}` }}
+        className="tile flex min-h-14 w-full items-center gap-3 p-3 text-left"
+        style={{ boxShadow: `inset 5px 0 0 ${meta.color}, var(--tile-shadow)` }}
         onClick={onOpen}
       >
-        <span className="text-xl">{meta.icon}</span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-(--r-ctl)" style={{ background: `color-mix(in srgb, ${meta.color} 20%, transparent)`, color: meta.color }}><Icon name={meta.icon} /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{period.name}</span>
           <span className="block text-sm text-slate-500">
@@ -139,9 +140,9 @@ function PeriodsSection({ onOpenPeriod }: { onOpenPeriod: (req: PeriodRequest) =
   const past = sorted.filter((p) => p.end_date < today).reverse() // zuletzt vergangene zuerst
 
   return (
-    <section className="space-y-3 border-t border-slate-200 pt-6 dark:border-slate-800">
+    <section className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">🏖️ Ferien & freie Tage</h2>
+        <h2 className="section-title">Ferien & freie Tage</h2>
         <button className="btn-primary" disabled={!online || periodsMissing} onClick={() => onOpenPeriod({})}>
           <Icon name="plus" /> Neu
         </button>
@@ -193,8 +194,8 @@ function PeriodsSection({ onOpenPeriod }: { onOpenPeriod: (req: PeriodRequest) =
 function AccountSection() {
   const { session, signOut } = useAuth()
   return (
-    <section className="space-y-2 border-t border-slate-200 pt-6 dark:border-slate-800">
-      <h2 className="font-semibold">Konto</h2>
+    <section className="tile space-y-2 p-4">
+      <h2 className="font-bold">Konto</h2>
       <p className="text-sm text-slate-500">
         Angemeldet als <strong>{session?.user.email}</strong>. Du bleibst auf diesem Gerät angemeldet, bis du dich abmeldest.
       </p>
@@ -227,9 +228,16 @@ export function SubjectsView({ onOpenPeriod }: { onOpenPeriod: (req: PeriodReque
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-2xl space-y-6 p-3 pb-28">
-        <section className="space-y-2 rounded-2xl bg-slate-50 p-3 dark:bg-slate-900">
-          <h2 className="font-semibold">Neues Fach</h2>
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 pb-32 md:px-6 md:pb-10 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-6">
+          <ThemePicker />
+          <PeriodsSection onOpenPeriod={onOpenPeriod} />
+          <AccountSection />
+        </div>
+        <div className="space-y-4">
+        <h2 className="section-title">Fächer</h2>
+        <section className="tile space-y-2 p-4">
+          <h3 className="font-bold">Neues Fach</h3>
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -258,10 +266,7 @@ export function SubjectsView({ onOpenPeriod }: { onOpenPeriod: (req: PeriodReque
           ))}
         </ul>
         {subjects.length === 0 && <p className="text-center text-slate-500">Noch keine Fächer angelegt.</p>}
-
-        <PeriodsSection onOpenPeriod={onOpenPeriod} />
-
-        <AccountSection />
+        </div>
       </div>
     </div>
   )

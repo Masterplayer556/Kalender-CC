@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useData } from '../data/DataProvider'
 import { formatDate, formatWeekday, isoToLocal } from '../lib/dates'
+import { Icon } from './Icon'
 import { Modal } from './Modal'
 
 export function StudyBlockMenu({
@@ -36,14 +37,13 @@ export function StudyBlockMenu({
   }
 
   return (
-    <Modal title={`📖 Lernen: ${entry.title}`} onClose={onClose}>
+    <Modal title={entry.title} eyebrow={block.done ? 'Lernzeit · erledigt' : 'Lernzeit'} icon="book" onClose={onClose}>
       <p className="text-slate-600 dark:text-slate-300">
         {formatWeekday(start.date, 'long')}, {formatDate(start.date)} · {start.time}–{end.time} Uhr
-        {block.done && <span className="ml-2 font-medium text-green-700 dark:text-green-400">✓ erledigt</span>}
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <button className="btn-primary flex-1" disabled={!online || busy} onClick={toggle}>
-          {block.done ? 'Als nicht erledigt markieren' : '✓ Als erledigt markieren'}
+          {block.done ? 'Als nicht erledigt markieren' : <><Icon name="check" strokeWidth={3} /> Als erledigt markieren</>}
         </button>
         <button className="btn-secondary flex-1" onClick={() => onOpenEntry(entry.id)}>
           Eintrag öffnen

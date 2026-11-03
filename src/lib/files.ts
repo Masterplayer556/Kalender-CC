@@ -1,19 +1,21 @@
 // Hilfen für Anhänge: Symbol je Dateityp, Grösse lesbar, Links prüfen.
 
+import type { IconName } from '../components/Icon'
+
 /** Grenze des Supabase-Speichers (siehe 003_links_and_files.sql) */
 export const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 /** Passendes Symbol nach Dateiname bzw. MIME-Typ */
-export function fileIcon(name: string, mime?: string | null): string {
+export function fileIcon(name: string, mime?: string | null): IconName {
   const ext = name.toLowerCase().split('.').pop() ?? ''
-  if (ext === 'pdf' || mime === 'application/pdf') return '📕'
-  if (['doc', 'docx', 'odt', 'pages', 'rtf', 'txt'].includes(ext)) return '📝'
-  if (['ppt', 'pptx', 'odp', 'key'].includes(ext)) return '📊'
-  if (['xls', 'xlsx', 'ods', 'numbers', 'csv'].includes(ext)) return '📈'
-  if (mime?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'heic', 'gif', 'webp'].includes(ext)) return '🖼️'
-  if (mime?.startsWith('audio/') || ['mp3', 'm4a', 'wav'].includes(ext)) return '🎧'
-  if (mime?.startsWith('video/') || ['mp4', 'mov'].includes(ext)) return '🎬'
-  return '📎'
+  if (ext === 'pdf' || mime === 'application/pdf') return 'doc'
+  if (['doc', 'docx', 'odt', 'pages', 'rtf', 'txt'].includes(ext)) return 'doc'
+  if (['ppt', 'pptx', 'odp', 'key'].includes(ext)) return 'slides'
+  if (['xls', 'xlsx', 'ods', 'numbers', 'csv'].includes(ext)) return 'table'
+  if (mime?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'heic', 'gif', 'webp'].includes(ext)) return 'image'
+  if (mime?.startsWith('audio/') || ['mp3', 'm4a', 'wav'].includes(ext)) return 'music'
+  if (mime?.startsWith('video/') || ['mp4', 'mov'].includes(ext)) return 'film'
+  return 'clip'
 }
 
 /** 1536 → "1.5 KB", 2_400_000 → "2.3 MB" */

@@ -4,12 +4,12 @@ import { safeFileName } from '../src/data/api'
 
 describe('Anhänge', () => {
   it('Symbol nach Dateityp', () => {
-    expect(fileIcon('Lernziele.pdf')).toBe('📕')
-    expect(fileIcon('Lernziele WW1.DOCX')).toBe('📝')
-    expect(fileIcon('Vortrag.pptx')).toBe('📊')
-    expect(fileIcon('IMG_0001.HEIC')).toBe('🖼️')
-    expect(fileIcon('irgendwas', 'image/png')).toBe('🖼️')
-    expect(fileIcon('archiv.zip')).toBe('📎')
+    expect(fileIcon('Lernziele.pdf')).toBe('doc')
+    expect(fileIcon('Lernziele WW1.DOCX')).toBe('doc')
+    expect(fileIcon('Vortrag.pptx')).toBe('slides')
+    expect(fileIcon('IMG_0001.HEIC')).toBe('image')
+    expect(fileIcon('irgendwas', 'image/png')).toBe('image')
+    expect(fileIcon('archiv.zip')).toBe('clip')
   })
 
   it('Office-Dateien über den Office-Viewer', () => {

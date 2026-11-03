@@ -2,6 +2,7 @@
 // Erscheint oben in der Liste und – im iPad-Querformat – als Seitenleiste neben dem Kalender.
 
 import { useData } from '../data/DataProvider'
+import { Icon, InlineIcon } from './Icon'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
@@ -43,23 +44,22 @@ export function TodayPanel({
   const holiday = holidayStatus(periods, today)
 
   return (
-    <section className="space-y-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-900">
-      <h2 className="font-semibold">
-        Heute <span className="font-normal text-slate-500">· {formatWeekday(today, 'long')}, {formatDate(today)}</span>
+    <section className="tile-2 space-y-3 p-4">
+      <h2 className="section-title">
+        Heute <span className="muted text-sm font-semibold tracking-normal normal-case">· {formatWeekday(today, 'long')}, {formatDate(today)}</span>
       </h2>
 
-      {nothingToday && <p className="text-sm text-slate-500">Heute steht nichts an. 🎉</p>}
+      {nothingToday && <p className="text-sm text-slate-500">Heute steht nichts an.</p>}
 
       {holiday && (
         <button
           className="flex w-full items-center gap-2 rounded-xl p-2 text-left"
           style={{
             background: `color-mix(in srgb, ${PERIOD_KINDS.ferien.color} 16%, transparent)`,
-            borderLeft: `4px solid ${PERIOD_KINDS.ferien.color}`,
           }}
           onClick={() => onOpenPeriod({ periodId: holiday.period.id })}
         >
-          <span className="text-2xl">{PERIOD_KINDS.ferien.icon}</span>
+          <Icon name={PERIOD_KINDS.ferien.icon} className="h-6 w-6 shrink-0" style={{ color: PERIOD_KINDS.ferien.color }} />
           <span className="min-w-0 flex-1">
             {holiday.state === 'during' ? (
               <>
@@ -84,7 +84,7 @@ export function TodayPanel({
       {/* Noch keine Ferien eingetragen → dezenter Hinweis, wo das geht */}
       {!holiday && !periodsMissing && (
         <button className="text-sm text-blue-700 dark:text-blue-300" onClick={() => onOpenPeriod({})}>
-          🏖️ Ferien eintragen, um den Countdown zu sehen →
+          Ferien eintragen, um den Countdown zu sehen →
         </button>
       )}
 
@@ -93,11 +93,10 @@ export function TodayPanel({
           {todayEntries.map((e) => (
             <li key={e.id}>
               <button
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-white px-2 text-left shadow-sm dark:bg-slate-800"
-                style={{ borderLeft: `4px solid ${colorOf(e)}` }}
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-(--surface) px-2 text-left shadow-sm"
                 onClick={() => onOpenEntry(e.id)}
               >
-                <span>{CATEGORIES[e.category].icon}</span>
+                <Icon name={CATEGORIES[e.category].icon} className="h-4 w-4 shrink-0" style={{ color: colorOf(e) }} />
                 <span className={`min-w-0 flex-1 truncate font-medium ${e.done ? 'text-slate-400 line-through' : ''}`}>
                   {e.title}
                 </span>
@@ -122,7 +121,7 @@ export function TodayPanel({
                   style={{ ['--c' as string]: colorOf(entry), borderColor: colorOf(entry) }}
                   onClick={() => onOpenBlock(b.id)}
                 >
-                  <span>{b.done ? '✅' : past ? '⏰' : '📖'}</span>
+                  <Icon name={b.done ? 'check' : past ? 'clock' : 'book'} className="h-4 w-4 shrink-0" />
                   <span className={`min-w-0 flex-1 truncate ${b.done ? 'line-through' : ''}`}>Lernen: {entry.title}</span>
                   <span className="text-sm tabular-nums">
                     {isoToLocal(b.starts_at).time}–{isoToLocal(b.ends_at).time}
@@ -138,12 +137,11 @@ export function TodayPanel({
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           {nextTest && (
             <button
-              className="rounded-xl bg-white p-2 text-left shadow-sm dark:bg-slate-800"
-              style={{ borderLeft: `4px solid ${colorOf(nextTest)}` }}
+              className="rounded-xl bg-(--surface) p-2 text-left shadow-sm"
               onClick={() => onOpenEntry(nextTest.id)}
             >
               <div className="text-xs text-slate-500">Nächster Test · {countdown(today, nextTest.date)}</div>
-              <div className="truncate font-medium">📝 {nextTest.title}</div>
+              <div className="truncate font-medium"><InlineIcon name="doc" style={{ color: colorOf(nextTest) }} />{nextTest.title}</div>
               {nextTestBlocks.length > 0 && (
                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                   {/* Fortschrittsbalken: erledigte Lernzeiten */}
@@ -160,11 +158,11 @@ export function TodayPanel({
           )}
           {nextBlock && (
             <button
-              className="rounded-xl bg-white p-2 text-left shadow-sm dark:bg-slate-800"
+              className="rounded-xl bg-(--surface) p-2 text-left shadow-sm"
               onClick={() => onOpenBlock(nextBlock.id)}
             >
               <div className="text-xs text-slate-500">Nächste Lernzeit · {countdown(today, isoToLocal(nextBlock.starts_at).date)}</div>
-              <div className="truncate font-medium">📖 {entryById.get(nextBlock.entry_id)!.title}</div>
+              <div className="truncate font-medium"><InlineIcon name="book" />{entryById.get(nextBlock.entry_id)!.title}</div>
               <div className="text-xs text-slate-500 tabular-nums">
                 {formatWeekday(isoToLocal(nextBlock.starts_at).date)}, {isoToLocal(nextBlock.starts_at).time}–
                 {isoToLocal(nextBlock.ends_at).time}

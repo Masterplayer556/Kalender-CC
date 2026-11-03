@@ -1,6 +1,7 @@
 // Eine Zeile in der Liste "Als Nächstes" und in den Suchergebnissen.
 
 import { useData } from '../data/DataProvider'
+import { Icon, InlineIcon } from './Icon'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { addDays, countdown, formatDate, formatTime, formatWeekday, todayKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
@@ -33,8 +34,7 @@ export function EntryRow({
 
   return (
     <li
-      className="flex items-stretch gap-1 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-      style={{ borderLeft: `5px solid ${color}` }}
+      className="flex items-stretch gap-1 tile"
     >
       <label className="flex min-w-11 items-center justify-center" title="erledigt">
         <input
@@ -49,7 +49,8 @@ export function EntryRow({
       <button className="min-w-0 flex-1 py-3 pr-3 text-left" onClick={onOpen}>
         <div className="flex items-start gap-2">
           <span className={`min-w-0 flex-1 font-medium ${entry.done ? 'text-slate-400 line-through' : ''}`}>
-            {CATEGORIES[entry.category].icon} {entry.title}
+            <InlineIcon name={CATEGORIES[entry.category].icon} style={{ color }} />
+            {entry.title}
           </span>
           {grade && (
             <span className={`shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-bold tabular-nums ${gradeClass(grade.grade)}`} title="Note">
@@ -80,10 +81,11 @@ export function EntryRow({
           <span>{CATEGORIES[entry.category].label}</span>
           {blocks.length > 0 && (
             <span>
-              📖 {doneBlocks}/{blocks.length} Lernzeiten erledigt
+              <InlineIcon name="book" />
+              {doneBlocks}/{blocks.length} Lernzeiten erledigt
             </span>
           )}
-          {attachmentCount > 0 && <span>📎 {attachmentCount}</span>}
+          {attachmentCount > 0 && <span><InlineIcon name="clip" />{attachmentCount}</span>}
         </div>
       </button>
       {onEnterGrade && (
@@ -93,7 +95,7 @@ export function EntryRow({
           disabled={!online}
           onClick={onEnterGrade}
         >
-          🎓<span className="hidden sm:inline">Note</span>
+          <Icon name="award" /><span className="hidden sm:inline">Note</span>
         </button>
       )}
     </li>

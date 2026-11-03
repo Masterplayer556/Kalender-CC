@@ -29,8 +29,8 @@ export function StudyBlocksEditor({
     onChange(blocks.map((b, j) => (j === i ? { ...b, ...patch } : b)))
 
   return (
-    <section className="rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
-      <h3 className="mb-2 font-semibold">📖 Lernzeiten</h3>
+    <section className="tile p-4">
+      <h3 className="mb-2 flex items-center gap-2 font-bold"><Icon name="book" className="ink-accent h-5 w-5" /> Lernzeiten</h3>
 
       {blocks.length === 0 && (
         <p className="mb-2 text-sm text-slate-500">Noch keine Lernzeiten geplant.</p>
@@ -41,7 +41,7 @@ export function StudyBlocksEditor({
           const invalid = timeToMinutes(b.end) <= timeToMinutes(b.start)
           const afterEntry = b.date > entryDate
           return (
-            <li key={b.id ?? `neu-${i}`} className="rounded-xl bg-slate-50 p-2 dark:bg-slate-800/50">
+            <li key={b.id ?? `neu-${i}`} className="rounded-(--r-ctl) bg-(--surface-2) p-2">
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="date"

@@ -2,11 +2,12 @@
 
 import { addDays, daysBetween, parseDateKey, type DateKey } from './dates'
 import type { Period, PeriodKind } from '../types'
+import type { IconName } from '../components/Icon'
 
-export const PERIOD_KINDS: Record<PeriodKind, { label: string; icon: string; color: string; placeholder: string }> = {
-  ferien: { label: 'Ferien', icon: '🏖️', color: '#14b8a6', placeholder: 'z. B. Herbstferien' },
-  frei: { label: 'Schulfrei', icon: '🎈', color: '#f59e0b', placeholder: 'z. B. Auffahrt, Weiterbildung Lehrer' },
-  lager: { label: 'Lager & Reisen', icon: '🎒', color: '#8b5cf6', placeholder: 'z. B. Skilager, Projektwoche' },
+export const PERIOD_KINDS: Record<PeriodKind, { label: string; icon: IconName; color: string; placeholder: string }> = {
+  ferien: { label: 'Ferien', icon: 'sun', color: '#14b8a6', placeholder: 'z. B. Herbstferien' },
+  frei: { label: 'Schulfrei', icon: 'star', color: '#f59e0b', placeholder: 'z. B. Auffahrt, Weiterbildung Lehrer' },
+  lager: { label: 'Lager & Reisen', icon: 'tent', color: '#8b5cf6', placeholder: 'z. B. Skilager, Projektwoche' },
 }
 
 export const PERIOD_KIND_KEYS = Object.keys(PERIOD_KINDS) as PeriodKind[]

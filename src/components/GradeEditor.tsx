@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
-import { formatGrade } from '../lib/grades'
+import { formatGrade, gradeClass } from '../lib/grades'
 import { formatDate, todayKey } from '../lib/dates'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -105,6 +105,8 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
   return (
     <Modal
       title={existing ? 'Note bearbeiten' : 'Neue Note'}
+      eyebrow={subjects.find((s) => s.id === subjectId)?.name ?? 'Noten'}
+      icon="award"
       onClose={onClose}
       footer={
         <>
@@ -130,7 +132,66 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
       )}
 
       <form id="grade-form" onSubmit={handleSave} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <input
+          id="g-title"
+          className="input-title"
+          aria-label="Titel"
+          value={title}
+          disabled={readOnly}
+          placeholder="Titel, z. B. Test Erster Weltkrieg"
+          autoFocus={!existing}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+
+        {/* Die Note gross – das Wichtigste im Formular */}
+        <div className="field-group flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <label className="label" htmlFor="g-grade">Note (1–6)</label>
+            <input
+              id="g-grade"
+              className="num w-full border-0 bg-transparent p-0 text-[56px]! outline-none placeholder:text-(--line)"
+              inputMode="decimal" // iPad: Zahlentastatur mit Komma
+              placeholder="4.5"
+              value={gradeText}
+              disabled={readOnly}
+              onChange={(e) => setGradeText(e.target.value)}
+            />
+          </div>
+          {Number.isFinite(parseDecimal(gradeText)) && parseDecimal(gradeText) >= 1 && parseDecimal(gradeText) <= 6 && (
+            <span className={`grade-badge rounded-(--r-ctl) px-3 py-1.5 text-sm font-bold ${gradeClass(parseDecimal(gradeText))}`}>
+              {parseDecimal(gradeText) >= 4.5 ? 'gut' : parseDecimal(gradeText) >= 4 ? 'genügend' : 'ungenügend'}
+            </span>
+          )}
+        </div>
+
+        <div>
+          <span className="label">Gewichtung</span>
+          <div className="flex gap-2">
+            {WEIGHT_PRESETS.map((w) => (
+              <button
+                key={w}
+                type="button"
+                className="choice choice-sm flex-1"
+                aria-pressed={parseDecimal(weightText) === w}
+                disabled={readOnly}
+                onClick={() => setWeightText(String(w))}
+              >
+                {w === 0.5 ? '½×' : `${w}×`}
+              </button>
+            ))}
+            <input
+              id="g-weight"
+              className="input w-20! text-center"
+              inputMode="decimal"
+              aria-label="Gewichtung (frei)"
+              value={weightText}
+              disabled={readOnly}
+              onChange={(e) => setWeightText(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="field-group grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="g-subject">Fach</label>
             <select
@@ -159,79 +220,25 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
               onChange={(e) => e.target.value && setDate(e.target.value)}
             />
           </div>
-        </div>
-
-        <div>
-          <label className="label" htmlFor="g-entry">Test verknüpfen (optional)</label>
-          <select
-            id="g-entry"
-            className="input"
-            value={entryId}
-            disabled={readOnly}
-            onChange={(e) => chooseTest(e.target.value)}
-          >
-            <option value="">– kein Test –</option>
-            {linkableTests.map((t) => (
-              <option key={t.id} value={t.id}>
-                {formatDate(t.date)} · {t.title}
-              </option>
-            ))}
-          </select>
-          {linkableTests.length === 0 && (
-            <p className="mt-1 text-xs text-slate-500">Für dieses Fach gibt es keinen Test ohne Note im Kalender.</p>
-          )}
-        </div>
-
-        <div>
-          <label className="label" htmlFor="g-title">Titel</label>
-          <input
-            id="g-title"
-            className="input"
-            value={title}
-            disabled={readOnly}
-            placeholder="z. B. Test Erster Weltkrieg"
-            autoFocus={!existing}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="g-grade">Note (1–6)</label>
-            <input
-              id="g-grade"
-              className="input text-lg font-semibold"
-              inputMode="decimal" // iPad: Zahlentastatur mit Komma
-              placeholder="z. B. 4.5"
-              value={gradeText}
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="g-entry">Test verknüpfen (optional)</label>
+            <select
+              id="g-entry"
+              className="input"
+              value={entryId}
               disabled={readOnly}
-              onChange={(e) => setGradeText(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="g-weight">Gewichtung</label>
-            <div className="flex gap-2">
-              {WEIGHT_PRESETS.map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  className={`btn-secondary px-3 ${parseDecimal(weightText) === w ? 'ring-2 ring-blue-500' : ''}`}
-                  disabled={readOnly}
-                  onClick={() => setWeightText(String(w))}
-                >
-                  {w === 0.5 ? '½' : `${w}×`}
-                </button>
+              onChange={(e) => chooseTest(e.target.value)}
+            >
+              <option value="">– kein Test –</option>
+              {linkableTests.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {formatDate(t.date)} · {t.title}
+                </option>
               ))}
-              <input
-                id="g-weight"
-                className="input"
-                inputMode="decimal"
-                aria-label="Gewichtung (frei)"
-                value={weightText}
-                disabled={readOnly}
-                onChange={(e) => setWeightText(e.target.value)}
-              />
-            </div>
+            </select>
+            {linkableTests.length === 0 && (
+              <p className="muted mt-1 text-xs">Für dieses Fach gibt es keinen Test ohne Note im Kalender.</p>
+            )}
           </div>
         </div>
 
