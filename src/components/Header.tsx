@@ -5,15 +5,16 @@ import { useState } from 'react'
 import { useAuth } from '../data/AuthProvider'
 import { formatWeekRange, formatWeekday, isoWeek, parseDateKey, todayKey } from '../lib/dates'
 import { semesterOf } from '../lib/grades'
-import { isCalendarView, type CalendarView, type Route } from '../lib/router'
+import { hasPeriod, isCalendarView, type CalendarView, type Route } from '../lib/router'
 import { Icon } from './Icon'
 import { useMediaQuery } from './useMediaQuery'
 
-const CAL_BUTTONS: { view: CalendarView; label: string }[] = [
+const CAL_BUTTONS: { view: CalendarView; label: string; short?: string }[] = [
   { view: 'monat', label: 'Monat' },
   { view: 'woche', label: 'Woche' },
   { view: 'tag', label: 'Tag' },
   { view: 'liste', label: 'Liste' },
+  { view: 'heatmap', label: 'Heatmap', short: 'Heat' },
 ]
 
 function greeting(): string {
@@ -38,6 +39,8 @@ function heading(route: Route, email: string, compact: boolean): { eyebrow: stri
     }
     case 'monat':
       return { eyebrow: d.slice(0, 4), title: monthName(d) }
+    case 'heatmap':
+      return { eyebrow: `${d.slice(0, 4)} · Belastung pro Tag`, title: monthName(d) }
     case 'woche':
       return { eyebrow: formatWeekRange(d), title: `Woche ${isoWeek(d)}` }
     case 'tag':
@@ -74,7 +77,7 @@ export function Header({
 }) {
   const { session } = useAuth()
   const isCalendar = isCalendarView(route.view)
-  const showsDates = route.view === 'monat' || route.view === 'woche' || route.view === 'tag'
+  const showsDates = hasPeriod(route.view)
   // iPhone (schmal): Pfeile weg (dort wird gewischt), Suche hinter einer Lupe
   const compact = useMediaQuery('(max-width: 639px)')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -153,10 +156,10 @@ export function Header({
 
       {isCalendar && !search && (
         <div className="mt-3 flex flex-wrap items-center gap-2 md:mt-4">
-          <nav className={`segment ${compact ? 'grid flex-1 grid-cols-4' : ''}`} aria-label="Ansicht">
+          <nav className={`segment ${compact ? 'grid flex-1 grid-cols-5' : ''}`} aria-label="Ansicht">
             {CAL_BUTTONS.map((b) => (
-              <button key={b.view} className={compact ? 'px-1!' : undefined} aria-pressed={route.view === b.view} onClick={() => navigate({ view: b.view })}>
-                {b.label}
+              <button key={b.view} className={compact ? 'px-0.5! text-[13px]!' : undefined} aria-pressed={route.view === b.view} onClick={() => navigate({ view: b.view })}>
+                {compact ? (b.short ?? b.label) : b.label}
               </button>
             ))}
           </nav>

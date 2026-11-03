@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { AuthProvider, useAuth } from './data/AuthProvider'
 import { DataProvider, useData } from './data/DataProvider'
 import { supabaseConfigured } from './lib/supabase'
-import { isCalendarView, lastCalendarView, sectionOf, stepDate, useRoute, type Route, type Section } from './lib/router'
+import { hasPeriod, isCalendarView, lastCalendarView, sectionOf, stepDate, useRoute, type Route, type Section } from './lib/router'
+import { HeatmapView } from './views/HeatmapView'
 import { todayKey, weekDays } from './lib/dates'
 import { loadPref, savePref } from './lib/cache'
 import { EMPTY_FILTERS, isFilterActive, matchesFilters, type Filters } from './lib/filters'
@@ -72,7 +73,7 @@ function Shell() {
   const [periodEditor, setPeriodEditor] = useState<PeriodRequest | null>(null)
   const onGradesTab = route.view === 'noten' && !search.trim()
   // Monat / Woche / Tag: Zeitraum, der sich vor/zurück wischen lässt
-  const isCalendar = !search.trim() && (route.view === 'monat' || route.view === 'woche' || route.view === 'tag')
+  const isCalendar = !search.trim() && hasPeriod(route.view)
   // iPad / Computer: Navigation als Leiste links, sonst unten (iPhone)
   const rail = useMediaQuery('(min-width: 768px)')
   // iPad im Querformat / Computer: "Heute" als Seitenleiste neben dem Kalender
@@ -203,6 +204,18 @@ function Shell() {
             showToday={false}
           />
         )
+      case 'heatmap':
+        return (
+          <HeatmapView
+            date={route.date}
+            entries={visibleEntries}
+            blocks={visibleBlocks}
+            onOpenEntry={openEntry}
+            onOpenBlock={setBlockMenu}
+            onOpenPeriod={(periodId) => setPeriodEditor({ periodId })}
+            onOpenDay={openDay}
+          />
+        )
       case 'noten':
         return <GradesView onOpenGrade={setGradeEditor} onGoSubjects={() => changeView({ view: 'mehr' })} />
       case 'mehr':
@@ -263,7 +276,7 @@ function Shell() {
               ]
             )}
           </main>
-          {wide && isCalendar && !loading && (
+          {wide && isCalendar && route.view !== 'heatmap' && !loading && (
             <aside className="w-80 shrink-0 overflow-y-auto p-3 pr-5 pb-10">
               <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} onOpenPeriod={setPeriodEditor} />
             </aside>

@@ -5,13 +5,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { addDays, addMonths, isDateKey, todayKey, type DateKey } from './dates'
 import { loadPref, savePref } from './cache'
 
-export type ViewName = 'heute' | 'monat' | 'woche' | 'tag' | 'liste' | 'noten' | 'mehr'
+export type ViewName = 'heute' | 'monat' | 'woche' | 'tag' | 'liste' | 'heatmap' | 'noten' | 'mehr'
 
-const VIEWS: ViewName[] = ['heute', 'monat', 'woche', 'tag', 'liste', 'noten', 'mehr']
+const VIEWS: ViewName[] = ['heute', 'monat', 'woche', 'tag', 'liste', 'heatmap', 'noten', 'mehr']
 
 /** Ansichten im Bereich "Kalender" (Umschalter oben) */
-export type CalendarView = 'monat' | 'woche' | 'tag' | 'liste'
-export const CALENDAR_VIEWS: CalendarView[] = ['monat', 'woche', 'tag', 'liste']
+export type CalendarView = 'monat' | 'woche' | 'tag' | 'liste' | 'heatmap'
+export const CALENDAR_VIEWS: CalendarView[] = ['monat', 'woche', 'tag', 'liste', 'heatmap']
+
+/** Ansichten mit einem Zeitraum, der sich vor/zurück blättern (und wischen) lässt */
+export const hasPeriod = (v: ViewName) => v === 'monat' || v === 'woche' || v === 'tag' || v === 'heatmap'
 export const isCalendarView = (v: ViewName): v is CalendarView => (CALENDAR_VIEWS as ViewName[]).includes(v)
 
 /** Die vier Bereiche der Navigation */
@@ -33,14 +36,14 @@ export function parseHash(hash: string, today: DateKey, fallbackView: ViewName):
 }
 
 export function toHash(route: Route): string {
-  return route.view === 'monat' || route.view === 'woche' || route.view === 'tag'
+  return hasPeriod(route.view)
     ? `#/${route.view}/${route.date}`
     : `#/${route.view}`
 }
 
 /** Einen Schritt vor/zurück: ein Monat, eine Woche oder ein Tag */
 export function stepDate(route: Route, direction: 1 | -1): DateKey {
-  if (route.view === 'monat') return addMonths(route.date, direction)
+  if (route.view === 'monat' || route.view === 'heatmap') return addMonths(route.date, direction)
   if (route.view === 'woche') return addDays(route.date, 7 * direction)
   return addDays(route.date, direction)
 }
