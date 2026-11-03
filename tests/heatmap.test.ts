@@ -11,6 +11,11 @@ describe('dayLoads', () => {
     const loads = dayLoads(['2026-11-03'], [entry('2026-11-03', 'test'), entry('2026-11-03', 'aufgabe')], [block('2026-11-03')])
     expect(loads.get('2026-11-03')).toEqual({ score: 4, tests: 1, others: 1, study: 1 })
   })
+  it('erledigte Einträge und Lernzeiten zählen mit (auch vergangene Monate zeigen die Belastung)', () => {
+    const done = { ...entry('2026-10-12', 'test'), done: true } as Entry
+    const doneBlock = { ...block('2026-10-12'), done: true } as StudyBlock
+    expect(dayLoads(['2026-10-12'], [done], [doneBlock]).get('2026-10-12')!.score).toBe(3)
+  })
   it('mehrtägige Einträge zählen an jedem Tag', () => {
     const loads = dayLoads(['2026-11-23', '2026-11-24', '2026-11-25'], [entry('2026-11-23', 'event', '2026-11-24')], [])
     expect([...loads.values()].map((l) => l.score)).toEqual([1, 1, 0])

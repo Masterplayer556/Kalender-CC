@@ -1,6 +1,8 @@
 // Heatmap "Belastung pro Tag": Wie viel steht an einem Tag an?
 // Punkte: Test = 2, jeder andere Eintrag = 1, jede Lernzeit = 1.
 // Mehrtägige Einträge zählen an jedem ihrer Tage.
+// Erledigte Einträge und Lernzeiten zählen bewusst mit: Die Heatmap zeigt auch vergangene Monate,
+// also wie viel an einem Tag los war – nicht nur, was noch offen ist.
 
 import { isoToLocal, type DateKey } from './dates'
 import { entryCovers } from './grouping'
