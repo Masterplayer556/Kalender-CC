@@ -2,12 +2,13 @@
 
 import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, CATEGORY_KEYS } from '../lib/categories'
+import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR } from '../lib/categories'
 import { addDays, daysBetween, formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
 import type { Attachment, Category, PendingAttachment, StudyBlockInput } from '../types'
 import { AttachmentsEditor } from './AttachmentsEditor'
 import type { GradeRequest } from './GradeEditor'
+import { Icon } from './Icon'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { StudyBlocksEditor } from './StudyBlocksEditor'
@@ -173,6 +174,9 @@ export function EntryEditor({
   return (
     <Modal
       title={isCopy ? 'Kopie bearbeiten' : existing ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}
+      eyebrow={[CATEGORIES[category].label, subjects.find((s) => s.id === subjectId)?.name].filter(Boolean).join(' · ')}
+      icon={CATEGORIES[category].icon}
+      wide
       onClose={onClose}
       footer={
         <>
@@ -209,119 +213,110 @@ export function EntryEditor({
       )}
 
       <form id="entry-form" onSubmit={handleSave} className="space-y-4">
-        <div>
-          <label className="label" htmlFor="title">Titel</label>
-          <input
-            id="title"
-            className="input"
-            value={title}
-            disabled={readOnly}
-            placeholder="z. B. Test über den Ersten Weltkrieg"
-            autoFocus={!existing}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+        <input
+          id="title"
+          className="input-title"
+          aria-label="Titel"
+          value={title}
+          disabled={readOnly}
+          placeholder="Titel, z. B. Test Erster Weltkrieg"
+          autoFocus={!existing}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+
+        <div role="group" aria-label="Kategorie" className="grid grid-cols-4 gap-2">
+          {CATEGORY_KEYS.map((c) => (
+            <button key={c} type="button" className="choice" aria-pressed={category === c} disabled={readOnly} onClick={() => setCategory(c)}>
+              <Icon name={CATEGORIES[c].icon} className="h-6 w-6" strokeWidth={2.2} />
+              {CATEGORIES[c].label}
+            </button>
+          ))}
         </div>
 
-        <div>
-          <span className="label">Kategorie</span>
-          {/* Handy: 2×2, damit die vier Kategorien nicht unregelmässig umbrechen */}
-          <div className="segment grid grid-cols-2 sm:inline-flex">
-            {CATEGORY_KEYS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={category === c}
-                disabled={readOnly}
-                onClick={() => setCategory(c)}
-              >
-                {CATEGORIES[c].icon} {CATEGORIES[c].label}
-              </button>
-            ))}
+        <div className="field-group space-y-4">
+          <div>
+            <span className="label">Fach</span>
+            <div role="group" aria-label="Fach" className="flex flex-wrap gap-2">
+              {[{ id: '', name: 'kein Fach', color: NO_SUBJECT_COLOR }, ...subjects].map((s) => {
+                const active = subjectId === s.id
+                return (
+                  <button
+                    key={s.id || 'kein'}
+                    type="button"
+                    className="chip min-h-10 font-semibold"
+                    aria-pressed={active}
+                    disabled={readOnly}
+                    style={
+                      active
+                        ? { background: `color-mix(in srgb, ${s.color} 22%, var(--surface))`, borderColor: s.color, color: 'var(--ink)' }
+                        : { borderColor: 'var(--line)' }
+                    }
+                    onClick={() => setSubjectId(s.id)}
+                  >
+                    <span className="h-3 w-3 rounded-full" style={{ background: s.color }} />
+                    {s.name}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="subject">Fach</label>
-            <select
-              id="subject"
-              className="input"
-              value={subjectId}
-              disabled={readOnly}
-              onChange={(e) => setSubjectId(e.target.value)}
-            >
-              <option value="">– kein Fach –</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label" htmlFor="date">{isMultiDay ? 'Von' : 'Datum'}</label>
-            <input
-              id="date"
-              type="date"
-              className="input"
-              value={date}
-              disabled={readOnly}
-              onChange={(e) => e.target.value && changeDate(e.target.value)}
-            />
-          </div>
-          {isMultiDay && (
-            <div className="sm:col-start-2">
-              <label className="label" htmlFor="end-date">Bis (inklusive)</label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="date">{isMultiDay ? 'Von' : 'Datum'}</label>
               <input
-                id="end-date"
+                id="date"
                 type="date"
                 className="input"
-                value={endDate}
-                min={addDays(date, 1)}
+                value={date}
                 disabled={readOnly}
-                onChange={(e) => e.target.value && setEndDate(e.target.value)}
+                onChange={(e) => e.target.value && changeDate(e.target.value)}
               />
             </div>
-          )}
-        </div>
-
-        {category === 'event' && (
-          <label className="flex min-h-11 items-center gap-2">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={multiDay}
-              disabled={readOnly}
-              onChange={(e) => setMultiDay(e.target.checked)}
-            />
-            mehrtägig
-            {isMultiDay && endDate > date && (
-              <span className="text-sm text-slate-500">· {daysBetween(date, endDate) + 1} Tage, ganztägig</span>
+            {isMultiDay && (
+              <div>
+                <label className="label" htmlFor="end-date">Bis (inklusive)</label>
+                <input
+                  id="end-date"
+                  type="date"
+                  className="input"
+                  value={endDate}
+                  min={addDays(date, 1)}
+                  disabled={readOnly}
+                  onChange={(e) => e.target.value && setEndDate(e.target.value)}
+                />
+              </div>
             )}
-          </label>
-        )}
+          </div>
 
-        <div className={isMultiDay ? 'hidden' : ''}>
-          <label className="flex min-h-11 items-center gap-2">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={hasTime}
-              disabled={readOnly}
-              onChange={(e) => setHasTime(e.target.checked)}
-            />
-            mit Uhrzeit
-          </label>
-          {hasTime && (
-            <div className="flex flex-wrap items-center gap-2">
-              <TimeInput label="Von" value={start} disabled={readOnly} onChange={setStart} />
-              <span>bis</span>
-              <TimeInput label="Bis" value={end} disabled={readOnly} onChange={setEnd} />
-            </div>
+          {category === 'event' && (
+            <label className="toggle-row">
+              <span className="flex-1">
+                mehrtägig
+                {isMultiDay && endDate > date && (
+                  <span className="muted ml-1 text-sm font-medium">· {daysBetween(date, endDate) + 1} Tage, ganztägig</span>
+                )}
+              </span>
+              <input type="checkbox" className="switch" checked={multiDay} disabled={readOnly} onChange={(e) => setMultiDay(e.target.checked)} />
+            </label>
           )}
+
+          <div className={isMultiDay ? 'hidden' : ''}>
+            <label className="toggle-row">
+              <span className="flex-1">mit Uhrzeit</span>
+              <input type="checkbox" className="switch" checked={hasTime} disabled={readOnly} onChange={(e) => setHasTime(e.target.checked)} />
+            </label>
+            {hasTime && (
+              <div className="flex flex-wrap items-center gap-2">
+                <TimeInput label="Von" value={start} disabled={readOnly} onChange={setStart} />
+                <span className="muted">bis</span>
+                <TimeInput label="Bis" value={end} disabled={readOnly} onChange={setEnd} />
+              </div>
+            )}
+          </div>
         </div>
 
-        <div>
+        <div className="field-group">
           <label className="label" htmlFor="notes">Notizen</label>
           <textarea
             id="notes"
@@ -331,23 +326,16 @@ export function EntryEditor({
             placeholder="z. B. Seiten 34–52, Lernziele 1–8"
             onChange={(e) => setNotes(e.target.value)}
           />
+          <label className="toggle-row mt-2">
+            <span className="flex-1">erledigt</span>
+            <input type="checkbox" className="switch" checked={done} disabled={readOnly} onChange={(e) => setDone(e.target.checked)} />
+          </label>
         </div>
-
-        <label className="flex min-h-11 items-center gap-2">
-          <input
-            type="checkbox"
-            className="h-5 w-5"
-            checked={done}
-            disabled={readOnly}
-            onChange={(e) => setDone(e.target.checked)}
-          />
-          erledigt
-        </label>
 
         {/* Note: nur bei gespeicherten Tests (eine Note braucht einen bestehenden Eintrag) */}
         {editingId && category === 'test' && (
-          <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
-            <h3 className="font-semibold">🎓 Note</h3>
+          <section className="field-group flex flex-wrap items-center gap-3">
+            <h3 className="flex items-center gap-2 font-bold"><Icon name="award" className="ink-accent h-5 w-5" /> Note</h3>
             {linkedGrade ? (
               <>
                 <span className={`${gradeClass(linkedGrade.grade)} rounded-lg px-2 py-0.5 text-lg font-bold tabular-nums`}>

@@ -111,7 +111,7 @@ function PeriodRow({ period, onOpen }: { period: Period; onOpen: () => void }) {
         style={{ boxShadow: `inset 5px 0 0 ${meta.color}, var(--tile-shadow)` }}
         onClick={onOpen}
       >
-        <span className="text-xl">{meta.icon}</span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-(--r-ctl)" style={{ background: `color-mix(in srgb, ${meta.color} 20%, transparent)`, color: meta.color }}><Icon name={meta.icon} /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{period.name}</span>
           <span className="block text-sm text-slate-500">

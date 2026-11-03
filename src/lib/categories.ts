@@ -1,10 +1,12 @@
 import type { Category, Entry, Subject } from '../types'
+import type { IconName } from '../components/Icon'
 
-export const CATEGORIES: Record<Category, { label: string; icon: string }> = {
-  test: { label: 'Test', icon: '📝' },
-  aufgabe: { label: 'Aufgabe', icon: '✅' },
-  event: { label: 'Event', icon: '🎉' },
-  sonstiges: { label: 'Sonstiges', icon: '📌' },
+/** icon: Name eines Symbols aus components/Icon.tsx */
+export const CATEGORIES: Record<Category, { label: string; icon: IconName }> = {
+  test: { label: 'Test', icon: 'doc' },
+  aufgabe: { label: 'Aufgabe', icon: 'check' },
+  event: { label: 'Event', icon: 'sparkle' },
+  sonstiges: { label: 'Sonstiges', icon: 'flag' },
 }
 
 export const CATEGORY_KEYS = Object.keys(CATEGORIES) as Category[]

@@ -18,6 +18,7 @@ import {
   type Weighted,
 } from '../lib/grades'
 import { overallTrend, runningAverage, trendDelta } from '../lib/gradeStats'
+import { OVERALL, TARGET_OPTIONS, loadTargets, targetStatus, withTarget } from '../lib/targets'
 import type { Grade, Subject } from '../types'
 
 const ALL = 'alle'
@@ -49,10 +50,35 @@ function Delta({ value }: { value: number | null }) {
   )
 }
 
+/** Ziel wählen: sieht aus wie ein Chip, ist aber ein natives Auswahlfeld (gut bedienbar auf dem iPad) */
+function TargetPicker({ value, onChange, onHero }: { value: number | undefined; onChange: (v: number | null) => void; onHero?: boolean }) {
+  return (
+    <label
+      className={`chip relative min-h-9 cursor-pointer font-bold ${onHero ? 'border-transparent bg-white/15' : 'border-(--line) bg-(--surface)'}`}
+    >
+      <Icon name="target" className="h-4 w-4" />
+      {value ? `Ziel ${formatGrade(value)}` : 'Ziel setzen'}
+      <select
+        className="absolute inset-0 cursor-pointer opacity-0"
+        aria-label="Notenziel"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+      >
+        <option value="">kein Ziel</option>
+        {TARGET_OPTIONS.map((t) => (
+          <option key={t} value={t}>
+            Ziel {formatGrade(t)}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 /** Notenrechner für ein Fach: "Welche Note brauche ich?" */
-function Calculator({ grades }: { grades: Weighted[] }) {
+function Calculator({ grades, initialTarget }: { grades: Weighted[]; initialTarget?: number }) {
   const { theme } = useTheme()
-  const [targetText, setTargetText] = useState('4.5')
+  const [targetText, setTargetText] = useState(String(initialTarget ?? 4.5))
   const [weightText, setWeightText] = useState('1')
   const [forReport, setForReport] = useState(true)
 
@@ -104,12 +130,16 @@ function SubjectCard({
   grades,
   range,
   index,
+  target,
+  onTarget,
   onOpenGrade,
 }: {
   subject: Subject
   grades: Grade[]
   range: [DateKey, DateKey] | undefined
   index: number
+  target: number | undefined
+  onTarget: (v: number | null) => void
   onOpenGrade: (req: GradeRequest) => void
 }) {
   const { online } = useData()
@@ -129,6 +159,7 @@ function SubjectCard({
   const delta = line.length > 1 ? line[line.length - 1].value - line[line.length - 2].value : null
   const best = Math.max(...grades.map((g) => g.grade))
   const worst = Math.min(...grades.map((g) => g.grade))
+  const status = target ? targetStatus(grades, target) : null
 
   return (
     <li className="tile tile-in flex flex-col p-4 md:p-5" style={{ '--i': index } as CSSProperties}>
@@ -149,7 +180,20 @@ function SubjectCard({
         </div>
       </div>
 
-      <div className="mt-3 -mx-1">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <TargetPicker value={target} onChange={onTarget} />
+        {status?.state === 'reached' && <span className="grade-good rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">Ziel erreicht</span>}
+        {status?.state === 'needs' && (
+          <span className="text-sm font-semibold">
+            nächste Prüfung <span className="ink-accent font-extrabold">≥ {formatGrade(status.grade)}</span>
+          </span>
+        )}
+        {status?.state === 'out-of-reach' && (
+          <span className="grade-bad rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">mit einer Prüfung nicht erreichbar</span>
+        )}
+      </div>
+
+      <div className="mt-2 -mx-1">
         <GradeChart
           line={line}
           dots={dots}
@@ -158,6 +202,8 @@ function SubjectCard({
           range={range}
           label={`Notenverlauf ${subject.name}`}
           onDot={(id) => onOpenGrade({ gradeId: id })}
+          // Für die Zeugnisnote reicht ein Schnitt 0.25 darunter (wird aufgerundet)
+          target={target ? { value: target - 0.25, label: `Ziel ${formatGrade(target)}` } : null}
         />
       </div>
 
@@ -195,7 +241,7 @@ function SubjectCard({
           ))}
         </ul>
       )}
-      {showCalc && <Calculator grades={grades} />}
+      {showCalc && <Calculator grades={grades} initialTarget={target} />}
     </li>
   )
 }
@@ -217,6 +263,8 @@ export function GradesView({
     setSemesterState(key)
     savePref('gradeSemester', key)
   }
+  const [targets, setTargets] = useState(loadTargets)
+  const setTarget = (key: string, v: number | null) => setTargets((t) => withTarget(t, key, v))
 
   // Alle Semester, in denen es Noten gibt, plus das aktuelle – neueste zuerst
   const semesterOptions = useMemo(() => {
@@ -282,7 +330,7 @@ export function GradesView({
   // Auf dem Sunset-Verlauf: helle Achsen. Bei Neon: normale Farben.
   const heroChartStyle = (neon
     ? {}
-    : { '--chart-axis': 'rgb(255 255 255 / 0.85)', '--chart-grid': 'rgb(255 255 255 / 0.22)', '--chart-ring': '#be123c' }) as CSSProperties
+    : { '--chart-axis': 'rgb(255 255 255 / 0.85)', '--chart-grid': 'rgb(255 255 255 / 0.22)', '--chart-ring': '#be123c', '--chart-target': '#ffd5b8' }) as CSSProperties
 
   return (
     <div className="h-full overflow-y-auto">
@@ -323,6 +371,15 @@ export function GradesView({
                 <div className="mt-2 text-sm font-semibold opacity-85">
                   Ø der Zeugnisnoten · ungerundet {rawOverall!.toFixed(2)}
                 </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <TargetPicker value={targets[OVERALL]} onChange={(v) => setTarget(OVERALL, v)} onHero={!neon} />
+                  {targets[OVERALL] !== undefined &&
+                    (overall >= targets[OVERALL] ? (
+                      <span className="grade-good rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">Ziel erreicht</span>
+                    ) : (
+                      <span className="text-sm font-bold">noch {(targets[OVERALL] - overall).toFixed(2)} bis zum Ziel</span>
+                    ))}
+                </div>
                 <div className="mt-4 flex gap-2">
                   <div className={`flex-1 rounded-(--r-ctl) px-3 py-2 ${neon ? 'border border-(--line)' : 'bg-white/15'}`}>
                     <div className="num text-2xl">{withGrades.length}</div>
@@ -346,6 +403,7 @@ export function GradesView({
                     height={200}
                     range={range}
                     label="Verlauf des Gesamtschnitts"
+                    target={targets[OVERALL] ? { value: targets[OVERALL], label: `Ziel ${formatGrade(targets[OVERALL])}` } : null}
                   />
                 ) : (
                   <p className="text-sm font-semibold opacity-85">Der Verlauf erscheint ab der zweiten Note.</p>
@@ -373,7 +431,16 @@ export function GradesView({
 
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {withGrades.map((s, i) => (
-            <SubjectCard key={s.id} subject={s} grades={bySubject.get(s.id)!} range={range} index={i + 1} onOpenGrade={onOpenGrade} />
+            <SubjectCard
+              key={s.id}
+              subject={s}
+              grades={bySubject.get(s.id)!}
+              range={range}
+              index={i + 1}
+              target={targets[s.id]}
+              onTarget={(v) => setTarget(s.id, v)}
+              onOpenGrade={onOpenGrade}
+            />
           ))}
         </ul>
       </div>

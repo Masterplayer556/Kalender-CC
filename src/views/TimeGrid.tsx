@@ -16,6 +16,7 @@ import { entryCovers } from '../lib/grouping'
 import { MINUTES_PER_DAY, clipToDay, layoutDay } from '../lib/layout'
 import { PERIOD_KINDS, periodsByDay } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
+import { InlineIcon } from '../components/Icon'
 
 const HOUR_HEIGHT = 48 // Pixel pro Stunde
 const PX_PER_MIN = HOUR_HEIGHT / 60
@@ -163,8 +164,8 @@ export function TimeGrid({
                   title={`${PERIOD_KINDS[p.kind].label}: ${p.name}`}
                   onClick={() => onOpenPeriod(p.id)}
                 >
-                  {PERIOD_KINDS[p.kind].icon}
-                  {!narrow && ` ${p.name}`}
+                  <InlineIcon name={PERIOD_KINDS[p.kind].icon} />
+                  {!narrow && p.name}
                 </button>
               ))}
               {allDay.map((e) => (
@@ -182,7 +183,8 @@ export function TimeGrid({
                   lang="de"
                   onClick={() => onOpenEntry(e.id)}
                 >
-                  {narrow ? e.title : `${CATEGORIES[e.category].icon} ${e.title}`}
+                  {!narrow && <InlineIcon name={CATEGORIES[e.category].icon} />}
+                  {e.title}
                 </button>
               ))}
             </div>
@@ -239,9 +241,8 @@ export function TimeGrid({
                     }}
                   >
                     <div className={`font-semibold ${done ? 'line-through' : ''}`} lang="de">
-                      {narrow
-                        ? it.kind === 'study' ? `📖 ${it.entry.title}` : it.entry.title
-                        : it.kind === 'study' ? `📖 Lernen: ${it.entry.title}` : `${CATEGORIES[it.entry.category].icon} ${it.entry.title}`}
+                      {it.kind === 'study' ? <InlineIcon name="book" /> : !narrow && <InlineIcon name={CATEGORIES[it.entry.category].icon} />}
+                      {it.kind === 'study' && !narrow ? `Lernen: ${it.entry.title}` : it.entry.title}
                     </div>
                     {height >= 32 && !narrow && (
                       <div className="text-slate-600 dark:text-slate-300">

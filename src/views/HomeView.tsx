@@ -359,7 +359,7 @@ export function HomeView({
                 style={{ background: `color-mix(in srgb, ${PERIOD_KINDS[p.kind].color} 18%, var(--surface))` }}
                 onClick={() => onOpenPeriod({ periodId: p.id })}
               >
-                <span>{PERIOD_KINDS[p.kind].icon}</span>
+                <Icon name={PERIOD_KINDS[p.kind].icon} className="h-5 w-5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 <span className="muted text-sm font-semibold">{PERIOD_KINDS[p.kind].label}</span>
               </button>

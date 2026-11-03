@@ -414,6 +414,162 @@
   }
 }
 
+/* ---------- Formulare ---------- */
+@layer components {
+  /* Dialog-Hintergrund */
+  .sheet {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  /* Symbol-Kachel oben links im Dialog */
+  .sheet-badge {
+    background: var(--hero);
+    color: var(--on-hero);
+    border-radius: calc(var(--r-ctl) + 2px);
+  }
+  /* Gruppe von Feldern auf einer Kachel */
+  .field-group {
+    background: var(--surface);
+    border: 1px solid var(--tile-border);
+    border-radius: calc(var(--r-tile) - 6px);
+    box-shadow: var(--tile-shadow);
+    padding: 16px;
+  }
+  /* Grosses Titelfeld ohne Rahmen */
+  .input-title {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    padding: 6px 2px 10px;
+    font-family: var(--font-display);
+    font-size: 24px !important;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    outline: none;
+  }
+  .input-title:focus {
+    border-bottom-color: var(--accent-text);
+  }
+  .input-title::placeholder {
+    color: color-mix(in srgb, var(--muted) 70%, transparent);
+    font-weight: 700;
+  }
+  /* Auswahl-Kacheln (Kategorie, Art, Gewichtung) */
+  .choice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 76px;
+    padding: 10px 6px;
+    border-radius: calc(var(--r-tile) - 10px);
+    background: var(--surface);
+    border: 1px solid var(--tile-border);
+    box-shadow: var(--tile-shadow);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .choice[aria-pressed='true'] {
+    background: var(--hero);
+    color: var(--on-hero);
+    border-color: var(--hero-border);
+    box-shadow: var(--hero-glow);
+  }
+  .choice-sm {
+    min-height: 44px;
+    flex-direction: row;
+  }
+  /* Ein/Aus-Schalter (auf einer Checkbox) */
+  .switch {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex: none;
+    width: 52px;
+    height: 32px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--muted) 35%, transparent);
+    cursor: pointer;
+    transition: background-color 180ms var(--ease-out-smooth);
+  }
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+    transition: transform 220ms var(--ease-out-smooth);
+  }
+  .switch:checked {
+    background: var(--accent);
+  }
+  .switch:checked::after {
+    transform: translateX(20px);
+  }
+  .switch:disabled {
+    opacity: 0.5;
+  }
+  /* Zeile mit Text und Schalter */
+  .toggle-row {
+    display: flex;
+    min-height: 52px;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+  }
+}
+[data-theme='neon'] .sheet {
+  border: 1px solid var(--line);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+[data-theme='neon'] .sheet-badge {
+  background: transparent;
+  color: var(--accent-text);
+  border: 1.5px solid var(--accent-text);
+  box-shadow: var(--hero-glow);
+}
+[data-theme='neon'] .choice {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+[data-theme='neon'] .choice[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+[data-theme='neon'] .switch {
+  border-radius: 6px;
+}
+[data-theme='neon'] .switch::after {
+  border-radius: 4px;
+}
+[data-theme='neon'] .switch:checked::after {
+  background: #0a0d06;
+}
+[data-theme='neon'] .input-title {
+  font-weight: 700;
+}
+[data-theme='neon'] .label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* ---------- Sunset-Besonderheiten ---------- */
 [data-theme='sunset'] .nav-bar {
   border-radius: 26px;

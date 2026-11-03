@@ -2,6 +2,7 @@
 //   • Linie  = Verlauf des Schnitts
 //   • Punkte = einzelne Noten (grösser = höheres Gewicht), antippen öffnet die Note
 //   • gestrichelt = Grenze 4 (genügend)
+//   • Ziellinie (optional) in Akzentfarbe
 // Sunset: weiche Kurve mit Farbfläche darunter. Neon: gerade Linien, Raster, eckige Punkte, Glühen.
 
 import { useId, useLayoutEffect, useRef, useState } from 'react'
@@ -62,6 +63,7 @@ export function GradeChart({
   sparkline = false,
   range,
   onDot,
+  target,
 }: {
   line: TrendPoint[]
   dots?: ChartDot[]
@@ -71,6 +73,7 @@ export function GradeChart({
   sparkline?: boolean // klein, ohne Achsen (z. B. in der Heute-Kachel)
   range?: [DateKey, DateKey] // fester Zeitraum (sonst von erster bis letzter Note)
   onDot?: (id: string) => void
+  target?: { value: number; label: string } | null // Ziellinie
 }) {
   const { theme, dark } = useTheme()
   const neon = theme === 'neon'
@@ -89,7 +92,7 @@ export function GradeChart({
   // Notenachse: Sparkline eng um die Werte, sonst ab knapp unter 4 bis 6
   const lo = sparkline
     ? Math.min(...values) - 0.15
-    : Math.max(1, Math.floor((Math.min(4, ...values) - 0.25) * 2) / 2)
+    : Math.max(1, Math.floor((Math.min(4, ...values, ...(target ? [target.value] : [])) - 0.25) * 2) / 2)
   const hi = sparkline ? Math.max(...values) + 0.15 : 6
 
   const pad = sparkline ? { l: 4, r: 4, t: 6, b: 6 } : { l: 30, r: 12, t: 12, b: 26 }
@@ -169,6 +172,35 @@ export function GradeChart({
               {neon ? l.text.toUpperCase() : l.text}
             </text>
           ))}
+
+          {target && !sparkline && (
+            <g style={{ color: 'var(--chart-target, var(--accent-text))' }}>
+              <line
+                x1={pad.l}
+                x2={w - pad.r}
+                y1={Y(target.value)}
+                y2={Y(target.value)}
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeDasharray={neon ? '6 3' : '1 6'}
+                strokeLinecap="round"
+              />
+              <text
+                x={pad.l + 6}
+                y={Y(target.value) - 6}
+                textAnchor="start"
+                fontSize="11"
+                fontWeight={800}
+                fill="currentColor"
+                fontFamily={axisFont}
+                stroke="var(--chart-ring, var(--surface))"
+                strokeWidth={3}
+                paintOrder="stroke"
+              >
+                {neon ? target.label.toUpperCase() : target.label}
+              </text>
+            </g>
+          )}
 
           {!neon && areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
           {neon && areaPath && <path d={areaPath} fill={color} opacity={dark ? 0.08 : 0.1} />}
