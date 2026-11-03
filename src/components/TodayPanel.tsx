@@ -43,9 +43,9 @@ export function TodayPanel({
   const holiday = holidayStatus(periods, today)
 
   return (
-    <section className="space-y-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-900">
-      <h2 className="font-semibold">
-        Heute <span className="font-normal text-slate-500">· {formatWeekday(today, 'long')}, {formatDate(today)}</span>
+    <section className="tile-2 space-y-3 p-4">
+      <h2 className="section-title">
+        Heute <span className="muted text-sm font-semibold tracking-normal normal-case">· {formatWeekday(today, 'long')}, {formatDate(today)}</span>
       </h2>
 
       {nothingToday && <p className="text-sm text-slate-500">Heute steht nichts an. 🎉</p>}
@@ -93,7 +93,7 @@ export function TodayPanel({
           {todayEntries.map((e) => (
             <li key={e.id}>
               <button
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-white px-2 text-left shadow-sm dark:bg-slate-800"
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-(--surface) px-2 text-left shadow-sm"
                 style={{ borderLeft: `4px solid ${colorOf(e)}` }}
                 onClick={() => onOpenEntry(e.id)}
               >
@@ -138,7 +138,7 @@ export function TodayPanel({
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           {nextTest && (
             <button
-              className="rounded-xl bg-white p-2 text-left shadow-sm dark:bg-slate-800"
+              className="rounded-xl bg-(--surface) p-2 text-left shadow-sm"
               style={{ borderLeft: `4px solid ${colorOf(nextTest)}` }}
               onClick={() => onOpenEntry(nextTest.id)}
             >
@@ -160,7 +160,7 @@ export function TodayPanel({
           )}
           {nextBlock && (
             <button
-              className="rounded-xl bg-white p-2 text-left shadow-sm dark:bg-slate-800"
+              className="rounded-xl bg-(--surface) p-2 text-left shadow-sm"
               onClick={() => onOpenBlock(nextBlock.id)}
             >
               <div className="text-xs text-slate-500">Nächste Lernzeit · {countdown(today, isoToLocal(nextBlock.starts_at).date)}</div>

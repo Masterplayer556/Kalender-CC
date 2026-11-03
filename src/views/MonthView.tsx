@@ -157,7 +157,7 @@ function FullMonth({
 
   return (
     <div className="flex h-full flex-col overflow-auto">
-      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-white text-center text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950">
+      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-(--surface) text-center text-xs font-medium text-slate-500 dark:border-slate-800">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="py-2">
             {label}
@@ -184,7 +184,7 @@ function FullMonth({
             >
               <span
                 className={`mb-0.5 flex h-7 w-7 items-center justify-center self-start rounded-full text-sm font-semibold ${
-                  isToday ? 'bg-red-600 text-white' : ''
+                  isToday ? 'today-dot' : ''
                 }`}
               >
                 {Number(day.slice(8))}
@@ -275,7 +275,7 @@ function CompactMonth({
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain pb-28">
-      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-white text-center text-[11px] font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950">
+      <div className="sticky top-0 z-10 grid grid-cols-7 border-b border-slate-200 bg-(--surface) text-center text-[11px] font-medium text-slate-500 dark:border-slate-800">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="py-1.5">
             {label}
@@ -305,7 +305,7 @@ function CompactMonth({
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-[15px] ${
                   isToday
-                    ? 'bg-red-600 font-semibold text-white'
+                    ? 'today-dot'
                     : isSelected
                       ? 'bg-slate-900 font-semibold text-white dark:bg-slate-100 dark:text-slate-900'
                       : ''

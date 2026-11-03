@@ -65,8 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <div
           role="status"
           key={toast.id}
-          className="toast-in fixed left-1/2 z-40 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 items-center gap-3 rounded-2xl bg-slate-900 py-2 pr-2 pl-4 text-white shadow-xl dark:bg-slate-100 dark:text-slate-900"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)' }}
+          className="toast-in fixed bottom-[calc(env(safe-area-inset-bottom)+9rem)] left-1/2 z-40 md:bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 items-center gap-3 rounded-2xl bg-slate-900 py-2 pr-2 pl-4 text-white shadow-xl dark:bg-slate-100 dark:text-slate-900"
         >
           <span className="min-w-0 flex-1 text-sm">{toast.message}</span>
           {toast.action && (

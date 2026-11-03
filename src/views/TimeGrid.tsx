@@ -120,11 +120,11 @@ export function TimeGrid({
       <div className={minWidth}>
         {/* Kopfzeile mit Tagen und ganztägigen Einträgen */}
         <div
-          className="sticky top-0 z-20 grid border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+          className="sticky top-0 z-20 grid border-b border-slate-200 bg-(--surface) dark:border-slate-800"
           style={gridCols}
         >
           {/* Tagesansicht auf dem iPhone: Datum steht schon im Titel → Zeile weglassen */}
-          {!(compact && days.length === 1) && <div className="sticky left-0 z-10 bg-white dark:bg-slate-950" />}
+          {!(compact && days.length === 1) && <div className="sticky left-0 z-10 bg-(--surface)" />}
           {!(compact && days.length === 1) && columns.map(({ day }) => {
             const isToday = day === today
             return (
@@ -139,7 +139,7 @@ export function TimeGrid({
                 <span className={`text-slate-500 ${narrow ? 'text-[11px] leading-tight' : ''}`}>{formatWeekday(day)}</span>
                 <span
                   className={`flex items-center justify-center rounded-full font-semibold ${narrow ? 'h-7 w-7' : 'h-8 min-w-8'} ${
-                    isToday ? 'bg-red-600 text-white' : ''
+                    isToday ? 'today-dot' : ''
                   }`}
                 >
                   {Number(day.slice(8))}
@@ -148,7 +148,7 @@ export function TimeGrid({
             )
           })}
           <div
-            className="sticky left-0 z-10 flex items-start justify-end bg-white py-1 pr-1 text-right text-[10px] leading-tight text-slate-500 dark:bg-slate-950"
+            className="sticky left-0 z-10 flex items-start justify-end bg-(--surface) py-1 pr-1 text-right text-[10px] leading-tight text-slate-500"
             title="ganztägig"
           >
             {narrow ? '' : <span className="hyphens-auto" lang="de">ganz&shy;tägig</span>}
@@ -191,7 +191,7 @@ export function TimeGrid({
 
         {/* Raster 0–24 Uhr */}
         <div className="grid" style={{ ...gridCols, height: MINUTES_PER_DAY * PX_PER_MIN }}>
-          <div className="sticky left-0 z-10 bg-white dark:bg-slate-950">
+          <div className="sticky left-0 z-10 bg-(--surface)">
             {Array.from({ length: 24 }, (_, h) => (
               <div
                 key={h}
@@ -255,8 +255,8 @@ export function TimeGrid({
               {/* Rote Linie: aktuelle Uhrzeit */}
               {day === today && (
                 <div className="pointer-events-none absolute right-0 left-0 z-10" style={{ top: now * PX_PER_MIN }}>
-                  <div className="h-0.5 bg-red-600" />
-                  <div className="absolute -top-1 -left-1.5 h-2.5 w-2.5 rounded-full bg-red-600" />
+                  <div className="h-0.5 bg-(--now)" />
+                  <div className="absolute -top-1 -left-1.5 h-2.5 w-2.5 rounded-full bg-(--now)" />
                 </div>
               )}
             </div>

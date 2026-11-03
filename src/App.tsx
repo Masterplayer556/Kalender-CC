@@ -1,19 +1,21 @@
 // Oberste Ebene der App:
 //   App → (Einrichtung fehlt?) → AuthProvider → (angemeldet?) → DataProvider → ToastProvider → Shell (Ansichten)
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './data/AuthProvider'
 import { DataProvider, useData } from './data/DataProvider'
 import { supabaseConfigured } from './lib/supabase'
-import { stepDate, useRoute, type Route } from './lib/router'
+import { isCalendarView, lastCalendarView, sectionOf, stepDate, useRoute, type Route, type Section } from './lib/router'
 import { todayKey, weekDays } from './lib/dates'
 import { loadPref, savePref } from './lib/cache'
 import { EMPTY_FILTERS, isFilterActive, matchesFilters, type Filters } from './lib/filters'
 import { Header } from './components/Header'
+import { SideRail, TabBar } from './components/Nav'
+import { ThemeProvider } from './components/ThemeProvider'
+import { HomeView } from './views/HomeView'
 import { FilterBar } from './components/FilterBar'
 import { StatusBanner } from './components/StatusBanner'
 import { EntryEditor, type EditorRequest } from './components/EntryEditor'
-import { Icon } from './components/Icon'
 import { StudyBlockMenu } from './components/StudyBlockMenu'
 import { GradeEditor, type GradeRequest } from './components/GradeEditor'
 import { PeriodEditor, type PeriodRequest } from './components/PeriodEditor'
@@ -31,11 +33,16 @@ import { LoginView } from './views/LoginView'
 import { SetupMissingView } from './views/SetupMissingView'
 
 export default function App() {
-  if (!supabaseConfigured) return <SetupMissingView />
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <ThemeProvider>
+      {supabaseConfigured ? (
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
+      ) : (
+        <SetupMissingView />
+      )}
+    </ThemeProvider>
   )
 }
 
@@ -64,9 +71,12 @@ function Shell() {
   const [gradeEditor, setGradeEditor] = useState<GradeRequest | null>(null)
   const [periodEditor, setPeriodEditor] = useState<PeriodRequest | null>(null)
   const onGradesTab = route.view === 'noten' && !search.trim()
+  // Monat / Woche / Tag: Zeitraum, der sich vor/zurück wischen lässt
   const isCalendar = !search.trim() && (route.view === 'monat' || route.view === 'woche' || route.view === 'tag')
+  // iPad / Computer: Navigation als Leiste links, sonst unten (iPhone)
+  const rail = useMediaQuery('(min-width: 768px)')
   // iPad im Querformat / Computer: "Heute" als Seitenleiste neben dem Kalender
-  const wide = useMediaQuery('(min-width: 1100px)')
+  const wide = useMediaQuery('(min-width: 1180px)')
   // iPhone (Hochformat): kompakte Monats- und Wochenansicht
   const compact = useMediaQuery('(max-width: 639px)')
 
@@ -117,15 +127,45 @@ function Shell() {
     return { visibleEntries, visibleBlocks: blocks.filter((b) => ids.has(b.entry_id)) }
   }, [entries, blocks, filters])
 
+  /** Bereich der Navigation gewählt: Kalender öffnet die zuletzt benutzte Ansicht */
+  const goSection = (section: Section) => {
+    setSearch('')
+    setFiltersOpen(false)
+    if (section === 'kalender') changeView({ view: isCalendarView(route.view) ? route.view : lastCalendarView() })
+    else changeView({ view: section })
+  }
+
   const openEntry = (entryId: string) => setEditor({ entryId })
   const openDay = (date: string) => changeView({ view: 'tag', date })
   const createAt = (date: string, time?: string) => online && setEditor({ date, time })
 
+  /** iPad/Computer: Kalender in einer Kachel mit Abstand zum Rand */
+  const framed = (node: ReactNode) =>
+    rail ? (
+      <div className="h-full px-6 pb-6">
+        <div className="tile h-full overflow-hidden">{node}</div>
+      </div>
+    ) : (
+      node
+    )
+
   function renderView(route: Route) {
     if (search.trim()) return <SearchView query={search} entries={visibleEntries} onOpenEntry={openEntry} />
     switch (route.view) {
-      case 'monat':
+      case 'heute':
         return (
+          <HomeView
+            entries={visibleEntries}
+            blocks={visibleBlocks}
+            onOpenEntry={openEntry}
+            onOpenBlock={setBlockMenu}
+            onOpenPeriod={setPeriodEditor}
+            onOpenGrade={setGradeEditor}
+            onGo={(view) => changeView({ view })}
+          />
+        )
+      case 'monat':
+        return framed(
           <MonthView
             date={route.date}
             entries={visibleEntries}
@@ -139,7 +179,7 @@ function Shell() {
         )
       case 'woche':
       case 'tag':
-        return (
+        return framed(
           <TimeGrid
             days={route.view === 'woche' ? weekDays(route.date) : [route.date]}
             entries={visibleEntries}
@@ -160,77 +200,78 @@ function Shell() {
             onOpenGrade={setGradeEditor}
             onOpenBlock={setBlockMenu}
             onOpenPeriod={setPeriodEditor}
-            showToday
+            showToday={false}
           />
         )
       case 'noten':
-        return <GradesView onOpenGrade={setGradeEditor} onGoSubjects={() => changeView({ view: 'faecher' })} />
-      case 'faecher':
+        return <GradesView onOpenGrade={setGradeEditor} onGoSubjects={() => changeView({ view: 'mehr' })} />
+      case 'mehr':
         return <SubjectsView onOpenPeriod={setPeriodEditor} />
     }
   }
 
-  return (
-    <div className="app-root">
-      <Header
-        route={route}
-        navigate={changeView}
-        onStep={goStep}
-        onToday={goToday}
-        search={search}
-        onSearch={setSearch}
-        filtersOpen={filtersOpen}
-        filterActive={isFilterActive(filters)}
-        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
-      />
-      {filtersOpen && <FilterBar filters={filters} onChange={setFilters} />}
-      <StatusBanner />
+  const addLabel = onGradesTab ? 'Neue Note' : 'Neuer Eintrag'
+  const onAdd = () => (onGradesTab ? setGradeEditor({}) : createAt(route.view === 'tag' ? route.date : todayKey()))
+  const navProps = {
+    section: search.trim() ? null : sectionOf(route.view),
+    onSection: goSection,
+    onAdd,
+    addLabel,
+    canAdd: online,
+  }
 
-      <div className="flex min-h-0 flex-1">
-        <main ref={mainRef} className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-          {loading ? (
-            <p className="p-6 text-center text-slate-500">Lädt Einträge …</p>
-          ) : (
-            // Als Liste mit key: React behält die alte Ansicht (samt Scroll-Position) als `leaving`,
-            // die neue wird frisch aufgebaut → beide Animationen laufen gleichzeitig.
-            [
-              leaving && leaving.key !== viewKey && (
-                <div
-                  key={leaving.key}
-                  aria-hidden
-                  className={`view-layer pointer-events-none ${leaving.dir === 1 ? 'view-leave-next' : 'view-leave-prev'}`}
-                  style={{ '--from-x': `${leaving.offset}px` } as CSSProperties}
-                  onAnimationEnd={(e) => e.target === e.currentTarget && setLeaving(null)}
-                >
-                  {renderView(leaving.route)}
-                </div>
-              ),
-              <div key={viewKey} data-view-current className={`view-layer ${animation}`}>
-                {renderView(route)}
-              </div>,
-            ]
+  return (
+    <div className="app-root flex-row!">
+      {rail && <SideRail {...navProps} />}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header
+          route={route}
+          navigate={changeView}
+          onStep={goStep}
+          onToday={goToday}
+          search={search}
+          onSearch={setSearch}
+          filtersOpen={filtersOpen}
+          filterActive={isFilterActive(filters)}
+          onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+        />
+        {filtersOpen && <FilterBar filters={filters} onChange={setFilters} />}
+        <StatusBanner />
+
+        <div className="flex min-h-0 flex-1">
+          <main ref={mainRef} className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+            {loading ? (
+              <p className="muted p-6 text-center">Lädt Einträge …</p>
+            ) : (
+              // Als Liste mit key: React behält die alte Ansicht (samt Scroll-Position) als `leaving`,
+              // die neue wird frisch aufgebaut → beide Animationen laufen gleichzeitig.
+              [
+                leaving && leaving.key !== viewKey && (
+                  <div
+                    key={leaving.key}
+                    aria-hidden
+                    className={`view-layer pointer-events-none ${leaving.dir === 1 ? 'view-leave-next' : 'view-leave-prev'}`}
+                    style={{ '--from-x': `${leaving.offset}px` } as CSSProperties}
+                    onAnimationEnd={(e) => e.target === e.currentTarget && setLeaving(null)}
+                  >
+                    {renderView(leaving.route)}
+                  </div>
+                ),
+                <div key={viewKey} data-view-current className={`view-layer ${animation}`}>
+                  {renderView(route)}
+                </div>,
+              ]
+            )}
+          </main>
+          {wide && isCalendar && !loading && (
+            <aside className="w-80 shrink-0 overflow-y-auto p-3 pr-5 pb-10">
+              <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} onOpenPeriod={setPeriodEditor} />
+            </aside>
           )}
-        </main>
-        {wide && isCalendar && !loading && (
-          <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 p-3 pb-28 dark:border-slate-800">
-            <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} onOpenPeriod={setPeriodEditor} />
-          </aside>
-        )}
+        </div>
       </div>
 
-      {/* Schnelles Hinzufügen */}
-      <button
-        className="btn-primary fixed right-5 z-30 h-14 w-14 rounded-full p-0 shadow-lg"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)' }}
-        aria-label={onGradesTab ? 'Neue Note' : 'Neuer Eintrag'}
-        title={online ? (onGradesTab ? 'Neue Note' : 'Neuer Eintrag') : 'Offline – Änderungen nicht möglich'}
-        disabled={!online}
-        onClick={() =>
-          onGradesTab ? setGradeEditor({}) : createAt(route.view === 'tag' ? route.date : todayKey())
-        }
-      >
-        <Icon name="plus" className="h-7 w-7" />
-      </button>
+      {!rail && <TabBar {...navProps} />}
 
       {/* key: bei jedem Öffnen ein frisches Formular */}
       {editor && (

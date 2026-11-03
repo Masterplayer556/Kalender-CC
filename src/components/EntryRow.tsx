@@ -33,7 +33,7 @@ export function EntryRow({
 
   return (
     <li
-      className="flex items-stretch gap-1 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+      className="flex items-stretch gap-1 tile"
       style={{ borderLeft: `5px solid ${color}` }}
     >
       <label className="flex min-w-11 items-center justify-center" title="erledigt">

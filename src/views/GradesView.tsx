@@ -1,11 +1,13 @@
-// Tab "Noten": Noten pro Fach, gewichteter Schnitt, Zeugnisnote, Notenrechner.
+// Tab "Noten": Gesamtschnitt mit Verlauf, pro Fach ein eigener Graph, Zeugnisnote und Notenrechner.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useData } from '../data/DataProvider'
+import { GradeChart, type ChartDot } from '../components/GradeChart'
 import type { GradeRequest } from '../components/GradeEditor'
 import { Icon } from '../components/Icon'
+import { useTheme } from '../components/ThemeProvider'
 import { loadPref, savePref } from '../lib/cache'
-import { formatDate, todayKey } from '../lib/dates'
+import { addDays, formatDate, todayKey, type DateKey } from '../lib/dates'
 import {
   formatGrade,
   gradeClass,
@@ -15,15 +17,22 @@ import {
   weightedAverage,
   type Weighted,
 } from '../lib/grades'
+import { overallTrend, runningAverage, trendDelta } from '../lib/gradeStats'
 import type { Grade, Subject } from '../types'
 
 const ALL = 'alle'
 
+/** Zeitraum eines Semesters: "2026-1" → 01.08.2026–31.01.2027, "2026-2" → 01.02.2027–31.07.2027 */
+function semesterRange(key: string): [DateKey, DateKey] {
+  const [y, half] = key.split('-').map(Number)
+  return half === 1 ? [`${y}-08-01`, `${y + 1}-01-31`] : [`${y + 1}-02-01`, `${y + 1}-07-31`]
+}
+
 function GradeBadge({ value, big }: { value: number; big?: boolean }) {
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-lg font-bold tabular-nums ${gradeClass(value)} ${
-        big ? 'min-w-12 px-2 py-1 text-lg' : 'min-w-10 px-1.5 py-0.5'
+      className={`grade-badge inline-flex items-center justify-center rounded-(--r-ctl) font-extrabold tabular-nums ${gradeClass(value)} ${
+        big ? 'h-11 min-w-14 px-2.5 text-xl' : 'h-8 min-w-11 px-1.5 text-[15px]'
       }`}
     >
       {formatGrade(value)}
@@ -31,8 +40,18 @@ function GradeBadge({ value, big }: { value: number; big?: boolean }) {
   )
 }
 
+function Delta({ value }: { value: number | null }) {
+  if (value === null || Math.abs(value) < 0.01) return null
+  return (
+    <span className={`grade-badge shrink-0 whitespace-nowrap rounded-(--r-chip) px-2 py-0.5 text-xs font-bold ${value > 0 ? 'grade-good' : 'grade-bad'}`}>
+      {value > 0 ? '▲' : '▼'} {Math.abs(value).toFixed(2)}
+    </span>
+  )
+}
+
 /** Notenrechner für ein Fach: "Welche Note brauche ich?" */
 function Calculator({ grades }: { grades: Weighted[] }) {
+  const { theme } = useTheme()
   const [targetText, setTargetText] = useState('4.5')
   const [weightText, setWeightText] = useState('1')
   const [forReport, setForReport] = useState(true)
@@ -46,7 +65,7 @@ function Calculator({ grades }: { grades: Weighted[] }) {
   const shown = Math.ceil(needed * 100 - 1e-9) / 100 // "mindestens": auf 2 Stellen aufrunden
 
   return (
-    <div className="mt-3 space-y-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+    <div className="tile-2 mt-3 space-y-3 p-4">
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm">
           <span className="label">Ziel</span>
@@ -57,23 +76,25 @@ function Calculator({ grades }: { grades: Weighted[] }) {
           <input className="input w-20!" inputMode="decimal" value={weightText} onChange={(e) => setWeightText(e.target.value)} />
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="checkbox" className="h-5 w-5" checked={forReport} onChange={(e) => setForReport(e.target.checked)} />
+          <input type="checkbox" className="h-5 w-5 accent-(--accent)" checked={forReport} onChange={(e) => setForReport(e.target.checked)} />
           als Zeugnisnote (gerundet)
         </label>
       </div>
-      <p className="text-sm">
+      <div className={theme === 'neon' ? 'font-mono text-sm' : 'text-[15px]'}>
         {!valid && 'Ziel zwischen 1 und 6 und Gewicht grösser als 0 eingeben.'}
-        {valid && needed > 6 && (
-          <>❌ Mit einer Prüfung nicht erreichbar (bräuchte {formatGrade(shown)}).</>
-        )}
-        {valid && needed <= 1 && <>✅ Schon sicher – jede Note reicht.</>}
+        {valid && needed > 6 && <>Mit einer Prüfung nicht erreichbar (bräuchte {formatGrade(shown)}).</>}
+        {valid && needed <= 1 && <>Schon sicher – jede Note reicht.</>}
         {valid && needed > 1 && needed <= 6 && (
-          <>
-            Du brauchst mindestens <GradeBadge value={shown} /> in der nächsten Prüfung
-            {forReport ? ` für eine ${formatGrade(target)} im Zeugnis.` : ` für einen Schnitt von ${formatGrade(target)}.`}
-          </>
+          <div className="flex items-center gap-4">
+            <span className="num ink-accent text-5xl">{formatGrade(shown)}</span>
+            <span className="font-semibold">
+              brauchst du mindestens in der nächsten Prüfung
+              {forReport ? ` für eine ${formatGrade(target)} im Zeugnis.` : ` für einen Schnitt von ${formatGrade(target)}.`}
+              {theme === 'neon' && <span className="caret ml-1 inline-block h-4 w-2 bg-(--accent) align-[-2px]" />}
+            </span>
+          </div>
         )}
-      </p>
+      </div>
     </div>
   )
 }
@@ -81,57 +102,99 @@ function Calculator({ grades }: { grades: Weighted[] }) {
 function SubjectCard({
   subject,
   grades,
+  range,
+  index,
   onOpenGrade,
 }: {
   subject: Subject
   grades: Grade[]
+  range: [DateKey, DateKey] | undefined
+  index: number
   onOpenGrade: (req: GradeRequest) => void
 }) {
   const { online } = useData()
+  const { theme } = useTheme()
   const [showCalc, setShowCalc] = useState(false)
+  const [showList, setShowList] = useState(false)
   const avg = weightedAverage(grades)!
   const sorted = [...grades].sort((a, b) => b.date.localeCompare(a.date))
+  const line = runningAverage(grades)
+  const dots: ChartDot[] = grades.map((g) => ({
+    id: g.id,
+    date: g.date,
+    value: g.grade,
+    weight: g.weight,
+    label: `${g.title}: ${formatGrade(g.grade)} (${formatDate(g.date)})`,
+  }))
+  const delta = line.length > 1 ? line[line.length - 1].value - line[line.length - 2].value : null
+  const best = Math.max(...grades.map((g) => g.grade))
+  const worst = Math.min(...grades.map((g) => g.grade))
 
   return (
-    <li
-      className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
-      style={{ borderLeft: `6px solid ${subject.color}` }}
-    >
-      <div className="flex items-center gap-3">
-        <h3 className="min-w-0 flex-1 truncate text-lg font-semibold">{subject.name}</h3>
-        <div className="text-right text-sm text-slate-500">
-          Schnitt <span className="font-semibold text-slate-900 tabular-nums dark:text-slate-100">{avg.toFixed(2)}</span>
+    <li className="tile tile-in flex flex-col p-4 md:p-5" style={{ '--i': index } as CSSProperties}>
+      <div className="flex items-start gap-3">
+        <span className={`mt-1 h-3.5 w-3.5 shrink-0 ${theme === 'neon' ? 'rounded-[3px]' : 'rounded-full'}`} style={{ background: subject.color }} />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg leading-tight font-extrabold">{subject.name}</h3>
+          <div className="muted mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span>
+              Schnitt <strong className="text-(--ink) tabular-nums">{avg.toFixed(2)}</strong> · {grades.length} {grades.length === 1 ? 'Note' : 'Noten'}
+            </span>
+            <Delta value={delta} />
+          </div>
         </div>
         <div className="flex flex-col items-center">
           <GradeBadge value={roundToHalf(avg)} big />
-          <span className="text-[10px] text-slate-500">Zeugnis</span>
+          <span className="muted mt-0.5 text-[10px] font-semibold tracking-wide uppercase">Zeugnis</span>
         </div>
       </div>
 
-      <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
-        {sorted.map((g) => (
-          <li key={g.id}>
-            <button className="flex min-h-11 w-full items-center gap-3 py-1 text-left" onClick={() => onOpenGrade({ gradeId: g.id })}>
-              <span className="w-24 shrink-0 text-sm text-slate-500 tabular-nums">{formatDate(g.date)}</span>
-              <span className="min-w-0 flex-1 truncate">
-                {g.title}
-                {g.entry_id && <span className="ml-1.5 text-xs" title="Mit Test im Kalender verknüpft">📝</span>}
-              </span>
-              {g.weight !== 1 && <span className="text-xs text-slate-500">{formatGrade(g.weight)}×</span>}
-              <GradeBadge value={g.grade} />
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-3 -mx-1">
+        <GradeChart
+          line={line}
+          dots={dots}
+          color={subject.color}
+          height={150}
+          range={range}
+          label={`Notenverlauf ${subject.name}`}
+          onDot={(id) => onOpenGrade({ gradeId: id })}
+        />
+      </div>
 
-      <div className="mt-2 flex gap-2">
-        <button className="btn-secondary flex-1" disabled={!online} onClick={() => onOpenGrade({ subjectId: subject.id })}>
-          <Icon name="plus" /> Note
+      <div className="muted mt-1 flex justify-between px-1 text-xs font-semibold">
+        <span>beste {formatGrade(best)}</span>
+        <span>tiefste {formatGrade(worst)}</span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <button className="btn-secondary px-2 text-sm" disabled={!online} onClick={() => onOpenGrade({ subjectId: subject.id })}>
+          <Icon name="plus" className="h-4 w-4" /> Note
         </button>
-        <button className="btn-secondary flex-1" aria-expanded={showCalc} onClick={() => setShowCalc(!showCalc)}>
-          🧮 Notenrechner
+        <button className="btn-secondary px-2 text-sm" aria-expanded={showList} onClick={() => setShowList(!showList)}>
+          Liste
+        </button>
+        <button className="btn-secondary px-2 text-sm" aria-expanded={showCalc} onClick={() => setShowCalc(!showCalc)}>
+          <Icon name="calc" className="h-4 w-4" /> Rechner
         </button>
       </div>
+
+      {showList && (
+        <ul className="mt-3 divide-y divide-(--line)">
+          {sorted.map((g) => (
+            <li key={g.id}>
+              <button className="flex min-h-11 w-full items-center gap-3 py-1 text-left" onClick={() => onOpenGrade({ gradeId: g.id })}>
+                <span className="muted w-20 shrink-0 text-sm tabular-nums">{formatDate(g.date).slice(0, 6)}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {g.title}
+                  {g.entry_id && <Icon name="doc" className="muted ml-1.5 inline h-3.5 w-3.5 align-[-2px]" />}
+                </span>
+                {g.weight !== 1 && <span className="muted text-xs">{formatGrade(g.weight)}×</span>}
+                <GradeBadge value={g.grade} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {showCalc && <Calculator grades={grades} />}
     </li>
   )
@@ -145,7 +208,10 @@ export function GradesView({
   onGoSubjects: () => void
 }) {
   const { grades, gradesMissing, subjects, online } = useData()
-  const current = semesterOf(todayKey())
+  const { theme } = useTheme()
+  const neon = theme === 'neon'
+  const today = todayKey()
+  const current = semesterOf(today)
   const [semester, setSemesterState] = useState<string>(() => loadPref('gradeSemester', current.key))
   const setSemester = (key: string) => {
     setSemesterState(key)
@@ -171,7 +237,24 @@ export function GradesView({
   // Gesamtschnitt wie im Zeugnis: Durchschnitt der gerundeten Fachnoten
   const reportGrades = withGrades.map((s) => roundToHalf(weightedAverage(bySubject.get(s.id)!)!))
   const overall = reportGrades.length ? reportGrades.reduce((a, b) => a + b, 0) / reportGrades.length : null
+  const rawOverall = withGrades.length
+    ? withGrades.reduce((sum, s) => sum + weightedAverage(bySubject.get(s.id)!)!, 0) / withGrades.length
+    : null
   const insufficient = reportGrades.filter((x) => x < 4).length
+  const trend = overallTrend(visible)
+  const delta = trendDelta(trend, addDays(today, -30))
+
+  // Gemeinsame Zeitachse für alle Fach-Graphen: von der ersten Note bis heute (höchstens Semesterende)
+  const range = useMemo((): [DateKey, DateKey] | undefined => {
+    if (!visible.length) return undefined
+    const dates = visible.map((g) => g.date).sort()
+    let end = dates[dates.length - 1] > today ? dates[dates.length - 1] : today
+    if (semester !== ALL) {
+      const [, semEnd] = semesterRange(semester)
+      if (end > semEnd) end = semEnd
+    }
+    return [dates[0], end]
+  }, [visible, today, semester])
 
   if (gradesMissing) {
     return (
@@ -190,22 +273,22 @@ export function GradesView({
   if (subjects.length === 0) {
     return (
       <div className="h-full overflow-y-auto p-4 text-center">
-        <p className="py-8 text-slate-500">Lege zuerst ein Fach an, dann kannst du Noten eintragen.</p>
+        <p className="muted py-8">Lege zuerst ein Fach an, dann kannst du Noten eintragen.</p>
         <button className="btn-primary" onClick={onGoSubjects}>Fächer verwalten</button>
       </div>
     )
   }
 
+  // Auf dem Sunset-Verlauf: helle Achsen. Bei Neon: normale Farben.
+  const heroChartStyle = (neon
+    ? {}
+    : { '--chart-axis': 'rgb(255 255 255 / 0.85)', '--chart-grid': 'rgb(255 255 255 / 0.22)', '--chart-ring': '#be123c' }) as CSSProperties
+
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-3xl space-y-4 p-3 pb-28">
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            className="input w-auto!"
-            value={semester}
-            aria-label="Semester"
-            onChange={(e) => setSemester(e.target.value)}
-          >
+      <div className="mx-auto max-w-6xl space-y-4 px-4 pb-32 md:px-6 md:pb-10">
+        <div className="flex flex-wrap items-center gap-2">
+          <select className="input w-auto! font-semibold" value={semester} aria-label="Semester" onChange={(e) => setSemester(e.target.value)}>
             {semesterOptions.map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
@@ -214,47 +297,85 @@ export function GradesView({
             ))}
             <option value={ALL}>Alle Noten</option>
           </select>
-          {overall !== null && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500">Gesamtschnitt</span>
-              <GradeBadge value={Math.round(overall * 100) / 100} big />
-              {insufficient > 0 && (
-                <span className="text-red-600 dark:text-red-400">
-                  {insufficient} {insufficient === 1 ? 'Fach' : 'Fächer'} unter 4
-                </span>
-              )}
+          {withoutGrades.length > 0 && withGrades.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-sm">
+              <span className="muted">Noch ohne Noten:</span>
+              {withoutGrades.map((s) => (
+                <button key={s.id} className="chip border-(--line)" disabled={!online} onClick={() => onOpenGrade({ subjectId: s.id })}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
+                  {s.name} +
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {withGrades.length === 0 && (
-          <p className="py-8 text-center text-slate-500">
-            Noch keine Noten in diesem Zeitraum. Tippe auf „+“, um eine Note einzutragen.
-          </p>
+        {overall !== null && (
+          <section className="tile-hero tile-in relative overflow-hidden p-5 md:p-6" aria-label="Gesamtschnitt">
+            {!neon && <span aria-hidden className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-white/10" />}
+            <div className="relative grid gap-5 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:items-end">
+              <div>
+                <div className={`tag-label ${neon ? 'ink-accent' : 'opacity-90'}`}>Gesamtschnitt</div>
+                <div className="mt-2 flex items-end gap-3">
+                  <span className="num text-[80px] md:text-[96px]">{overall.toFixed(2)}</span>
+                  <span className="pb-3"><Delta value={delta} /></span>
+                </div>
+                <div className="mt-2 text-sm font-semibold opacity-85">
+                  Ø der Zeugnisnoten · ungerundet {rawOverall!.toFixed(2)}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <div className={`flex-1 rounded-(--r-ctl) px-3 py-2 ${neon ? 'border border-(--line)' : 'bg-white/15'}`}>
+                    <div className="num text-2xl">{withGrades.length}</div>
+                    <div className="text-xs font-semibold opacity-85">Fächer</div>
+                  </div>
+                  <div className={`flex-1 rounded-(--r-ctl) px-3 py-2 ${neon ? 'border border-(--line)' : 'bg-white/15'}`}>
+                    <div className="num text-2xl">{visible.length}</div>
+                    <div className="text-xs font-semibold opacity-85">Noten</div>
+                  </div>
+                  <div className={`flex-1 rounded-(--r-ctl) px-3 py-2 ${neon ? 'border border-(--line)' : 'bg-white/15'}`}>
+                    <div className="num text-2xl">{insufficient}</div>
+                    <div className="text-xs font-semibold opacity-85">unter 4</div>
+                  </div>
+                </div>
+              </div>
+              <div style={heroChartStyle}>
+                {trend.length > 1 ? (
+                  <GradeChart
+                    line={trend}
+                    color={neon ? 'var(--accent-text)' : '#ffffff'}
+                    height={200}
+                    range={range}
+                    label="Verlauf des Gesamtschnitts"
+                  />
+                ) : (
+                  <p className="text-sm font-semibold opacity-85">Der Verlauf erscheint ab der zweiten Note.</p>
+                )}
+              </div>
+            </div>
+            {/* Zeugnisnoten aller Fächer als Leiste */}
+            <div className="relative mt-5 flex flex-wrap gap-2">
+              {withGrades.map((s, i) => (
+                <span
+                  key={s.id}
+                  className={`inline-flex items-center gap-2 rounded-(--r-chip) py-1 pr-1 pl-3 text-sm font-bold ${neon ? 'border border-(--line)' : 'bg-white/15'}`}
+                >
+                  {s.name}
+                  <span className={`grade-badge rounded-(--r-chip) px-2 py-0.5 ${gradeClass(reportGrades[i])}`}>{formatGrade(reportGrades[i])}</span>
+                </span>
+              ))}
+            </div>
+          </section>
         )}
 
-        <ul className="space-y-3">
-          {withGrades.map((s) => (
-            <SubjectCard key={s.id} subject={s} grades={bySubject.get(s.id)!} onOpenGrade={onOpenGrade} />
+        {withGrades.length === 0 && (
+          <p className="muted py-8 text-center">Noch keine Noten in diesem Zeitraum. Tippe auf „+“, um eine Note einzutragen.</p>
+        )}
+
+        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {withGrades.map((s, i) => (
+            <SubjectCard key={s.id} subject={s} grades={bySubject.get(s.id)!} range={range} index={i + 1} onOpenGrade={onOpenGrade} />
           ))}
         </ul>
-
-        {withoutGrades.length > 0 && withGrades.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-            Noch ohne Noten:
-            {withoutGrades.map((s) => (
-              <button
-                key={s.id}
-                className="chip border-slate-300 dark:border-slate-700"
-                disabled={!online}
-                onClick={() => onOpenGrade({ subjectId: s.id })}
-              >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                {s.name} +
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

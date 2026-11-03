@@ -46,7 +46,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="modal-sheet flex w-full flex-col bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-xl sm:rounded-2xl dark:bg-slate-900"
+        className="modal-sheet flex w-full flex-col bg-(--bg) shadow-2xl sm:max-h-[90dvh] sm:max-w-xl sm:rounded-(--r-tile)"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={(e) => e.stopPropagation()}
       >
