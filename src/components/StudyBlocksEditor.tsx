@@ -1,6 +1,7 @@
 // Bereich "Lernzeiten" im Eintrag-Formular: beliebig viele Zeiträume hinzufügen/entfernen.
 
 import { addDays, formatDate, formatWeekday, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
+import { IVE_SLOTS, nextIveBlock } from '../lib/ive'
 import type { StudyBlockInput } from '../types'
 import { Icon } from './Icon'
 import { TimeInput } from './TimeInput'
@@ -92,6 +93,23 @@ export function StudyBlocksEditor({
       >
         <Icon name="plus" /> Lernzeit hinzufügen
       </button>
+
+      {/* Schnellwahl: feste IVE-Lektionen in der Schule */}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {IVE_SLOTS.map((slot) => (
+          <button
+            key={slot.label}
+            type="button"
+            className="chip flex-1 justify-center border-(--line) font-semibold"
+            disabled={disabled}
+            title={`${slot.start}–${slot.end}`}
+            onClick={() => onChange([...blocks, nextIveBlock(slot, blocks, todayKey())])}
+          >
+            {slot.label}
+            <span className="muted text-xs font-normal">{slot.start}</span>
+          </button>
+        ))}
+      </div>
     </section>
   )
 }
