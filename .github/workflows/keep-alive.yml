@@ -27,10 +27,9 @@ jobs:
             echo "::error::Secret VITE_SUPABASE_URL oder VITE_SUPABASE_ANON_KEY ist leer (nicht unter Repository-Secrets gespeichert?)"
             exit 1
           fi
-          if [[ "$URL" =~ [[:space:]] ]]; then
-            echo "::error::VITE_SUPABASE_URL enthält ein Leerzeichen oder einen Zeilenumbruch – Secret neu eintragen"
-            exit 1
-          fi
+          # Leerzeichen/Zeilenumbrüche, die beim Einfügen ins Secret mitkopiert wurden, entfernen
+          URL="$(printf '%s' "$URL" | tr -d '[:space:]')"
+          KEY="$(printf '%s' "$KEY" | tr -d '[:space:]')"
           URL="${URL%/}" # Schrägstrich am Ende entfernen
           # Die URL ist nicht geheim (sie steckt auch in der App), daher darf der Anfang ins Log
           echo "URL: ${URL:0:30}… (Länge ${#URL})"
