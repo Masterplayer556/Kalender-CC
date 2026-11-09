@@ -155,4 +155,4 @@ Häufige Kleinigkeiten:
 - **Symbole der Kategorien ändern:** `src/lib/categories.ts`
 - **Arten und Farben von Ferien & freien Tagen:** `PERIOD_KINDS` in `src/lib/periods.ts`
 - **Höhe einer Stunde im Raster:** `HOUR_HEIGHT` in `src/views/TimeGrid.tsx`
-- **App-Icon neu erzeugen:** Farben in `scripts/generate-icons.mjs` anpassen, dann `npm run icons`
+- **App-Icon neu erzeugen:** Farben (`PALETTE`) oder Formen (`SHAPES`) in `scripts/generate-icons.mjs` anpassen, dann `npm run icons` – erzeugt `favicon.svg` und alle PNG-Icons in `public/`
