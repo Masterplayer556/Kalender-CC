@@ -118,3 +118,19 @@ export interface PeriodInput {
   start_date: string
   end_date: string
 }
+
+/** Fächer der BM-Einschätzung (feste Liste) */
+export type BmSubject = 'math' | 'deutsch' | 'franz' | 'nmg'
+/** fach = fachliche Kompetenz, pers = persönliche Kompetenz */
+export type BmKind = 'fach' | 'pers'
+
+/** Kreuze eines Fachs in einem Semester (je 0–4) */
+export interface BmRating {
+  id: string
+  user_id: string
+  semester: string // "2026-1"
+  subject: BmSubject
+  fach: number
+  pers: number
+  updated_at: string
+}

@@ -6,13 +6,15 @@
 // 2. Frische Daten von Supabase laden und den Cache aktualisieren.
 // 3. Erneut laden, wenn die App wieder in den Vordergrund kommt (z. B. Wechsel iPad ↔ Computer).
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
 import { useOnline } from './useOnline'
 import { loadSnapshot, saveSnapshot } from '../lib/cache'
 import { friendlyError } from '../lib/supabase'
 import type {
   Attachment,
+  BmRating,
+  BmSubject,
   Entry,
   EntryInput,
   Grade,
@@ -34,6 +36,8 @@ interface DataValue {
   attachments: Attachment[]
   periods: Period[] // Ferien, schulfreie Tage, Lager
   periodsMissing: boolean // true, solange 004_events_and_periods.sql nicht ausgeführt wurde
+  bm: BmRating[] // BM-Einschätzung: Kreuze pro Semester und Fach
+  bmMissing: boolean // true, solange 006_bm.sql nicht ausgeführt wurde
   loading: boolean // true nur beim allerersten Laden ohne Cache
   error: string | null // letzter Ladefehler
   lastSync: string | null // Zeitpunkt der letzten erfolgreichen Synchronisation
@@ -65,6 +69,8 @@ interface DataValue {
   savePeriod: (id: string | null, input: PeriodInput) => Promise<void>
   deletePeriod: (id: string) => Promise<void>
   restorePeriod: (period: Period) => Promise<void>
+  /** BM-Kreuze speichern. Wird sofort angezeigt und im Hintergrund gespeichert. */
+  saveBm: (semester: string, subject: BmSubject, fach: number, pers: number) => Promise<void>
 }
 
 const DataContext = createContext<DataValue | null>(null)
@@ -79,6 +85,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [attachments, setAttachments] = useState<Attachment[]>(cached?.attachments ?? [])
   const [periods, setPeriods] = useState<Period[]>(cached?.periods ?? [])
   const [periodsMissing, setPeriodsMissing] = useState(cached?.periodsMissing ?? false)
+  const [bm, setBm] = useState<BmRating[]>(cached?.bm ?? [])
+  const [bmMissing, setBmMissing] = useState(cached?.bmMissing ?? false)
   const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
@@ -96,6 +104,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       setAttachments(data.attachments)
       setPeriods(data.periods)
       setPeriodsMissing(data.periodsMissing)
+      setBm(data.bm)
+      setBmMissing(data.bmMissing)
       setLastSync(savedAt)
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
@@ -133,6 +143,30 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     [reload],
   )
 
+  // BM-Kreuze: Beim schnellen Antippen soll jede Änderung in der richtigen Reihenfolge ankommen.
+  const bmQueue = useRef<Promise<void>>(Promise.resolve())
+  const saveBm = useCallback(
+    (semester: string, subject: BmSubject, fach: number, pers: number) => {
+      if (!navigator.onLine) return Promise.reject(new Error('Offline – Änderungen nicht möglich'))
+      // Sofort anzeigen (ohne auf den Server zu warten)
+      setBm((list) => {
+        const rest = list.filter((r) => !(r.semester === semester && r.subject === subject))
+        const old = list.find((r) => r.semester === semester && r.subject === subject)
+        const row: BmRating = old
+          ? { ...old, fach, pers }
+          : { id: `lokal-${semester}-${subject}`, user_id: userId, semester, subject, fach, pers, updated_at: new Date().toISOString() }
+        return [...rest, row]
+      })
+      const job = bmQueue.current.then(() => api.saveBmRating(semester, subject, fach, pers))
+      bmQueue.current = job.catch(() => {})
+      return job.catch(async (err) => {
+        await reload() // Server-Stand wieder anzeigen
+        throw new Error(friendlyError(err))
+      })
+    },
+    [userId, reload],
+  )
+
   const value = useMemo<DataValue>(() => {
     const blocksByEntry = new Map<string, StudyBlock[]>()
     for (const b of blocks) blocksByEntry.set(b.entry_id, [...(blocksByEntry.get(b.entry_id) ?? []), b])
@@ -150,6 +184,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       attachments,
       periods,
       periodsMissing,
+      bm,
+      bmMissing,
       loading,
       error,
       lastSync,
@@ -179,8 +215,9 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       savePeriod: (id, input) => mutate(() => api.savePeriod(id, input)),
       deletePeriod: (id) => mutate(() => api.deletePeriod(id)),
       restorePeriod: (period) => mutate(() => api.restorePeriod(period)),
+      saveBm,
     }
-  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, loading, error, lastSync, online, reload, mutate])
+  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, reload, mutate, saveBm])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

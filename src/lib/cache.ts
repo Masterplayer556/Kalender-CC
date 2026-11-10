@@ -1,7 +1,7 @@
 // Offline-Zwischenspeicher: Die zuletzt geladenen Daten werden im Browser (localStorage)
 // abgelegt, damit die App sie ohne Internet anzeigen kann.
 
-import type { Attachment, Entry, Grade, Period, StudyBlock, Subject } from '../types'
+import type { Attachment, BmRating, Entry, Grade, Period, StudyBlock, Subject } from '../types'
 
 export interface Snapshot {
   subjects: Subject[]
@@ -10,6 +10,8 @@ export interface Snapshot {
   attachments?: Attachment[] // optional: ältere Zwischenspeicher haben noch keine Anhänge
   periods?: Period[] // optional: ältere Zwischenspeicher haben noch keine Zeiträume
   periodsMissing?: boolean
+  bm?: BmRating[] // optional: ältere Zwischenspeicher haben noch keine BM-Kreuze
+  bmMissing?: boolean
   entries: Entry[]
   blocks: StudyBlock[]
   savedAt: string // ISO-Zeitpunkt des letzten erfolgreichen Ladens

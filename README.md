@@ -27,6 +27,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Heute-Übersicht** (Startseite) in Kacheln: Countdown bis zum nächsten Test mit Lernfortschritt, **Tage bis zu den Ferien** mit den verbleibenden Schultagen, Notenschnitt mit Mini-Graph, Lernzeiten der Woche, Tests/Aufgaben/Überfälliges dieser Woche, „Dein Tag“ als Zeitstrahl (zum Abhaken) und „Als Nächstes“. Im iPad-Querformat steht „Heute“ zusätzlich als Seitenleiste neben dem Kalender.
 - **Heatmap** (im Kalender): der Monat als „Belastung pro Tag“ – je kräftiger ein Tag, desto mehr steht an (Test = 2 Punkte, andere Einträge und Lernzeiten je 1). Punkt = Test, gestrichelter Rand = Ferien, freie Tage oder Lager. Daneben: stressigste Woche, Monat in Zahlen und die Einträge des gewählten Tags (nochmals antippen öffnet den Tag).
 - **Noten-Graphen:** Verlauf des Gesamtschnitts und pro Fach ein eigener Graph (Punkte = einzelne Noten, grösser = höheres Gewicht; Linie = laufender Schnitt; gestrichelt = Grenze 4). Ein Punkt öffnet die Note. Pro Fach und für den Gesamtschnitt lässt sich ein **Ziel** setzen (z. B. 5.5 im Zeugnis): Der Graph zeigt die Ziellinie, die Karte sagt, welche Note es in der nächsten Prüfung mindestens braucht (gespeichert auf diesem Gerät).
+- **BM-Einschätzung** (ganz unten im Noten-Tab): kleine Tabelle für Mathe, Deutsch, Franz und NMG (NT & RZG) mit je 4 Kreuzen für die **fachliche** und 4 für die **persönliche Kompetenz**. Tippen füllt bis zum Kreuz, nochmals tippen nimmt es weg. Dazu Summen pro Kompetenz und total (von 32), der Vergleich mit dem letzten Semester (▲/▼) und welches Fach am meisten Luft nach oben hat. Gespeichert pro Semester (gleiche Auswahl wie oben bei den Noten) und auf allen Geräten gleich.
 - **Design** (unter „Mehr“): **Sunset** (warm, grosse Kacheln und Zahlen) oder **Neon** (Raster, Mono-Schrift, Lime) – jeweils **hell, dunkel oder automatisch** nach Systemeinstellung. Gilt pro Gerät.
 - **Offline:** Die zuletzt geladenen Einträge bleiben sichtbar. Ändern geht erst wieder mit Internet.
 
@@ -46,7 +47,8 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
    Danach dasselbe mit `supabase/migrations/002_grades.sql` (Noten): wieder **New query**, Inhalt einfügen, **Run**.
    Danach `supabase/migrations/003_links_and_files.sql` (Noten mit Tests verknüpfen, Anhänge und Datei-Speicher).
    Danach `supabase/migrations/004_events_and_periods.sql` (Kategorie „Event“, Ferien & freie Tage).
-   Zum Schluss `supabase/migrations/005_multiday_events.sql` (Events über mehrere Tage).
+   Danach `supabase/migrations/005_multiday_events.sql` (Events über mehrere Tage).
+   Zum Schluss `supabase/migrations/006_bm.sql` (BM-Einschätzung im Noten-Tab).
    **Schon eingerichtet?** Dann nur die neueren Dateien ausführen, die noch fehlen. Bestehende Daten bleiben erhalten.
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)
