@@ -35,7 +35,10 @@ export function friendlyError(err: unknown): string {
     return 'Für mehrtägige Events braucht die Datenbank ein Update: Führe supabase/migrations/005_multiday_events.sql im Supabase SQL Editor aus (siehe README).'
   if (/entries_end_date_order/i.test(msg)) return 'Der letzte Tag muss nach dem ersten liegen.'
   if (/periods_order/i.test(msg)) return 'Das Ende muss am oder nach dem Beginn liegen.'
-  if (/grades_entry_unique/i.test(msg)) return 'Dieser Test hat schon eine Note. Bearbeite die bestehende Note.'
+  if (/grades_entry_unique/i.test(msg))
+    return 'Dieser Test hat schon eine Note. Bearbeite die bestehende Note oder erlaube im Test „für mehrere Noten“.'
+  if (/multi_grade/i.test(msg))
+    return 'Für „mehrere Noten“ braucht die Datenbank ein Update: Führe supabase/migrations/007_multi_grade_tests.sql im Supabase SQL Editor aus (siehe README).'
   if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) return 'Die Datei ist zu gross (maximal 50 MB).'
   if (/could not find the table 'public\.bm_ratings'/i.test(msg))
     return 'Für die BM-Einschätzung braucht die Datenbank ein Update: Führe supabase/migrations/006_bm.sql im Supabase SQL Editor aus (siehe README).'

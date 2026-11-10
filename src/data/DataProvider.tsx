@@ -46,7 +46,7 @@ interface DataValue {
   entryById: Map<string, Entry>
   blocksByEntry: Map<string, StudyBlock[]>
   attachmentsByEntry: Map<string, Attachment[]>
-  gradeByEntry: Map<string, Grade> // verknüpfte Note eines Tests
+  gradesByEntry: Map<string, Grade[]> // verknüpfte Noten eines Tests (meist eine, bei „mehrere Noten“ auch mehr)
   reload: () => Promise<void>
   saveEntry: (
     id: string | null,
@@ -172,8 +172,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     for (const b of blocks) blocksByEntry.set(b.entry_id, [...(blocksByEntry.get(b.entry_id) ?? []), b])
     const attachmentsByEntry = new Map<string, Attachment[]>()
     for (const a of attachments) attachmentsByEntry.set(a.entry_id, [...(attachmentsByEntry.get(a.entry_id) ?? []), a])
-    const gradeByEntry = new Map<string, Grade>()
-    for (const g of grades) if (g.entry_id) gradeByEntry.set(g.entry_id, g)
+    const gradesByEntry = new Map<string, Grade[]>()
+    for (const g of grades) if (g.entry_id) gradesByEntry.set(g.entry_id, [...(gradesByEntry.get(g.entry_id) ?? []), g])
 
     return {
       subjects,
@@ -194,7 +194,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       entryById: new Map(entries.map((e) => [e.id, e])),
       blocksByEntry,
       attachmentsByEntry,
-      gradeByEntry,
+      gradesByEntry,
       reload,
       saveEntry: (id, input, newBlocks, att) =>
         mutate(async () => {

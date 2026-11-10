@@ -397,27 +397,23 @@
     background: currentColor;
   }
 
-  /* --- BM-Einschätzung (Noten-Tab): Fach | 4 Kreuze fachlich | 4 Kreuze persönlich | Total --- */
+  /* --- BM-Einschätzung (Noten-Tab): Fach | Kreuz fachlich | Kreuz persönlich --- */
   .bm-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: 'name total' 'fach pers';
-    gap: 8px 14px;
+    grid-template-columns: minmax(0, 1fr) 5.75rem 5.75rem;
+    gap: 0 6px;
     align-items: center;
   }
   @media (min-width: 640px) {
     .bm-row {
-      /* feste Breite der Kreuz-Spalten (4 × 36px + 3 × 4px), damit Kopfzeile und Zeilen bündig sind */
-      grid-template-columns: minmax(7rem, 1fr) 156px 156px 5.5rem;
-      grid-template-areas: 'name fach pers total';
-      gap: 0 22px;
+      grid-template-columns: minmax(0, 1fr) 8rem 8rem;
     }
   }
   .bm-cross {
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border: 1.5px solid var(--line);
     border-radius: calc(var(--r-ctl) - 4px);
     background: var(--surface);
@@ -440,18 +436,6 @@
   }
   .bm-cross:disabled {
     cursor: not-allowed;
-  }
-  @media (min-width: 640px) {
-    .bm-cross {
-      width: 36px;
-      height: 36px;
-    }
-  }
-  .bm-bar.fach > span.on {
-    background: var(--accent);
-  }
-  .bm-bar.pers > span.on {
-    background: var(--ink);
   }
 
   /* --- Navigation --- */
@@ -840,10 +824,6 @@
 [data-theme='neon'] .progress-cells > span.on {
   background: var(--accent);
   border-color: var(--accent);
-}
-[data-theme='neon'] .bm-bar.pers > span.on {
-  background: var(--ink);
-  border-color: var(--ink);
 }
 [data-theme='neon'] .nav-item {
   font-family: var(--font-mono);

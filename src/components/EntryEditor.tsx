@@ -34,7 +34,7 @@ export function EntryEditor({
     entryById,
     blocksByEntry,
     attachmentsByEntry,
-    gradeByEntry,
+    gradesByEntry,
     subjects,
     online,
     saveEntry,
@@ -65,6 +65,8 @@ export function EntryEditor({
   )
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [done, setDone] = useState(existing?.done ?? false)
+  // Test darf mit mehreren Noten verknüpft werden (bleibt dann in der Auswahl beim Noten-Formular)
+  const [multiGrade, setMultiGrade] = useState(existing?.multi_grade ?? false)
   const [blocks, setBlocks] = useState<StudyBlockInput[]>(() =>
     (existing ? (blocksByEntry.get(existing.id) ?? []) : []).map((b) => {
       const s = isoToLocal(b.starts_at)
@@ -74,7 +76,7 @@ export function EntryEditor({
   const savedAttachments = existing ? (attachmentsByEntry.get(existing.id) ?? []) : []
   const [keptAttachments, setKeptAttachments] = useState<Attachment[]>(savedAttachments)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
-  const linkedGrade = editingId ? gradeByEntry.get(editingId) : undefined
+  const linkedGrades = editingId ? (gradesByEntry.get(editingId) ?? []) : []
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -116,6 +118,7 @@ export function EntryEditor({
           end_time: hasTime && !isMultiDay ? end : null,
           notes: notes.trim() || null,
           done,
+          multi_grade: category === 'test' && multiGrade,
         },
         blocks,
         {
@@ -136,7 +139,7 @@ export function EntryEditor({
     if (!existing) return
     // Gespeicherten Stand merken, damit "Rückgängig" ihn wiederherstellen kann
     const savedBlocks = blocksByEntry.get(existing.id) ?? []
-    const gradeIds = linkedGrade ? [linkedGrade.id] : []
+    const gradeIds = linkedGrades.map((g) => g.id)
     setSaving(true)
     try {
       await deleteEntry(existing.id)
@@ -330,22 +333,65 @@ export function EntryEditor({
             <span className="flex-1">erledigt</span>
             <input type="checkbox" className="switch" checked={done} disabled={readOnly} onChange={(e) => setDone(e.target.checked)} />
           </label>
+          {category === 'test' && (
+            <label className="toggle-row">
+              <span className="flex-1">
+                für mehrere Noten
+                <span className="muted block text-xs font-medium">bleibt beim Note-Eintragen in der Test-Auswahl, auch wenn er schon eine Note hat</span>
+              </span>
+              <input
+                type="checkbox"
+                className="switch"
+                checked={multiGrade}
+                disabled={readOnly}
+                onChange={(e) => setMultiGrade(e.target.checked)}
+              />
+            </label>
+          )}
         </div>
 
         {/* Note: nur bei gespeicherten Tests (eine Note braucht einen bestehenden Eintrag) */}
         {editingId && category === 'test' && (
           <section className="field-group flex flex-wrap items-center gap-3">
             <h3 className="flex items-center gap-2 font-bold"><Icon name="award" className="ink-accent h-5 w-5" /> Note</h3>
-            {linkedGrade ? (
+            {linkedGrades.length === 1 && !multiGrade ? (
               <>
-                <span className={`${gradeClass(linkedGrade.grade)} rounded-lg px-2 py-0.5 text-lg font-bold tabular-nums`}>
-                  {formatGrade(linkedGrade.grade)}
+                <span className={`${gradeClass(linkedGrades[0].grade)} rounded-lg px-2 py-0.5 text-lg font-bold tabular-nums`}>
+                  {formatGrade(linkedGrades[0].grade)}
                 </span>
-                {linkedGrade.weight !== 1 && <span className="text-sm text-slate-500">zählt {formatGrade(linkedGrade.weight)}×</span>}
+                {linkedGrades[0].weight !== 1 && <span className="text-sm text-slate-500">zählt {formatGrade(linkedGrades[0].weight)}×</span>}
                 <div className="flex-1" />
-                <button type="button" className="btn-secondary" onClick={() => onOpenGrade({ gradeId: linkedGrade.id })}>
+                <button type="button" className="btn-secondary" onClick={() => onOpenGrade({ gradeId: linkedGrades[0].id })}>
                   Note bearbeiten
                 </button>
+              </>
+            ) : linkedGrades.length > 0 ? (
+              <>
+                <div className="flex-1" />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!online || !multiGrade || !existing?.multi_grade}
+                  title={multiGrade && !existing?.multi_grade ? 'Zuerst speichern' : undefined}
+                  onClick={() => onOpenGrade({ entryId: editingId })}
+                >
+                  <Icon name="plus" className="h-4 w-4" /> weitere Note
+                </button>
+                <ul className="w-full divide-y divide-(--line)">
+                  {linkedGrades.map((g) => (
+                    <li key={g.id}>
+                      <button
+                        type="button"
+                        className="flex min-h-11 w-full items-center gap-3 py-1 text-left"
+                        onClick={() => onOpenGrade({ gradeId: g.id })}
+                      >
+                        <span className="min-w-0 flex-1 truncate font-medium">{g.title}</span>
+                        {g.weight !== 1 && <span className="muted text-xs">{formatGrade(g.weight)}×</span>}
+                        <span className={`${gradeClass(g.grade)} rounded-lg px-2 py-0.5 font-bold tabular-nums`}>{formatGrade(g.grade)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </>
             ) : (
               <>

@@ -18,8 +18,8 @@ export function EntryRow({
   onOpen: () => void
   onEnterGrade?: () => void // zeigt den Knopf "Note eintragen"
 }) {
-  const { subjectById, blocksByEntry, attachmentsByEntry, gradeByEntry, online, setEntryDone } = useData()
-  const grade = gradeByEntry.get(entry.id)
+  const { subjectById, blocksByEntry, attachmentsByEntry, gradesByEntry, online, setEntryDone } = useData()
+  const grades = gradesByEntry.get(entry.id) ?? []
   const attachmentCount = attachmentsByEntry.get(entry.id)?.length ?? 0
   const subject = entry.subject_id ? subjectById.get(entry.subject_id) : undefined
   const color = entryColor(entry, subjectById)
@@ -52,11 +52,15 @@ export function EntryRow({
             <InlineIcon name={CATEGORIES[entry.category].icon} style={{ color }} />
             {entry.title}
           </span>
-          {grade && (
-            <span className={`shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-bold tabular-nums ${gradeClass(grade.grade)}`} title="Note">
+          {grades.map((grade) => (
+            <span
+              key={grade.id}
+              className={`shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-bold tabular-nums ${gradeClass(grade.grade)}`}
+              title={grades.length > 1 ? `Note: ${grade.title}` : 'Note'}
+            >
               {formatGrade(grade.grade)}
             </span>
-          )}
+          ))}
           <span
             className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
               urgent

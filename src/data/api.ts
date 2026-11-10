@@ -96,11 +96,15 @@ export async function saveEntry(
   attachments: { added: PendingAttachment[]; removed: Attachment[] } = { added: [], removed: [] },
 ): Promise<string> {
   // 1. Eintrag speichern und seine id erhalten
-  const query = entryId
-    ? supabase.from('entries').update(input).eq('id', entryId)
-    : supabase.from('entries').insert(input)
-  const { data, error } = await query.select('id').single()
-  if (error) throw error
+  const write = (row: Partial<EntryInput>) =>
+    (entryId ? supabase.from('entries').update(row).eq('id', entryId) : supabase.from('entries').insert(row)).select('id').single()
+  let { data, error } = await write(input)
+  // PGRST204 = Spalte unbekannt: 007_multi_grade_tests.sql noch nicht ausgeführt → ohne den Haken speichern
+  if (error?.code === 'PGRST204' && /multi_grade/.test(error.message) && !input.multi_grade) {
+    const { multi_grade: _, ...rest } = input
+    ;({ data, error } = await write(rest))
+  }
+  if (error || !data) throw error
   const id = data.id as string
 
   // 2. Entfernte Lernzeiten löschen
@@ -251,6 +255,7 @@ export async function restoreEntry(
     end_time: entry.end_time,
     notes: entry.notes,
     done: entry.done,
+    ...(entry.multi_grade ? { multi_grade: true } : {}),
     created_at: entry.created_at,
   }
   let { error } = await supabase.from('entries').insert(row)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bmHasData, bmSheet, bmTotals, matchSubject, previousSemester, toggleCross } from '../src/lib/bm'
+import { bmHasData, bmMissingCrosses, bmSheet, bmTotals, matchSubject, previousSemester } from '../src/lib/bm'
 import type { BmRating } from '../src/types'
 
 const row = (semester: string, subject: BmRating['subject'], fach: number, pers: number): BmRating => ({
@@ -12,28 +12,29 @@ const row = (semester: string, subject: BmRating['subject'], fach: number, pers:
   updated_at: '',
 })
 
-describe('toggleCross', () => {
-  it('füllt bis zum angetippten Kreuz', () => {
-    expect(toggleCross(0, 3)).toBe(3)
-    expect(toggleCross(4, 2)).toBe(2)
-  })
-  it('nochmals auf das letzte Kreuz tippen nimmt es weg', () => {
-    expect(toggleCross(3, 3)).toBe(2)
-    expect(toggleCross(1, 1)).toBe(0)
-  })
-})
-
 describe('bmSheet / bmTotals', () => {
-  const ratings = [row('2026-1', 'math', 3, 4), row('2026-1', 'franz', 1, 2), row('2025-2', 'math', 1, 1)]
+  const ratings = [row('2026-1', 'math', 1, 1), row('2026-1', 'franz', 0, 1), row('2025-2', 'math', 1, 0)]
   it('nimmt nur das gewählte Semester, fehlende Fächer zählen 0', () => {
     const sheet = bmSheet(ratings, '2026-1')
-    expect(sheet.math).toEqual({ fach: 3, pers: 4 })
+    expect(sheet.math).toEqual({ fach: 1, pers: 1 })
     expect(sheet.deutsch).toEqual({ fach: 0, pers: 0 })
-    expect(bmTotals(sheet)).toEqual({ fach: 4, pers: 6, total: 10, max: 32 })
+    expect(bmTotals(sheet)).toEqual({ fach: 1, pers: 2, total: 3, max: 8 })
+  })
+  it('zählt alte Werte über 1 als ein Kreuz', () => {
+    expect(bmSheet([row('2026-1', 'nmg', 3, 0)], '2026-1').nmg).toEqual({ fach: 1, pers: 0 })
   })
   it('erkennt leere Semester', () => {
     expect(bmHasData(bmSheet(ratings, '2024-1'))).toBe(false)
     expect(bmHasData(bmSheet(ratings, '2025-2'))).toBe(true)
+  })
+  it('listet die fehlenden Kreuze', () => {
+    expect(bmMissingCrosses(bmSheet(ratings, '2026-1'))).toEqual([
+      'Deutsch fachlich',
+      'Deutsch persönlich',
+      'Franz fachlich',
+      'NMG fachlich',
+      'NMG persönlich',
+    ])
   })
 })
 

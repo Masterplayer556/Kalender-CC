@@ -28,12 +28,12 @@ export function UpcomingView({
   onOpenPeriod: (req: PeriodRequest) => void
   showToday: boolean // auf breiten Bildschirmen steht "Heute" schon in der Seitenleiste
 }) {
-  const { gradeByEntry, gradesMissing } = useData()
+  const { gradesByEntry, gradesMissing } = useData()
   const [showDone, setShowDone] = useState(() => loadPref('showDone', false))
   const today = todayKey()
   const groups = groupUpcoming(entries, today, showDone)
   const overdue = overdueEntries(entries, today)
-  const awaitingGrade = gradesMissing ? [] : testsAwaitingGrade(entries, new Set(gradeByEntry.keys()), today)
+  const awaitingGrade = gradesMissing ? [] : testsAwaitingGrade(entries, new Set(gradesByEntry.keys()), today)
 
   return (
     <div className="h-full overflow-y-auto">
