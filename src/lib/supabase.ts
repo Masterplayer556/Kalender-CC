@@ -37,6 +37,8 @@ export function friendlyError(err: unknown): string {
   if (/periods_order/i.test(msg)) return 'Das Ende muss am oder nach dem Beginn liegen.'
   if (/grades_entry_unique/i.test(msg)) return 'Dieser Test hat schon eine Note. Bearbeite die bestehende Note.'
   if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) return 'Die Datei ist zu gross (maximal 50 MB).'
+  if (/could not find the table 'public\.bm_ratings'/i.test(msg))
+    return 'Für die BM-Einschätzung braucht die Datenbank ein Update: Führe supabase/migrations/006_bm.sql im Supabase SQL Editor aus (siehe README).'
   if (/grades_subject_fk/i.test(msg))
     return 'Dieses Fach hat noch Noten. Lösche zuerst die Noten oder behalte das Fach.'
   if (/rate limit/i.test(msg)) return 'Zu viele Versuche. Bitte warte kurz und versuche es erneut.'

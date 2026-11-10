@@ -1,7 +1,9 @@
-// Tab "Noten": Gesamtschnitt mit Verlauf, pro Fach ein eigener Graph, Zeugnisnote und Notenrechner.
+// Tab "Noten": Gesamtschnitt mit Verlauf, pro Fach ein eigener Graph, Zeugnisnote und Notenrechner,
+// ganz unten die BM-Einschätzung (Kreuze für fachliche und persönliche Kompetenz).
 
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useData } from '../data/DataProvider'
+import { BmSection } from '../components/BmSection'
 import { GradeChart, type ChartDot } from '../components/GradeChart'
 import type { GradeRequest } from '../components/GradeEditor'
 import { Icon } from '../components/Icon'
@@ -443,6 +445,13 @@ export function GradesView({
             />
           ))}
         </ul>
+
+        {/* BM-Einschätzung: bei "Alle Noten" gilt das aktuelle Semester */}
+        <BmSection
+          semester={semester === ALL ? current.key : semester}
+          semesterLabel={semester === ALL ? current.label : (semesterOptions.find(([k]) => k === semester)?.[1] ?? current.label)}
+          index={withGrades.length + 1}
+        />
       </div>
     </div>
   )

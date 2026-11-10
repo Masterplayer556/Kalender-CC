@@ -7,6 +7,8 @@ import { localToIso } from '../lib/dates'
 import { officeViewerUrl } from '../lib/files'
 import type {
   Attachment,
+  BmRating,
+  BmSubject,
   Entry,
   EntryInput,
   Grade,
@@ -38,13 +40,14 @@ async function fetchAll<T>(table: string, orderBy: string): Promise<T[]> {
 }
 
 export async function fetchEverything() {
-  const [subjects, entries, blocks, grades, attachments, periods] = await Promise.all([
+  const [subjects, entries, blocks, grades, attachments, periods, bm] = await Promise.all([
     fetchAll<Subject>('subjects', 'name'),
     fetchAll<Entry>('entries', 'date'),
     fetchAll<StudyBlock>('study_blocks', 'starts_at'),
     fetchOptional<Grade>('grades', 'date'),
     fetchOptional<Attachment>('attachments', 'created_at'),
     fetchOptional<Period>('periods', 'start_date'),
+    fetchOptional<BmRating>('bm_ratings', 'semester'),
   ])
   return {
     subjects,
@@ -56,6 +59,8 @@ export async function fetchEverything() {
     attachments: attachments ?? [],
     periods: periods ?? [],
     periodsMissing: periods === null,
+    bm: (bm ?? []).map((r) => ({ ...r, fach: Number(r.fach), pers: Number(r.pers) })),
+    bmMissing: bm === null,
   }
 }
 
@@ -355,5 +360,17 @@ export async function deletePeriod(id: string): Promise<void> {
 export async function restorePeriod(p: Period): Promise<void> {
   const { id, name, kind, start_date, end_date, created_at } = p
   const { error } = await supabase.from('periods').insert({ id, name, kind, start_date, end_date, created_at })
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------
+// BM-Einschätzung
+// ---------------------------------------------------------------------
+
+/** Kreuze eines Fachs in einem Semester speichern (legt die Zeile an, falls es sie noch nicht gibt). */
+export async function saveBmRating(semester: string, subject: BmSubject, fach: number, pers: number): Promise<void> {
+  const { error } = await supabase
+    .from('bm_ratings')
+    .upsert({ semester, subject, fach, pers, updated_at: new Date().toISOString() }, { onConflict: 'user_id,semester,subject' })
   if (error) throw error
 }
