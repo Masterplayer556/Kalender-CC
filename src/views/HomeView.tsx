@@ -62,7 +62,7 @@ export function HomeView({
 }) {
   const { theme } = useTheme()
   const neon = theme === 'neon'
-  const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradeByEntry, online, setEntryDone } = useData()
+  const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradesByEntry, online, setEntryDone } = useData()
   const today = todayKey()
   const nowIso = new Date().toISOString()
   const colorOf = (e: Entry) => entryColor(e, subjectById)
@@ -105,7 +105,7 @@ export function HomeView({
   const weekTests = entries.filter((e) => e.category === 'test' && inWeek(e.date)).length
   const weekTasks = entries.filter((e) => e.category === 'aufgabe' && inWeek(e.date)).length
   const overdue = overdueEntries(entries, today)
-  const awaiting = gradesMissing ? [] : testsAwaitingGrade(entries, new Set(gradeByEntry.keys()), today)
+  const awaiting = gradesMissing ? [] : testsAwaitingGrade(entries, new Set(gradesByEntry.keys()), today)
 
   // --- Dein Tag: Zeiträume, Einträge und Lernzeiten nach Uhrzeit ---
   const todayPeriods = periods.filter((p) => periodCovers(p, today)).sort(comparePeriods)

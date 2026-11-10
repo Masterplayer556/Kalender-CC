@@ -21,6 +21,7 @@ export interface Entry {
   end_time: string | null
   notes: string | null
   done: boolean
+  multi_grade?: boolean // Test darf für mehrere Noten verknüpft werden (fehlt vor 007_multi_grade_tests.sql)
   created_at: string
   updated_at: string
 }
@@ -86,6 +87,7 @@ export interface EntryInput {
   end_time: string | null
   notes: string | null
   done: boolean
+  multi_grade: boolean
 }
 
 /** Eine Lernzeit im Formular (id fehlt, wenn sie neu ist). */

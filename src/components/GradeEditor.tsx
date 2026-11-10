@@ -21,7 +21,7 @@ function parseDecimal(text: string): number {
 const WEIGHT_PRESETS = [0.5, 1, 2]
 
 export function GradeEditor({ request, onClose }: { request: GradeRequest; onClose: () => void }) {
-  const { grades, subjects, entries, entryById, gradeByEntry, online, saveGrade, deleteGrade, restoreGrade } = useData()
+  const { grades, subjects, entries, entryById, gradesByEntry, online, saveGrade, deleteGrade, restoreGrade } = useData()
   const showToast = useToast()
   const existing = request.gradeId ? grades.find((g) => g.id === request.gradeId) : undefined
   const fromTest = request.entryId ? entryById.get(request.entryId) : undefined
@@ -33,10 +33,11 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
   const [title, setTitle] = useState(existing?.title ?? fromTest?.title ?? '')
   const [date, setDate] = useState(existing?.date ?? fromTest?.date ?? todayKey())
 
-  // Tests dieses Fachs, die man verknüpfen kann: noch ohne Note (oder mit genau dieser Note), neueste zuerst
+  // Tests dieses Fachs, die man verknüpfen kann: noch ohne (andere) Note – oder für mehrere Noten erlaubt.
+  // Neueste zuerst.
   const linkableTests = entries
     .filter((e) => e.category === 'test' && e.subject_id === subjectId)
-    .filter((e) => !gradeByEntry.has(e.id) || gradeByEntry.get(e.id)!.id === existing?.id)
+    .filter((e) => e.multi_grade || !(gradesByEntry.get(e.id) ?? []).some((g) => g.id !== existing?.id))
     .sort((a, b) => b.date.localeCompare(a.date))
 
   /** Test gewählt → Titel und Datum vom Test übernehmen (lassen sich danach noch ändern). */
@@ -233,6 +234,7 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
               {linkableTests.map((t) => (
                 <option key={t.id} value={t.id}>
                   {formatDate(t.date)} · {t.title}
+                  {t.multi_grade && ` · mehrere Noten (${(gradesByEntry.get(t.id) ?? []).filter((g) => g.id !== existing?.id).length} bisher)`}
                 </option>
               ))}
             </select>
