@@ -4,6 +4,7 @@
 
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useData } from '../data/DataProvider'
+import { loadPref, savePref } from '../lib/cache'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { formatDate, formatTime, formatWeekday, isoToLocal, isoWeek, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
@@ -38,7 +39,13 @@ export function HeatmapView({
   const today = todayKey()
   const month = date.slice(0, 7)
   const weeks = useMemo(() => monthGrid(date), [date])
-  const loads = useMemo(() => dayLoads(weeks.flat(), entries, blocks), [weeks, entries, blocks])
+  // "Nur Offenes": Erledigtes zählt in Raster, stressigster Woche und Monatszahlen nicht mit (pro Gerät gemerkt)
+  const [openOnly, setOpenOnlyState] = useState(() => loadPref('heatmapOpenOnly', false))
+  const setOpenOnly = (value: boolean) => {
+    setOpenOnlyState(value)
+    savePref('heatmapOpenOnly', value)
+  }
+  const loads = useMemo(() => dayLoads(weeks.flat(), entries, blocks, openOnly), [weeks, entries, blocks, openOnly])
   const busiest = busiestWeek(weeks, loads, month)
   const [selected, setSelected] = useState<DateKey>(today.startsWith(month) ? today : `${month}-01`)
 
@@ -67,6 +74,16 @@ export function HeatmapView({
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 px-4 pb-32 md:px-6 md:pb-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         {/* ---------- Raster ---------- */}
         <section className="tile min-w-0 p-2.5 md:p-4" aria-label="Belastung pro Tag">
+          <div className="mb-2 flex justify-end">
+            <div className="segment" role="group" aria-label="Was zählt">
+              <button className="text-[13px]!" aria-pressed={!openOnly} onClick={() => setOpenOnly(false)}>
+                Alles
+              </button>
+              <button className="text-[13px]!" aria-pressed={openOnly} onClick={() => setOpenOnly(true)}>
+                Nur Offenes
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-7 gap-1 md:gap-2">
             {WEEKDAYS.map((w) => (
               <div key={w} className={`muted pb-1 text-center text-[11px] font-bold tracking-wide uppercase ${neon ? 'font-mono' : ''}`}>
@@ -132,7 +149,7 @@ export function HeatmapView({
                 </div>
               </>
             ) : (
-              <p className="muted mt-2 text-sm">Diesen Monat ist noch nichts geplant.</p>
+              <p className="muted mt-2 text-sm">{openOnly ? 'Diesen Monat ist nichts mehr offen.' : 'Diesen Monat ist noch nichts geplant.'}</p>
             )}
           </section>
 
