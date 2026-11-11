@@ -208,7 +208,8 @@ export function TimeGrid({
           {columns.map(({ day, items }) => (
             <div
               key={day}
-              className="hour-lines relative border-l border-slate-200 dark:border-slate-800"
+              // Heute: Spalte leicht in der Akzentfarbe getönt
+              className={`hour-lines relative border-l border-slate-200 dark:border-slate-800 ${day === today ? 'bg-(--accent)/6' : ''}`}
               style={{ ['--hour-height' as string]: `${HOUR_HEIGHT}px` }}
               onClick={(e) => handleColumnClick(day, e)}
             >

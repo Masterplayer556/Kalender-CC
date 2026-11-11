@@ -33,10 +33,9 @@ export function EntryRow({
     !entry.done && entry.date <= addDays(today, 1) && (entry.date >= today || canBeOverdue(entry))
 
   return (
-    <li
-      className="flex items-stretch gap-1 tile"
-    >
-      <label className="flex min-w-11 items-center justify-center" title="erledigt">
+    // Farbiger Streifen links in der Fachfarbe
+    <li className="tile flex items-stretch gap-1" style={{ boxShadow: `inset 5px 0 0 ${color}, var(--tile-shadow)` }}>
+      <label className="flex min-w-11 items-center justify-center pl-1.5" title="erledigt">
         <input
           type="checkbox"
           className="h-5 w-5"

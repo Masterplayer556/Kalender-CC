@@ -2,6 +2,7 @@
 //   iPad/Computer: Leiste links (rail)
 //   iPhone:        Leiste unten. Sunset: schwebende dunkle Leiste mit erhöhtem „+“ in der Mitte.
 //                  Neon: angedockte Leiste mit Lime-Strich, „+“ als Quadrat darüber.
+// Aussehen und Bewegung (aktive Fläche, hüpfendes Symbol, pulsierender Ring ums „+“) stehen in index.css.
 
 import type { Section } from '../lib/router'
 import { Icon, type IconName } from './Icon'

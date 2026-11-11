@@ -1,4 +1,4 @@
-// Design-Themes: "Sunset" (warm, Kacheln, grosse Zahlen) und "Neon" (Raster, Mono-Schrift, Lime).
+// Design-Themes: "Sunset" (warm, farbige Kacheln, grosse Zahlen) und "Neon" (Raster, Mono-Schrift, Lime/Cyan/Pink).
 // Jedes Theme gibt es hell und dunkel. Gespeichert wird nur auf diesem Gerät (localStorage).
 //
 // Umgesetzt über zwei Attribute auf <html>:
@@ -11,8 +11,8 @@ export type ThemeName = 'sunset' | 'neon'
 export type ThemeMode = 'auto' | 'light' | 'dark'
 
 export const THEMES: Record<ThemeName, { label: string; description: string }> = {
-  sunset: { label: 'Sunset', description: 'Warm, Kacheln, grosse Zahlen' },
-  neon: { label: 'Neon', description: 'Raster, Mono-Schrift, Lime' },
+  sunset: { label: 'Sunset', description: 'Warm, farbige Kacheln, Sonne' },
+  neon: { label: 'Neon', description: 'Raster, Mono-Schrift, leuchtet' },
 }
 export const THEME_NAMES = Object.keys(THEMES) as ThemeName[]
 

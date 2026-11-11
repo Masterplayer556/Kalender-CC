@@ -15,6 +15,7 @@ import { overdueEntries, testsAwaitingGrade } from '../lib/overdue'
 import { PERIOD_KINDS, comparePeriods, holidayStatus, periodCovers } from '../lib/periods'
 import { weekOutlook } from '../lib/week'
 import type { Category, Entry, StudyBlock } from '../types'
+import { CountUp } from '../components/CountUp'
 import { GradeChart } from '../components/GradeChart'
 import type { GradeRequest } from '../components/GradeEditor'
 import { Icon, type IconName } from '../components/Icon'
@@ -23,10 +24,11 @@ import { useTheme } from '../components/ThemeProvider'
 
 export const CATEGORY_ICON: Record<Category, IconName> = { test: 'doc', aufgabe: 'check', event: 'sparkle', sonstiges: 'flag' }
 
-/** Kachel mit Einblend-Animation (--i = Reihenfolge) */
-function Tile({ i, className = '', children, onClick, label }: { i: number; className?: string; children: ReactNode; onClick?: () => void; label?: string }) {
+/** Kachel mit Einblend-Animation (--i = Reihenfolge). clip = false für Bereiche, die selbst Kacheln enthalten
+ *  (sonst würden deren Schatten am Rand abgeschnitten). */
+function Tile({ i, className = '', children, onClick, label, clip = true }: { i: number; className?: string; children: ReactNode; onClick?: () => void; label?: string; clip?: boolean }) {
   const style = { '--i': i } as CSSProperties
-  const cls = `tile-in relative overflow-hidden text-left ${className}`
+  const cls = `tile-in relative text-left ${clip ? 'overflow-hidden' : ''} ${className}`
   return onClick ? (
     <button className={cls} style={style} onClick={onClick} aria-label={label}>
       {children}
@@ -38,10 +40,10 @@ function Tile({ i, className = '', children, onClick, label }: { i: number; clas
   )
 }
 
-/** "3 Tage" (Sunset) bzw. "T–3d" (Neon) */
-function useCountdownLabel() {
+/** Countdown, der hochzählt: "3" (Sunset) bzw. "T–3d" (Neon). delay passend zur Kachel (--i). */
+function Countdown({ days, delay }: { days: number; delay?: number }) {
   const { theme } = useTheme()
-  return (days: number) => (theme === 'neon' ? `T–${days}d` : String(days))
+  return <CountUp value={days} delay={delay} format={(n) => (theme === 'neon' ? `T–${Math.round(n)}d` : String(Math.round(n)))} />
 }
 
 export function HomeView({
@@ -67,7 +69,6 @@ export function HomeView({
   const today = todayKey()
   const nowIso = new Date().toISOString()
   const colorOf = (e: Entry) => entryColor(e, subjectById)
-  const big = useCountdownLabel()
 
   // --- Nächster Test ---
   const nextTest = entries.filter((e) => e.category === 'test' && e.date >= today && !e.done).sort(compareEntries)[0]
@@ -164,16 +165,12 @@ export function HomeView({
           onClick={nextTest ? () => onOpenEntry(nextTest.id) : undefined}
           label={nextTest ? `Nächster Test: ${nextTest.title}` : 'Kein Test geplant'}
         >
-          {!neon && (
-            <>
-              <span aria-hidden className="absolute -top-20 -right-16 h-64 w-64 rounded-full bg-white/12" />
-              <span aria-hidden className="absolute -top-6 right-6 h-32 w-32 rounded-full bg-white/12" />
-            </>
-          )}
+          {/* Sonne und Strahlen (Sunset) bzw. Eck-Winkel und Lichtstreifen (Neon) kommen aus index.css (.tile-hero) */}
           <div className="relative flex h-full flex-col">
             <div className="flex items-center justify-between gap-2">
-              <span className={neon ? 'tag-label ink-accent' : 'tag-label rounded-full bg-white/20 px-3 py-1.5'}>
-                {neon ? '● Next_Test' : 'Nächster Test'}
+              <span className={neon ? 'tag-label ink-accent' : 'tag-label rounded-full bg-white/20 px-3 py-1.5 backdrop-blur-sm'}>
+                {nextTest && <span aria-hidden className="live-dot" />}
+                {neon ? 'Next_Test' : 'Nächster Test'}
               </span>
               {nextTest && (
                 <span className={`text-sm font-bold ${neon ? 'font-mono' : ''}`}>
@@ -186,7 +183,7 @@ export function HomeView({
               <>
                 <div className="mt-auto flex flex-wrap items-end gap-x-4 gap-y-1 pt-3">
                   <span className={`num text-[96px] md:text-[128px] ${neon ? 'ink-accent text-[64px]! md:text-[88px]!' : ''}`}>
-                    {testDays === 0 ? (neon ? 'HEUTE' : '0') : big(testDays)}
+                    {testDays === 0 ? (neon ? 'HEUTE' : '0') : <Countdown days={testDays} />}
                   </span>
                   <span className="min-w-0 pb-2 md:pb-4">
                     {!neon && <span className="block text-xl font-extrabold md:text-2xl">{testDays === 0 ? 'Heute ist es so weit' : testDays === 1 ? 'Tag bis' : 'Tage bis'}</span>}
@@ -225,13 +222,14 @@ export function HomeView({
         {/* ---------- Ferien ---------- */}
         <Tile
           i={1}
-          className={`${neon ? 'tile' : 'tile-2'} col-span-1 flex min-h-[170px] flex-col p-4 md:col-span-3 md:p-5 lg:col-span-4`}
+          className="tile tone-1 col-span-1 flex min-h-[170px] flex-col p-4 md:col-span-3 md:p-5 lg:col-span-4"
           onClick={() => (holiday ? onOpenPeriod({ periodId: holiday.period.id }) : onOpenPeriod({}))}
           label="Ferien"
         >
           <div className="flex items-center justify-between">
             <span className="tag-label">Ferien</span>
-            <Icon name="sun" className="ink-accent h-6 w-6" />
+            {/* Sonne dreht sich ganz langsam */}
+            <Icon name="sun" className="tone-ink h-6 w-6 animate-[spin_26s_linear_infinite]" />
           </div>
           {periodsMissing ? (
             <p className="muted mt-auto text-sm">Ferien sind noch nicht eingerichtet (siehe README).</p>
@@ -245,7 +243,7 @@ export function HomeView({
             </div>
           ) : (
             <div className="mt-auto">
-              <div className="num text-5xl md:text-[64px]">{big(holiday.daysUntil)}</div>
+              <div className="num text-5xl md:text-[64px]"><Countdown days={holiday.daysUntil} delay={80} /></div>
               <div className="mt-1 leading-tight font-bold">
                 {neon ? holiday.period.name : `Tage bis ${holiday.period.name}`}
               </div>
@@ -253,10 +251,10 @@ export function HomeView({
                 noch {holiday.schoolDays} {holiday.schoolDays === 1 ? 'Schultag' : 'Schultage'}
               </div>
               {ferienProgress !== null && (
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-(--line)">
+                <div className={`mt-3 h-2 overflow-hidden bg-(--line) ${neon ? 'rounded-[2px]' : 'rounded-full'}`}>
                   <div
-                    className="h-full rounded-full transition-[width] duration-700"
-                    style={{ width: `${Math.min(100, Math.max(4, ferienProgress * 100))}%`, background: neon ? '#3df5ff' : 'var(--hero)' }}
+                    className={`bar-grow h-full ${neon ? '' : 'rounded-full'}`}
+                    style={{ width: `${Math.min(100, Math.max(4, ferienProgress * 100))}%`, background: neon ? 'var(--neon-2)' : 'var(--btn-bg)' }}
                   />
                 </div>
               )}
@@ -284,7 +282,7 @@ export function HomeView({
                 </div>
               )}
               <div className="mt-auto">
-                <div className="num text-5xl md:text-[56px]">{overall.toFixed(2)}</div>
+                <div className="num num-grad text-5xl md:text-[56px]"><CountUp value={overall} delay={140} format={(n) => n.toFixed(2)} /></div>
                 <div className="muted mt-1 text-sm">Zeugnis-⌀ · {bySubject.size} Fächer</div>
               </div>
             </>
@@ -292,12 +290,12 @@ export function HomeView({
         </Tile>
 
         {/* ---------- Lernwoche ---------- */}
-        <Tile i={3} className="tile col-span-2 flex items-center gap-4 p-4 md:col-span-3 md:p-5 lg:col-span-4" label="Lernzeiten diese Woche">
+        <Tile i={3} className="tile tone-2 col-span-2 flex items-center gap-4 p-4 md:col-span-3 md:p-5 lg:col-span-4" label="Lernzeiten diese Woche">
           {neon ? (
             <div className="min-w-0 flex-1">
               <span className="tag-label">Lernzeiten · KW</span>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="num ink-accent text-5xl">{weekDone}</span>
+                <span className="num ink-accent text-5xl"><CountUp value={weekDone} delay={200} /></span>
                 <span className="num muted text-2xl">/{weekBlocks.length}</span>
               </div>
               <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(18px,1fr))] gap-1">
@@ -319,7 +317,7 @@ export function HomeView({
               <div className="min-w-0">
                 <div className="muted text-sm font-semibold">Lernplan diese Woche</div>
                 <div className="num mt-1 text-4xl">
-                  {weekDone} <span className="text-xl font-bold">von {weekBlocks.length}</span>
+                  <CountUp value={weekDone} delay={200} /> <span className="text-xl font-bold">von {weekBlocks.length}</span>
                 </div>
                 <div className="muted mt-1 text-sm">{weekBlocks.length ? 'Lernzeiten erledigt' : 'Noch keine Lernzeiten geplant'}</div>
               </div>
@@ -328,16 +326,16 @@ export function HomeView({
         </Tile>
 
         {/* ---------- Noch diese Woche ---------- */}
-        <Tile i={4} className={`${neon ? 'tile' : 'tile-2'} col-span-2 flex flex-col md:col-span-3 lg:col-span-4`} onClick={() => onGo('liste')} label="Noch diese Woche">
+        <Tile i={4} className="tile tone-3 col-span-2 flex flex-col md:col-span-3 lg:col-span-4" onClick={() => onGo('liste')} label="Noch diese Woche">
           <span className="tag-label px-4 pt-4 md:px-5 md:pt-5">Noch diese Woche</span>
           <div className="mt-auto grid grid-cols-3">
             {[
-              { n: ahead.tests, label: ahead.tests === 1 ? 'Test' : 'Tests' },
-              { n: ahead.tasks, label: ahead.tasks === 1 ? 'Aufgabe' : 'Aufgaben' },
-              { n: overdue.length, label: 'Überfällig', alert: overdue.length > 0 },
+              { n: ahead.tests, label: ahead.tests === 1 ? 'Test' : 'Tests', color: 'text-(--accent-text)' },
+              { n: ahead.tasks, label: ahead.tasks === 1 ? 'Aufgabe' : 'Aufgaben', color: 'text-(--accent-2)' },
+              { n: overdue.length, label: 'Überfällig', color: overdue.length > 0 ? 'text-red-600 dark:text-red-400' : '' },
             ].map((s, i) => (
               <div key={s.label} className={`flex flex-col justify-end px-4 pt-3 pb-4 md:px-5 md:pb-5 ${neon && i ? 'border-l border-(--line)' : ''}`}>
-                <span className={`num text-4xl md:text-5xl ${s.alert ? 'text-red-600 dark:text-red-400' : ''}`}>{s.n}</span>
+                <span className={`num text-4xl md:text-5xl ${s.n > 0 ? s.color : ''}`}><CountUp value={s.n} delay={260 + i * 60} /></span>
                 <span className="muted mt-1 text-sm font-semibold">{s.label}</span>
               </div>
             ))}
@@ -345,7 +343,7 @@ export function HomeView({
         </Tile>
 
         {/* ---------- Dein Tag ---------- */}
-        <Tile i={5} className="col-span-2 md:col-span-6 lg:col-span-7" label="Dein Tag">
+        <Tile i={5} clip={false} className="col-span-2 md:col-span-6 lg:col-span-7" label="Dein Tag">
           <div className="mb-3 flex items-baseline justify-between px-1">
             <h2 className="section-title">Dein Tag</h2>
             <span className="muted text-sm font-semibold">
@@ -384,7 +382,7 @@ export function HomeView({
         </Tile>
 
         {/* ---------- Als Nächstes ---------- */}
-        <Tile i={6} className="col-span-2 md:col-span-6 lg:col-span-5" label="Als Nächstes">
+        <Tile i={6} clip={false} className="col-span-2 md:col-span-6 lg:col-span-5" label="Als Nächstes">
           <div className="mb-3 flex items-baseline justify-between px-1">
             <h2 className="section-title">Als Nächstes</h2>
             <button className="ink-accent min-h-9 text-sm font-bold" onClick={() => onGo('liste')}>
@@ -450,8 +448,9 @@ function EntryCard({ entry, color, onOpen, onToggle, canEdit }: { entry: Entry; 
   const { subjectById } = useData()
   const { theme } = useTheme()
   return (
-    <div className={`tile flex min-h-16 items-center gap-1 pr-2 ${entry.done ? 'opacity-70' : ''}`}>
-      <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3.5 text-left" onClick={onOpen}>
+    // Farbiger Streifen links in der Fachfarbe
+    <div className={`tile flex min-h-16 items-center gap-1 pr-2 ${entry.done ? 'opacity-70' : ''}`} style={{ boxShadow: `inset 5px 0 0 ${color}, var(--tile-shadow)` }}>
+      <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4.5 text-left" onClick={onOpen}>
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-[17px] font-bold ${entry.done ? 'muted line-through' : ''}`}>{entry.title}</span>
           <span className="mt-1 flex items-center gap-2 text-[13px]">
@@ -477,7 +476,7 @@ function EntryCard({ entry, color, onOpen, onToggle, canEdit }: { entry: Entry; 
             entry.done ? 'border-transparent bg-green-600 text-white' : 'border-(--line)'
           }`}
         >
-          {entry.done && <Icon name="check" className="h-4 w-4" strokeWidth={3.4} />}
+          {entry.done && <Icon name="check" className="check-pop h-4 w-4" strokeWidth={3.4} />}
         </span>
       </button>
     </div>

@@ -4,6 +4,7 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useData } from '../data/DataProvider'
 import { BmSection } from '../components/BmSection'
+import { CountUp } from '../components/CountUp'
 import { GradeChart, type ChartDot } from '../components/GradeChart'
 import type { GradeRequest } from '../components/GradeEditor'
 import { Icon } from '../components/Icon'
@@ -332,7 +333,7 @@ export function GradesView({
   // Auf dem Sunset-Verlauf: helle Achsen. Bei Neon: normale Farben.
   const heroChartStyle = (neon
     ? {}
-    : { '--chart-axis': 'rgb(255 255 255 / 0.85)', '--chart-grid': 'rgb(255 255 255 / 0.22)', '--chart-ring': '#be123c', '--chart-target': '#ffd5b8' }) as CSSProperties
+    : { '--chart-axis': 'rgb(255 255 255 / 0.9)', '--chart-grid': 'rgb(255 255 255 / 0.24)', '--chart-ring': '#c2185b', '--chart-target': '#ffe0b8' }) as CSSProperties
 
   return (
     <div className="h-full overflow-y-auto">
@@ -362,12 +363,11 @@ export function GradesView({
 
         {overall !== null && (
           <section className="tile-hero tile-in relative overflow-hidden p-5 md:p-6" aria-label="Gesamtschnitt">
-            {!neon && <span aria-hidden className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-white/10" />}
             <div className="relative grid gap-5 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:items-end">
               <div>
                 <div className={`tag-label ${neon ? 'ink-accent' : 'opacity-90'}`}>Gesamtschnitt</div>
                 <div className="mt-2 flex items-end gap-3">
-                  <span className="num text-[80px] md:text-[96px]">{overall.toFixed(2)}</span>
+                  <span className="num text-[80px] md:text-[96px]"><CountUp value={overall} format={(n) => n.toFixed(2)} /></span>
                   <span className="pb-3"><Delta value={delta} /></span>
                 </div>
                 <div className="mt-2 text-sm font-semibold opacity-85">

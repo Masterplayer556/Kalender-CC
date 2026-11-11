@@ -141,7 +141,7 @@ export function HeatmapView({
             <div className="tag-label">Stressigste Woche</div>
             {busiest ? (
               <>
-                <div className="num ink-accent mt-2 text-5xl">KW {isoWeek(busiest.week[0])}</div>
+                <div className="num num-grad mt-2 text-5xl">KW {isoWeek(busiest.week[0])}</div>
                 <div className="muted mt-2 text-sm font-semibold">
                   {busiest.load.tests} {busiest.load.tests === 1 ? 'Test' : 'Tests'} · {busiest.load.study}{' '}
                   {busiest.load.study === 1 ? 'Lernzeit' : 'Lernzeiten'} · {formatDate(busiest.week[0]).slice(0, 6)}–
@@ -153,7 +153,7 @@ export function HeatmapView({
             )}
           </section>
 
-          <section className={`${neon ? 'tile' : 'tile-2'} grid grid-cols-3`} aria-label="Monat in Zahlen">
+          <section className="tile tone-1 grid grid-cols-3" aria-label="Monat in Zahlen">
             {[
               { n: totals.tests, label: 'Tests' },
               { n: totals.others, label: 'Aufgaben & Co.' },
