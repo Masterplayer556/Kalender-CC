@@ -92,9 +92,16 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [error, setError] = useState<string | null>(null)
   const online = useOnline()
 
+  // Mehrere Ladevorgänge können sich überholen (z. B. App kommt in den Vordergrund, während gerade
+  // gespeichert wird). Nur die zuletzt gestartete Abfrage darf den Stand setzen – sonst könnte eine
+  // ältere, langsamere Antwort die frischen Daten wieder mit dem alten Stand überschreiben.
+  const loadSeq = useRef(0)
   const reload = useCallback(async () => {
+    const seq = ++loadSeq.current
+    const isLatest = () => seq === loadSeq.current
     try {
       const data = await api.fetchEverything()
+      if (!isLatest()) return
       const savedAt = new Date().toISOString()
       setSubjects(data.subjects)
       setEntries(data.entries)
@@ -110,9 +117,9 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
     } catch (err) {
-      setError(friendlyError(err))
+      if (isLatest()) setError(friendlyError(err))
     } finally {
-      setLoading(false)
+      if (isLatest()) setLoading(false)
     }
   }, [userId])
 

@@ -1,5 +1,5 @@
 // Heatmap "Belastung pro Tag": Wie viel steht an einem Tag an?
-// Punkte: Test = 2, jeder andere Eintrag = 1, jede Lernzeit = 1.
+// Punkte (bestimmen die Farbe): Test = 2, jeder andere Eintrag = 1, jede Lernzeit = 1.
 // Mehrtägige Einträge zählen an jedem ihrer Tage.
 // Erledigte Einträge und Lernzeiten zählen bewusst mit: Die Heatmap zeigt auch vergangene Monate,
 // also wie viel an einem Tag los war – nicht nur, was noch offen ist.
@@ -16,6 +16,15 @@ export interface DayLoad {
 }
 
 const EMPTY: DayLoad = { score: 0, tests: 0, others: 0, study: 0 }
+
+/**
+ * Wie viele Dinge stehen an dem Tag an (Einträge + Lernzeiten)? Diese Zahl steht im Feld.
+ * Nicht die Punkte: Ein einzelner Test zählt 2 Punkte, im Feld soll aber "1" stehen –
+ * sonst sieht es aus, als gäbe es den Test doppelt.
+ */
+export function loadCount(load: DayLoad): number {
+  return load.tests + load.others + load.study
+}
 
 export function dayLoads(days: DateKey[], entries: Entry[], blocks: StudyBlock[]): Map<DateKey, DayLoad> {
   const map = new Map<DateKey, DayLoad>(days.map((d) => [d, { ...EMPTY }]))

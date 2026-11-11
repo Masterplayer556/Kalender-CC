@@ -5,6 +5,7 @@ import { useData } from '../data/DataProvider'
 import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR } from '../lib/categories'
 import { addDays, daysBetween, formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
+import { shiftOpenBlocks } from '../lib/studyBlocks'
 import type { Attachment, Category, PendingAttachment, StudyBlockInput } from '../types'
 import { AttachmentsEditor } from './AttachmentsEditor'
 import type { GradeRequest } from './GradeEditor'
@@ -82,10 +83,21 @@ export function EntryEditor({
 
   const readOnly = !online || saving
 
+  // Um so viele Tage wurde der Termin in diesem Formular verschoben, ohne dass die Lernzeiten mitkamen
+  const [unshiftedDays, setUnshiftedDays] = useState(0)
+  const openBlockCount = blocks.filter((b) => !b.done).length
+
   /** Erster Tag verschoben: Bei mehrtägigen bleibt die Dauer gleich, das Ende wandert mit. */
   function changeDate(next: DateKey) {
     if (endDate > date) setEndDate(addDays(next, daysBetween(date, endDate)))
+    setUnshiftedDays(unshiftedDays + daysBetween(date, next))
     setDate(next)
+  }
+
+  /** Offene Lernzeiten um dieselbe Anzahl Tage verschieben wie den Termin. */
+  function shiftBlocks() {
+    setBlocks(shiftOpenBlocks(blocks, unshiftedDays))
+    setUnshiftedDays(0)
   }
 
   /** Prüft die Eingaben; gibt eine Fehlermeldung zurück oder null. */
@@ -123,8 +135,10 @@ export function EntryEditor({
         blocks,
         {
           added: pendingAttachments,
-          // Beim Duplizieren gehören die gespeicherten Anhänge dem Original – nichts löschen
-          removed: isCopy ? [] : savedAttachments.filter((a) => !keptAttachments.includes(a)),
+          // Beim Duplizieren gehören die gespeicherten Anhänge dem Original – nichts löschen.
+          // Vergleich über die id, nicht über das Objekt: Lädt die App im Hintergrund neu (z. B. nach dem
+          // Öffnen eines Anhangs in einer anderen App), sind es neue Objekte – sonst gälten alle als entfernt.
+          removed: isCopy ? [] : savedAttachments.filter((a) => !keptAttachments.some((k) => k.id === a.id)),
         },
       )
       onClose()
@@ -162,6 +176,7 @@ export function EntryEditor({
     setIsCopy(true)
     setDone(false)
     setBlocks([])
+    setUnshiftedDays(0)
     setPendingAttachments([
       ...keptAttachments
         .filter((a) => a.kind === 'link')
@@ -291,6 +306,19 @@ export function EntryEditor({
               </div>
             )}
           </div>
+
+          {/* Termin verschoben, Lernzeiten noch am alten Ort → anbieten, sie mitzunehmen */}
+          {unshiftedDays !== 0 && openBlockCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-(--r-ctl) bg-(--surface-2) p-2.5 text-sm">
+              <span className="min-w-0 flex-1 font-medium">
+                Termin um {Math.abs(unshiftedDays)} {Math.abs(unshiftedDays) === 1 ? 'Tag' : 'Tage'} nach{' '}
+                {unshiftedDays > 0 ? 'hinten' : 'vorne'} verschoben.
+              </span>
+              <button type="button" className="btn-surface ink-accent min-h-9! text-sm" disabled={readOnly} onClick={shiftBlocks}>
+                {openBlockCount === 1 ? 'Offene Lernzeit' : `${openBlockCount} offene Lernzeiten`} mitverschieben
+              </button>
+            </div>
+          )}
 
           {category === 'event' && (
             <label className="toggle-row">

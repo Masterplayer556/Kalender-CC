@@ -1,6 +1,6 @@
 // Heute-Übersicht ("Bento"): alles Wichtige auf einen Blick, in Kacheln.
 //   iPad quer:  [ Nächster Test ············ ][ Ferien ]
-//               [ Schnitt ][ Lernwoche ][ Diese Woche ]
+//               [ Schnitt ][ Lernwoche ][ Noch diese Woche ]
 //               [ Dein Tag ·········· ][ Als Nächstes ]
 //   iPad hoch und iPhone: dieselben Kacheln, enger angeordnet.
 
@@ -13,6 +13,7 @@ import { overallTrend, trendDelta } from '../lib/gradeStats'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
 import { overdueEntries, testsAwaitingGrade } from '../lib/overdue'
 import { PERIOD_KINDS, comparePeriods, holidayStatus, periodCovers } from '../lib/periods'
+import { weekOutlook } from '../lib/week'
 import type { Category, Entry, StudyBlock } from '../types'
 import { GradeChart } from '../components/GradeChart'
 import type { GradeRequest } from '../components/GradeEditor'
@@ -102,8 +103,8 @@ export function HomeView({
     .filter((b) => inWeek(isoToLocal(b.starts_at).date) && entryById.has(b.entry_id))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
   const weekDone = weekBlocks.filter((b) => b.done).length
-  const weekTests = entries.filter((e) => e.category === 'test' && inWeek(e.date)).length
-  const weekTasks = entries.filter((e) => e.category === 'aufgabe' && inWeek(e.date)).length
+  // Nur was noch kommt: Erledigtes und die vergangenen Tage der Woche zählen nicht mehr mit
+  const ahead = weekOutlook(entries, today)
   const overdue = overdueEntries(entries, today)
   const awaiting = gradesMissing ? [] : testsAwaitingGrade(entries, new Set(gradesByEntry.keys()), today)
 
@@ -326,13 +327,13 @@ export function HomeView({
           )}
         </Tile>
 
-        {/* ---------- Diese Woche ---------- */}
-        <Tile i={4} className={`${neon ? 'tile' : 'tile-2'} col-span-2 flex flex-col md:col-span-3 lg:col-span-4`} onClick={() => onGo('liste')} label="Diese Woche">
-          <span className="tag-label px-4 pt-4 md:px-5 md:pt-5">Diese Woche</span>
+        {/* ---------- Noch diese Woche ---------- */}
+        <Tile i={4} className={`${neon ? 'tile' : 'tile-2'} col-span-2 flex flex-col md:col-span-3 lg:col-span-4`} onClick={() => onGo('liste')} label="Noch diese Woche">
+          <span className="tag-label px-4 pt-4 md:px-5 md:pt-5">Noch diese Woche</span>
           <div className="mt-auto grid grid-cols-3">
             {[
-              { n: weekTests, label: 'Tests' },
-              { n: weekTasks, label: 'Aufgaben' },
+              { n: ahead.tests, label: ahead.tests === 1 ? 'Test' : 'Tests' },
+              { n: ahead.tasks, label: ahead.tasks === 1 ? 'Aufgabe' : 'Aufgaben' },
               { n: overdue.length, label: 'Überfällig', alert: overdue.length > 0 },
             ].map((s, i) => (
               <div key={s.label} className={`flex flex-col justify-end px-4 pt-3 pb-4 md:px-5 md:pb-5 ${neon && i ? 'border-l border-(--line)' : ''}`}>
