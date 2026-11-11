@@ -72,6 +72,19 @@ function Shell() {
   const [gradeEditor, setGradeEditor] = useState<GradeRequest | null>(null)
   const [periodEditor, setPeriodEditor] = useState<PeriodRequest | null>(null)
   const onGradesTab = route.view === 'noten' && !search.trim()
+
+  // Tageswechsel: Bleibt die App über Mitternacht offen, zeichnet sie sich neu –
+  // sonst zeigten "Heute", Countdowns und "Noch diese Woche" weiter den Stand von gestern.
+  const [, setDay] = useState(todayKey)
+  useEffect(() => {
+    const check = () => setDay(todayKey())
+    const timer = setInterval(check, 60_000)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', check)
+    }
+  }, [])
   // Monat / Woche / Tag: Zeitraum, der sich vor/zurück wischen lässt
   const isCalendar = !search.trim() && hasPeriod(route.view)
   // iPad / Computer: Navigation als Leiste links, sonst unten (iPhone)

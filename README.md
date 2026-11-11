@@ -17,6 +17,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Filter** nach Kategorie und Fach (Trichter-Symbol) sowie eine **Suche** in Titeln und Notizen
 - Ein Tipp auf eine freie Stelle in der Wochen- oder Tagesansicht öffnet „Neuer Eintrag“ mit dieser Uhrzeit.
 - Ein Tipp auf einen Lernblock öffnet ein kleines Menü zum **Abhaken**, ohne das ganze Formular.
+- **Verschieben:** Änderst du das Datum eines Eintrags mit offenen Lernzeiten, bietet das Formular an, die offenen Lernzeiten um gleich viele Tage mitzuverschieben (erledigte bleiben stehen).
 - **Duplizieren:** Im geöffneten Eintrag auf „Duplizieren“ tippen, z. B. für „Vokabeltest Unité 4“.
 - **Rückgängig:** Nach dem Löschen bleibt ein paar Sekunden lang „Rückgängig“ eingeblendet.
 - **Noten** (eigener Tab): Noten pro Fach mit Gewichtung, gewichteter Schnitt, Zeugnisnote (auf halbe Noten gerundet), Gesamtschnitt und Semester-Auswahl (1. Semester Aug–Jan, 2. Semester Feb–Jul). Der **Notenrechner** sagt dir, welche Note du in der nächsten Prüfung brauchst. Frühere Tests trägst du einfach mit ihrem Datum ein.
@@ -24,8 +25,8 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Anhänge:** Dateien (Word, PowerPoint, PDF, Fotos … aus der Dateien-App, max. 50 MB) und Links (OneDrive, iCloud, Teams …) an jedem Eintrag, z. B. das Lernzielblatt zum Test.
 - **Wischen:** In Monat, Woche und Tag nach links/rechts wischen, um den Zeitraum zu wechseln.
 - **Navigation** mit vier Bereichen: **Heute · Kalender · Noten · Mehr**. Auf dem iPad als Leiste links, auf dem iPhone als Leiste unten, jeweils mit „+“ für neue Einträge. Im Kalender schaltest du oben zwischen Monat, Woche, Tag, Liste und Heatmap um.
-- **Heute-Übersicht** (Startseite) in Kacheln: Countdown bis zum nächsten Test mit Lernfortschritt, **Tage bis zu den Ferien** mit den verbleibenden Schultagen, Notenschnitt mit Mini-Graph, Lernzeiten der Woche, Tests/Aufgaben/Überfälliges dieser Woche, „Dein Tag“ als Zeitstrahl (zum Abhaken) und „Als Nächstes“. Im iPad-Querformat steht „Heute“ zusätzlich als Seitenleiste neben dem Kalender.
-- **Heatmap** (im Kalender): der Monat als „Belastung pro Tag“ – je kräftiger ein Tag, desto mehr steht an (Test = 2 Punkte, andere Einträge und Lernzeiten je 1). Punkt = Test, gestrichelter Rand = Ferien, freie Tage oder Lager. Daneben: stressigste Woche, Monat in Zahlen und die Einträge des gewählten Tags (nochmals antippen öffnet den Tag).
+- **Heute-Übersicht** (Startseite) in Kacheln: Countdown bis zum nächsten Test mit Lernfortschritt, **Tage bis zu den Ferien** mit den verbleibenden Schultagen, Notenschnitt mit Mini-Graph, Lernzeiten der Woche, **„Noch diese Woche“** (offene Tests und Aufgaben von heute bis Sonntag – Erledigtes und Vergangenes zählt nicht mehr – sowie Überfälliges), „Dein Tag“ als Zeitstrahl (zum Abhaken) und „Als Nächstes“. Im iPad-Querformat steht „Heute“ zusätzlich als Seitenleiste neben dem Kalender.
+- **Heatmap** (im Kalender): der Monat als „Belastung pro Tag“ – je kräftiger ein Tag, desto mehr steht an (Test = 2 Punkte, andere Einträge und Lernzeiten je 1). Die Zahl im Feld ist die Anzahl Einträge und Lernzeiten an diesem Tag (ein Test = 1). Punkt = Test, gestrichelter Rand = Ferien, freie Tage oder Lager. Daneben: stressigste Woche, Monat in Zahlen und die Einträge des gewählten Tags (nochmals antippen öffnet den Tag).
 - **Noten-Graphen:** Verlauf des Gesamtschnitts und pro Fach ein eigener Graph (Punkte = einzelne Noten, grösser = höheres Gewicht; Linie = laufender Schnitt; gestrichelt = Grenze 4). Ein Punkt öffnet die Note. Pro Fach und für den Gesamtschnitt lässt sich ein **Ziel** setzen (z. B. 5.5 im Zeugnis): Der Graph zeigt die Ziellinie, die Karte sagt, welche Note es in der nächsten Prüfung mindestens braucht (gespeichert auf diesem Gerät).
 - **BM-Einschätzung** (ganz unten im Noten-Tab): kleine Tabelle mit den Fächern Mathe, Deutsch, Franz und NMG (NT & RZG) nebeneinander und darunter je einem Feld für die **fachliche** und die **persönliche Kompetenz** (8 Felder). Jedes Feld ist **Ja**, **Nein** oder noch offen; nochmals tippen macht es wieder offen. **Ziel: 6 × Ja** – die Sektion zeigt, wie viele Ja noch fehlen, ob das Ziel noch erreichbar ist und den Vergleich mit dem letzten Semester (▲/▼). Gespeichert pro Semester (gleiche Auswahl wie oben bei den Noten) und auf allen Geräten gleich.
 - **Design** (unter „Mehr“): **Sunset** (warm, grosse Kacheln und Zahlen) oder **Neon** (Raster, Mono-Schrift, Lime) – jeweils **hell, dunkel oder automatisch** nach Systemeinstellung. Gilt pro Gerät.
@@ -140,6 +141,9 @@ src/
 │  ├─ grouping.ts    Gruppen der Liste „Als Nächstes“
 │  ├─ grades.ts      Notenschnitt, Zeugnisnote, Notenrechner, Semester
 │  ├─ overdue.ts     Gruppen „Überfällig“ und „Note eintragen?“
+│  ├─ week.ts        Kachel „Noch diese Woche“ (offene Tests und Aufgaben bis Sonntag)
+│  ├─ heatmap.ts     Heatmap: Punkte und Anzahl pro Tag, stressigste Woche
+│  ├─ studyBlocks.ts Lernzeiten mit dem Termin mitverschieben
 │  ├─ periods.ts     Ferien & freie Tage: Arten, Tage nachschlagen, Countdown und Schultage
 │  ├─ files.ts       Anhänge: Symbole, Grössen, Links prüfen
 │  ├─ swipe.ts       Wischgesten erkennen

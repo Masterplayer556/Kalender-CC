@@ -104,7 +104,10 @@ export async function saveEntry(
     const { multi_grade: _, ...rest } = input
     ;({ data, error } = await write(rest))
   }
-  if (error || !data) throw error
+  // PGRST116 = keine Zeile getroffen: Der Eintrag wurde inzwischen gelöscht (z. B. auf einem anderen Gerät)
+  if (entryId && (error?.code === 'PGRST116' || (!error && !data)))
+    throw new Error('Diesen Eintrag gibt es nicht mehr – er wurde wohl auf einem anderen Gerät gelöscht.')
+  if (error || !data) throw error ?? new Error('Der Eintrag konnte nicht gespeichert werden.')
   const id = data.id as string
 
   // 2. Entfernte Lernzeiten löschen

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busiestWeek, dayLoads, heatLevel } from '../src/lib/heatmap'
+import { busiestWeek, dayLoads, heatLevel, loadCount } from '../src/lib/heatmap'
 import type { Entry, StudyBlock } from '../src/types'
 
 const entry = (date: string, category: Entry['category'], end_date: string | null = null) =>
@@ -19,6 +19,24 @@ describe('dayLoads', () => {
   it('mehrtägige Einträge zählen an jedem Tag', () => {
     const loads = dayLoads(['2026-11-23', '2026-11-24', '2026-11-25'], [entry('2026-11-23', 'event', '2026-11-24')], [])
     expect([...loads.values()].map((l) => l.score)).toEqual([1, 1, 0])
+  })
+})
+
+describe('loadCount', () => {
+  it('ein einzelner Test ist 1 Eintrag, auch wenn er 2 Punkte zählt', () => {
+    const load = dayLoads(['2026-11-17'], [entry('2026-11-17', 'test')], []).get('2026-11-17')!
+    expect(load.score).toBe(2)
+    expect(loadCount(load)).toBe(1)
+  })
+  it('zählt Einträge und Lernzeiten zusammen', () => {
+    const load = dayLoads(['2026-11-03'], [entry('2026-11-03', 'test'), entry('2026-11-03', 'aufgabe')], [block('2026-11-03')]).get('2026-11-03')!
+    expect(loadCount(load)).toBe(3)
+  })
+  it('verschobener Test: am alten Tag bleibt nichts zurück', () => {
+    const moved = entry('2026-11-17', 'test') // vorher am 10.11.
+    const loads = dayLoads(['2026-11-10', '2026-11-17'], [moved], [])
+    expect(loadCount(loads.get('2026-11-10')!)).toBe(0)
+    expect(loadCount(loads.get('2026-11-17')!)).toBe(1)
   })
 })
 

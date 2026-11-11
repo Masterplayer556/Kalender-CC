@@ -7,7 +7,7 @@ import { useData } from '../data/DataProvider'
 import { CATEGORIES, entryColor } from '../lib/categories'
 import { formatDate, formatTime, formatWeekday, isoToLocal, isoWeek, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
-import { busiestWeek, dayLoads, heatLevel } from '../lib/heatmap'
+import { busiestWeek, dayLoads, heatLevel, loadCount } from '../lib/heatmap'
 import { PERIOD_KINDS, comparePeriods, periodCovers } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
 import { Icon } from '../components/Icon'
@@ -93,7 +93,8 @@ export function HeatmapView({
                 >
                   <span className="text-[13px] md:text-[15px]">{Number(day.slice(8))}</span>
                   {load.tests > 0 && <span aria-hidden className="heat-dot" />}
-                  {load.score > 0 && inMonth && <span aria-hidden className="absolute bottom-1.5 left-2.5 hidden text-[11px] opacity-75 md:block">{load.score}</span>}
+                  {/* Anzahl Einträge + Lernzeiten (nicht die Punkte: ein Test zählt 2 Punkte, ist aber nur 1 Eintrag) */}
+                  {load.score > 0 && inMonth && <span aria-hidden className="absolute bottom-1.5 left-2.5 hidden text-[11px] opacity-75 md:block">{loadCount(load)}</span>}
                   {day === today && <span aria-hidden className="absolute right-2 bottom-1.5 left-2 h-[3px] rounded-full bg-current md:left-auto md:w-5" />}
                 </button>
               )
@@ -107,7 +108,8 @@ export function HeatmapView({
               ))}
               viel
             </span>
-            <span className="ml-auto flex items-center gap-1.5">
+            <span className="ml-auto hidden md:inline">Zahl = Einträge & Lernzeiten</span>
+            <span className="flex items-center gap-1.5 max-md:ml-auto">
               <span className="heat-dot static!" /> Test
             </span>
             <span className="flex items-center gap-1.5">
