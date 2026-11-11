@@ -1,4 +1,5 @@
-// BM-Einschätzung ganz unten im Noten-Tab: pro Fach ein Kreuz für fachliche und eins für persönliche Kompetenz.
+// BM-Einschätzung ganz unten im Noten-Tab: Fächer waagerecht, darunter je ein Feld für fachliche und
+// persönliche Kompetenz. Jedes Feld ist Ja, Nein oder noch offen. Ziel: 6 × Ja.
 // Gespeichert pro Semester in Supabase (Tabelle bm_ratings), also auf allen Geräten gleich.
 
 import type { CSSProperties } from 'react'
@@ -6,16 +7,29 @@ import { useData } from '../data/DataProvider'
 import { useTheme } from './ThemeProvider'
 import { useToast } from './Toast'
 import { Icon } from './Icon'
-import { BM_KINDS, BM_SUBJECTS, bmHasData, bmMissingCrosses, bmSheet, bmTotals, matchSubject, previousSemester } from '../lib/bm'
+import {
+  BM_GOAL,
+  BM_KINDS,
+  BM_NO,
+  BM_SUBJECTS,
+  BM_YES,
+  bmGoalState,
+  bmHasData,
+  bmSheet,
+  bmTotals,
+  matchSubject,
+  previousSemester,
+  toggleValue,
+} from '../lib/bm'
 import type { BmKind, BmSubject } from '../types'
 
-/** Unterschied zum letzten Semester (nur wenn es dort Kreuze gab) */
+/** Unterschied zum letzten Semester (Anzahl Ja) */
 function Change({ value }: { value: number }) {
   if (value === 0) return null
   return (
     <span
       className={`grade-badge rounded-(--r-chip) px-1.5 py-0.5 text-[11px] font-bold whitespace-nowrap ${value > 0 ? 'grade-good' : 'grade-bad'}`}
-      title="im Vergleich zum letzten Semester"
+      title="Ja im Vergleich zum letzten Semester"
     >
       {value > 0 ? '▲' : '▼'} {Math.abs(value)}
     </span>
@@ -30,13 +44,13 @@ export function BmSection({ semester, semesterLabel, index }: { semester: string
 
   const sheet = bmSheet(bm, semester)
   const totals = bmTotals(sheet)
+  const goal = bmGoalState(sheet)
   const prevSheet = bmSheet(bm, previousSemester(semester))
   const hasPrev = bmHasData(prevSheet)
   const prevTotals = bmTotals(prevSheet)
-  const missing = bmMissingCrosses(sheet)
 
-  const toggle = (subject: BmSubject, kind: BmKind) => {
-    const next = { ...sheet[subject], [kind]: sheet[subject][kind] ? 0 : 1 }
+  const choose = (subject: BmSubject, kind: BmKind, chosen: typeof BM_YES | typeof BM_NO) => {
+    const next = { ...sheet[subject], [kind]: toggleValue(sheet[subject][kind], chosen) }
     saveBm(semester, subject, next.fach, next.pers).catch((err: Error) => toast({ message: err.message }))
   }
 
@@ -51,11 +65,11 @@ export function BmSection({ semester, semesterLabel, index }: { semester: string
         {!bmMissing && (
           <div className="text-right">
             <div className="flex items-end justify-end gap-2">
-              {hasPrev && <span className="pb-1"><Change value={totals.total - prevTotals.total} /></span>}
-              <span className="num text-5xl">{totals.total}</span>
-              <span className="muted pb-1 text-lg font-bold">/ {totals.max}</span>
+              {hasPrev && <span className="pb-1"><Change value={totals.yes - prevTotals.yes} /></span>}
+              <span className="num text-5xl">{totals.yes}</span>
+              <span className="muted pb-1 text-lg font-bold">/ {BM_GOAL}</span>
             </div>
-            <div className="muted mt-1 text-xs font-semibold">Kreuze</div>
+            <div className="muted mt-1 text-xs font-semibold">Ja · Ziel {BM_GOAL}</div>
           </div>
         )}
       </div>
@@ -67,66 +81,93 @@ export function BmSection({ semester, semesterLabel, index }: { semester: string
         </div>
       ) : (
         <>
-          <div className="mt-4">
-            <div className="bm-row muted border-b border-(--line) pb-2 text-xs font-bold tracking-wide uppercase">
-              <span>Fach</span>
-              {BM_KINDS.map((k) => (
-                <span key={k.key} className="text-center">
-                  {k.short}
-                  <span className="block text-[11px] tabular-nums normal-case">
-                    {totals[k.key]}/{BM_SUBJECTS.length}
-                  </span>
-                </span>
+          {/* Fortschritt zum Ziel */}
+          <div className="mt-3">
+            <div className="progress-cells bm-goal" aria-hidden>
+              {Array.from({ length: BM_GOAL }, (_, i) => (
+                <span key={i} className={i < totals.yes ? 'on' : ''} />
               ))}
             </div>
-            <ul className="divide-y divide-(--line)">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold">
+              {goal === 'reached' && <span className="grade-good rounded-(--r-chip) px-2.5 py-0.5 font-bold">Ziel erreicht 🎉</span>}
+              {goal === 'possible' && (
+                <span>
+                  noch <strong className="ink-accent">{BM_GOAL - totals.yes} × Ja</strong> bis zum Ziel
+                </span>
+              )}
+              {goal === 'lost' && (
+                <span className="grade-bad rounded-(--r-chip) px-2.5 py-0.5 font-bold">Ziel nicht mehr erreichbar (zu viele Nein)</span>
+              )}
+              <span className="muted text-xs">
+                {totals.no} Nein · {totals.open} offen
+                {hasPrev && ` · letztes Semester ${prevTotals.yes} Ja`}
+              </span>
+            </div>
+          </div>
+
+          {/* Tabelle: Fächer waagerecht, Kompetenzen als Zeilen */}
+          <div className="bm-grid mt-4" role="table" aria-label="BM-Kompetenzen pro Fach">
+            <div role="row" className="contents">
+              <span role="columnheader" />
               {BM_SUBJECTS.map((s) => {
                 const color = matchSubject(subjects, s.match)?.color
                 return (
-                  <li key={s.key} className="bm-row py-2.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
+                  <div key={s.key} role="columnheader" className="min-w-0 pb-1 text-center">
+                    {/* Handy: Punkt über dem Namen (sonst zu schmal), ab Tablet daneben */}
+                    <div className="flex flex-col items-center gap-1 sm:flex-row sm:justify-center sm:gap-1.5">
                       <span
-                        className={`h-3 w-3 shrink-0 ${neon ? 'rounded-[3px]' : 'rounded-full'}`}
+                        className={`h-2.5 w-2.5 shrink-0 ${neon ? 'rounded-[2px]' : 'rounded-full'}`}
                         style={{ background: color ?? 'var(--accent)' }}
                       />
-                      <span className="min-w-0">
-                        <span className="block truncate font-extrabold">{s.name}</span>
-                        {s.detail && <span className="muted block truncate text-xs font-semibold">{s.detail}</span>}
-                      </span>
+                      <span className="max-w-full truncate text-[12.5px] font-extrabold sm:text-base">{s.name}</span>
                     </div>
-                    {BM_KINDS.map((k) => {
-                      const on = sheet[s.key][k.key] === 1
-                      return (
-                        <div key={k.key} className="flex justify-center">
-                          <button
-                            type="button"
-                            className={`bm-cross ${k.key} ${on ? 'on' : ''}`}
-                            aria-pressed={on}
-                            aria-label={`${s.name} ${k.label}`}
-                            disabled={!online}
-                            onClick={() => toggle(s.key, k.key)}
-                          >
-                            <Icon name="close" className="h-5 w-5" strokeWidth={3} />
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </li>
+                    <div className="muted truncate text-[10px] font-semibold sm:text-xs">{s.detail ?? ' '}</div>
+                  </div>
                 )
               })}
-            </ul>
+            </div>
+            {BM_KINDS.map((k) => (
+              <div key={k.key} role="row" className="contents">
+                <div role="rowheader" className="min-w-0">
+                  <div className="text-[13px] leading-tight font-bold sm:text-sm">{k.short}</div>
+                  <div className="muted text-[11px] font-semibold tabular-nums">
+                    {totals[k.key]}/{BM_SUBJECTS.length} Ja
+                  </div>
+                </div>
+                {BM_SUBJECTS.map((s) => {
+                  const value = sheet[s.key][k.key]
+                  return (
+                    <div key={s.key} role="cell" className="bm-choice" aria-label={`${s.name} ${k.label}`}>
+                      <button
+                        type="button"
+                        className={`bm-opt yes ${value === BM_YES ? 'on' : ''}`}
+                        aria-pressed={value === BM_YES}
+                        aria-label={`${s.name} ${k.short}: Ja`}
+                        disabled={!online}
+                        onClick={() => choose(s.key, k.key, BM_YES)}
+                      >
+                        <Icon name="check" className="hidden h-3.5 w-3.5 sm:block" strokeWidth={3} />
+                        Ja
+                      </button>
+                      <button
+                        type="button"
+                        className={`bm-opt no ${value === BM_NO ? 'on' : ''}`}
+                        aria-pressed={value === BM_NO}
+                        aria-label={`${s.name} ${k.short}: Nein`}
+                        disabled={!online}
+                        onClick={() => choose(s.key, k.key, BM_NO)}
+                      >
+                        <Icon name="close" className="hidden h-3.5 w-3.5 sm:block" strokeWidth={3} />
+                        Nein
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
           </div>
 
-          <div className="muted mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs font-semibold">
-            {missing.length === 0 ? (
-              <span className="grade-good rounded-(--r-chip) px-2.5 py-1 font-bold">Alle 8 Kreuze 🎉</span>
-            ) : (
-              <span>
-                Noch offen: <strong className="text-(--ink)">{missing.join(', ')}</strong>
-              </span>
-            )}
-            {hasPrev && <span>Letztes Semester: {prevTotals.total} / {prevTotals.max}</span>}
-          </div>
+          <p className="muted mt-3 text-xs font-semibold">Tippe auf Ja oder Nein. Nochmals tippen macht das Feld wieder offen.</p>
         </>
       )}
     </section>

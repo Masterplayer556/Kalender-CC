@@ -397,45 +397,70 @@
     background: currentColor;
   }
 
-  /* --- BM-Einschätzung (Noten-Tab): Fach | Kreuz fachlich | Kreuz persönlich --- */
-  .bm-row {
+  /* --- BM-Einschätzung (Noten-Tab): Kompetenz | Mathe | Deutsch | Franz | NMG --- */
+  .bm-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 5.75rem 5.75rem;
-    gap: 0 6px;
+    grid-template-columns: 4.75rem repeat(4, minmax(0, 1fr));
+    gap: 10px 6px;
     align-items: center;
   }
   @media (min-width: 640px) {
-    .bm-row {
-      grid-template-columns: minmax(0, 1fr) 8rem 8rem;
+    .bm-grid {
+      grid-template-columns: 7rem repeat(4, minmax(0, 1fr));
+      gap: 12px 10px;
     }
   }
-  .bm-cross {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
+  /* Ja/Nein pro Feld: auf dem Handy übereinander, sonst nebeneinander */
+  .bm-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  @media (min-width: 640px) {
+    .bm-choice {
+      flex-direction: row;
+    }
+  }
+  .bm-opt {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 34px;
+    padding: 0 4px;
     border: 1.5px solid var(--line);
     border-radius: calc(var(--r-ctl) - 4px);
     background: var(--surface);
-    color: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
     transition: background-color 120ms, color 120ms, transform 120ms;
   }
-  .bm-cross:active:not(:disabled) {
-    transform: scale(0.9);
+  @media (min-width: 640px) {
+    .bm-opt {
+      min-height: 40px;
+      font-size: 14px;
+    }
   }
-  .bm-cross.on {
+  .bm-opt:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+  .bm-opt:disabled {
+    cursor: not-allowed;
+  }
+  .bm-opt.yes.on {
+    background: var(--good-bg);
+    color: var(--good-fg);
     border-color: transparent;
   }
-  .bm-cross.on.fach {
-    background: var(--accent);
-    color: var(--on-accent);
+  .bm-opt.no.on {
+    background: var(--bad-bg);
+    color: var(--bad-fg);
+    border-color: transparent;
   }
-  .bm-cross.on.pers {
-    background: var(--ink);
-    color: var(--surface);
-  }
-  .bm-cross:disabled {
-    cursor: not-allowed;
+  .bm-goal {
+    color: var(--good-fg);
   }
 
   /* --- Navigation --- */
