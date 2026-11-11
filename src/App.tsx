@@ -153,14 +153,14 @@ function Shell() {
   const openDay = (date: string) => changeView({ view: 'tag', date })
   const createAt = (date: string, time?: string) => online && setEditor({ date, time })
 
-  /** iPad/Computer: Kalender in einer Kachel mit Abstand zum Rand */
+  /** iPad/Computer: Kalender in einer Kachel mit Abstand zum Rand. iPhone: auf einem Blatt bis zum unteren Rand. */
   const framed = (node: ReactNode) =>
     rail ? (
       <div className="h-full px-6 pb-6">
         <div className="tile h-full overflow-hidden">{node}</div>
       </div>
     ) : (
-      node
+      <div className="cal-sheet h-full overflow-hidden">{node}</div>
     )
 
   function renderView(route: Route) {
