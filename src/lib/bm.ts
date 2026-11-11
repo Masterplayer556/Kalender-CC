@@ -1,4 +1,5 @@
-// BM-Einschätzung: pro Fach je ein Kreuz für fachliche und eins für persönliche Kompetenz (4 Fächer → 8 Kreuze).
+// BM-Einschätzung: pro Fach je ein Feld für fachliche und eins für persönliche Kompetenz (4 Fächer → 8 Felder).
+// Jedes Feld ist "Ja", "Nein" oder noch offen. Ziel: 6 × Ja.
 
 import type { BmKind, BmRating, BmSubject } from '../types'
 
@@ -14,33 +15,62 @@ export const BM_KINDS: { key: BmKind; label: string; short: string }[] = [
   { key: 'pers', label: 'Persönliche Kompetenz', short: 'Persönlich' },
 ]
 
-/** Kreuze eines Fachs: je 0 oder 1 */
-export type BmScore = Record<BmKind, number>
+/** So viele "Ja" braucht es */
+export const BM_GOAL = 6
+
+/** Wert eines Felds (so in der Datenbank gespeichert) */
+export const BM_OPEN = 0
+export const BM_YES = 1
+export const BM_NO = 2
+export type BmValue = typeof BM_OPEN | typeof BM_YES | typeof BM_NO
+
+export type BmScore = Record<BmKind, BmValue>
 export type BmSheet = Record<BmSubject, BmScore>
 
-/** Die Kreuze eines Semesters als Tabelle; fehlende Fächer zählen 0. Werte über 1 zählen als gesetzt. */
+const toValue = (v: number): BmValue => (v === BM_YES || v === BM_NO ? v : BM_OPEN)
+
+/** Die Felder eines Semesters als Tabelle; fehlende Fächer sind offen. */
 export function bmSheet(ratings: BmRating[], semester: string): BmSheet {
-  const sheet = Object.fromEntries(BM_SUBJECTS.map((s) => [s.key, { fach: 0, pers: 0 }])) as BmSheet
+  const sheet = Object.fromEntries(BM_SUBJECTS.map((s) => [s.key, { fach: BM_OPEN, pers: BM_OPEN }])) as BmSheet
   for (const r of ratings)
-    if (r.semester === semester && r.subject in sheet) sheet[r.subject] = { fach: r.fach > 0 ? 1 : 0, pers: r.pers > 0 ? 1 : 0 }
+    if (r.semester === semester && r.subject in sheet) sheet[r.subject] = { fach: toValue(r.fach), pers: toValue(r.pers) }
   return sheet
 }
 
-/** Hat dieses Semester überhaupt Kreuze? */
+const cells = (sheet: BmSheet) => BM_SUBJECTS.flatMap((s) => BM_KINDS.map((k) => sheet[s.key][k.key]))
+
+/** Hat dieses Semester überhaupt Einträge (Ja oder Nein)? */
 export function bmHasData(sheet: BmSheet): boolean {
-  return BM_SUBJECTS.some((s) => sheet[s.key].fach + sheet[s.key].pers > 0)
+  return cells(sheet).some((v) => v !== BM_OPEN)
 }
 
-/** Summen über alle Fächer: pro Kompetenz (max. 4) und gesamt (max. 8). */
-export function bmTotals(sheet: BmSheet): { fach: number; pers: number; total: number; max: number } {
-  const fach = BM_SUBJECTS.reduce((s, x) => s + sheet[x.key].fach, 0)
-  const pers = BM_SUBJECTS.reduce((s, x) => s + sheet[x.key].pers, 0)
-  return { fach, pers, total: fach + pers, max: BM_SUBJECTS.length * 2 }
+/** Zählt Ja / Nein / offen über alle 8 Felder, dazu Ja pro Kompetenz. */
+export function bmTotals(sheet: BmSheet) {
+  const all = cells(sheet)
+  const yesOf = (kind: BmKind) => BM_SUBJECTS.filter((s) => sheet[s.key][kind] === BM_YES).length
+  return {
+    yes: all.filter((v) => v === BM_YES).length,
+    no: all.filter((v) => v === BM_NO).length,
+    open: all.filter((v) => v === BM_OPEN).length,
+    fach: yesOf('fach'),
+    pers: yesOf('pers'),
+    max: all.length,
+  }
 }
 
-/** Noch fehlende Kreuze, z. B. ["Franz persönlich", "NMG fachlich"] */
-export function bmMissingCrosses(sheet: BmSheet): string[] {
-  return BM_SUBJECTS.flatMap((s) => BM_KINDS.filter((k) => !sheet[s.key][k.key]).map((k) => `${s.name} ${k.short.toLowerCase()}`))
+/**
+ * Ist das Ziel (6 × Ja) noch erreichbar?
+ * reached: schon erreicht · possible: mit den offenen Feldern noch möglich · lost: zu viele "Nein"
+ */
+export function bmGoalState(sheet: BmSheet): 'reached' | 'possible' | 'lost' {
+  const t = bmTotals(sheet)
+  if (t.yes >= BM_GOAL) return 'reached'
+  return t.yes + t.open >= BM_GOAL ? 'possible' : 'lost'
+}
+
+/** Tipp auf "Ja" oder "Nein": setzt den Wert; nochmals tippen macht das Feld wieder offen. */
+export function toggleValue(current: BmValue, chosen: typeof BM_YES | typeof BM_NO): BmValue {
+  return current === chosen ? BM_OPEN : chosen
 }
 
 /** Vorheriges Semester: "2026-1" → "2025-2", "2026-2" → "2026-1" */
