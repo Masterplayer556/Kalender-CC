@@ -1,8 +1,8 @@
 // Heatmap "Belastung pro Tag": Wie viel steht an einem Tag an?
 // Punkte (bestimmen die Farbe): Test = 2, jeder andere Eintrag = 1, jede Lernzeit = 1.
 // Mehrtägige Einträge zählen an jedem ihrer Tage.
-// Erledigte Einträge und Lernzeiten zählen bewusst mit: Die Heatmap zeigt auch vergangene Monate,
-// also wie viel an einem Tag los war – nicht nur, was noch offen ist.
+// Erledigte Einträge und Lernzeiten zählen normalerweise mit: Die Heatmap zeigt auch vergangene Monate,
+// also wie viel an einem Tag los war. Mit "Nur Offenes" zählt nur, was noch nicht abgehakt ist.
 
 import { isoToLocal, type DateKey } from './dates'
 import { entryCovers } from './grouping'
@@ -26,7 +26,10 @@ export function loadCount(load: DayLoad): number {
   return load.tests + load.others + load.study
 }
 
-export function dayLoads(days: DateKey[], entries: Entry[], blocks: StudyBlock[]): Map<DateKey, DayLoad> {
+/** openOnly: Umschalter "Nur Offenes" – erledigte Einträge und Lernzeiten zählen dann nicht mit. */
+export function dayLoads(days: DateKey[], allEntries: Entry[], allBlocks: StudyBlock[], openOnly = false): Map<DateKey, DayLoad> {
+  const entries = openOnly ? allEntries.filter((e) => !e.done) : allEntries
+  const blocks = openOnly ? allBlocks.filter((b) => !b.done) : allBlocks
   const map = new Map<DateKey, DayLoad>(days.map((d) => [d, { ...EMPTY }]))
   for (const e of entries) {
     for (const d of days) {
