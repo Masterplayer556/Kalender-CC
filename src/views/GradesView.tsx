@@ -185,7 +185,20 @@ function SubjectCard({
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <TargetPicker value={target} onChange={onTarget} />
-        {status?.state === 'reached' && <span className="grade-good rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">Ziel erreicht</span>}
+        {status?.state === 'reached' && (
+          <>
+            <span className="grade-good rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">Ziel erreicht</span>
+            <span className="text-sm font-semibold">
+              {status.keep === null ? (
+                'hält auch mit einer 1'
+              ) : (
+                <>
+                  halten: nächste <span className="ink-accent font-extrabold">≥ {formatGrade(status.keep)}</span>
+                </>
+              )}
+            </span>
+          </>
+        )}
         {status?.state === 'needs' && (
           <span className="text-sm font-semibold">
             nächste Prüfung <span className="ink-accent font-extrabold">≥ {formatGrade(status.grade)}</span>
@@ -377,7 +390,10 @@ export function GradesView({
                   <TargetPicker value={targets[OVERALL]} onChange={(v) => setTarget(OVERALL, v)} onHero={!neon} />
                   {targets[OVERALL] !== undefined &&
                     (overall >= targets[OVERALL] ? (
-                      <span className="grade-good rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">Ziel erreicht</span>
+                      <>
+                        <span className="grade-good rounded-(--r-chip) px-2.5 py-1 text-xs font-bold">Ziel erreicht</span>
+                        <span className="text-sm font-bold">Puffer {(overall - targets[OVERALL]).toFixed(2)}</span>
+                      </>
                     ) : (
                       <span className="text-sm font-bold">noch {(targets[OVERALL] - overall).toFixed(2)} bis zum Ziel</span>
                     ))}
