@@ -21,7 +21,9 @@ export function withTarget(targets: Targets, key: string, value: number | null):
 }
 
 export type TargetStatus =
-  | { state: 'reached' } // Zeugnisnote erreicht das Ziel schon
+  // Zeugnisnote erreicht das Ziel schon. Das Ziel bleibt aktiv: `keep` = so viel braucht es in der
+  // nächsten Prüfung (Gewicht 1), damit es gehalten wird. null = hält auch mit einer 1.
+  | { state: 'reached'; keep: number | null }
   | { state: 'needs'; grade: number } // so viel braucht es in der nächsten Prüfung (Gewicht 1)
   | { state: 'out-of-reach' } // mit einer Prüfung nicht mehr erreichbar
 
@@ -32,8 +34,13 @@ export type TargetStatus =
 export function targetStatus(grades: Weighted[], target: number): TargetStatus {
   const total = grades.reduce((s, g) => s + g.weight, 0)
   const avg = grades.reduce((s, g) => s + g.grade * g.weight, 0) / total
-  if (roundToHalf(avg) >= target) return { state: 'reached' }
   const needed = requiredGrade(grades, target - 0.25, 1)
+  if (roundToHalf(avg) >= target) return { state: 'reached', keep: needed > 1 ? ceil2(needed) : null }
   if (needed > 6) return { state: 'out-of-reach' }
-  return { state: 'needs', grade: Math.ceil(needed * 100 - 1e-9) / 100 }
+  return { state: 'needs', grade: ceil2(needed) }
+}
+
+/** Auf Hundertstel aufrunden (lieber etwas zu streng als zu knapp) */
+function ceil2(x: number): number {
+  return Math.ceil(x * 100 - 1e-9) / 100
 }
