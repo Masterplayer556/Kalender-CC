@@ -2,7 +2,7 @@
 
 import { useData } from '../data/DataProvider'
 import { Icon, InlineIcon } from './Icon'
-import { CATEGORIES, entryColor } from '../lib/categories'
+import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { addDays, countdown, formatDate, formatTime, formatWeekday, todayKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
 import { entryEnd } from '../lib/grouping'
@@ -85,7 +85,7 @@ export function EntryRow({
           {blocks.length > 0 && (
             <span>
               <InlineIcon name="book" />
-              {doneBlocks}/{blocks.length} Lernzeiten erledigt
+              {doneBlocks}/{blocks.length} {blockTerms(entry.category).many} erledigt
             </span>
           )}
           {attachmentCount > 0 && <span><InlineIcon name="clip" />{attachmentCount}</span>}

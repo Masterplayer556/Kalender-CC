@@ -6,7 +6,7 @@
 
 import type { CSSProperties, ReactNode } from 'react'
 import { useData } from '../data/DataProvider'
-import { entryColor } from '../lib/categories'
+import { blockTerms, entryColor } from '../lib/categories'
 import { addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
 import { roundToHalf, semesterOf, weightedAverage } from '../lib/grades'
 import { overallTrend, trendDelta } from '../lib/gradeStats'
@@ -139,8 +139,8 @@ export function HomeView({
             >
               <Icon name="book" className="h-5 w-5 shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className={`block truncate font-bold ${b.done ? 'line-through' : ''}`}>Lernen: {entry.title}</span>
-                <span className="muted block text-[13px]">{b.done ? 'erledigt' : b.ends_at < nowIso ? 'vorbei – abhaken?' : 'Lernzeit'}</span>
+                <span className={`block truncate font-bold ${b.done ? 'line-through' : ''}`}>{blockTerms(entry.category).prefix}: {entry.title}</span>
+                <span className="muted block text-[13px]">{b.done ? 'erledigt' : b.ends_at < nowIso ? 'vorbei – abhaken?' : blockTerms(entry.category).one}</span>
               </span>
               {b.done && <Icon name="check" className="h-5 w-5 text-green-600" strokeWidth={3} />}
             </button>
@@ -305,7 +305,7 @@ export function HomeView({
                     key={b.id}
                     className="aspect-square rounded-[3px] border"
                     style={b.done ? { background: colorOf(entryById.get(b.entry_id)!), borderColor: 'transparent' } : { borderColor: 'var(--line)' }}
-                    aria-label={`Lernzeit ${entryById.get(b.entry_id)!.title}`}
+                    aria-label={`${blockTerms(entryById.get(b.entry_id)!.category).one} ${entryById.get(b.entry_id)!.title}`}
                     onClick={() => onOpenBlock(b.id)}
                   />
                 ))}

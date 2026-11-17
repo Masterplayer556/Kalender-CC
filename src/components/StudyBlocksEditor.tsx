@@ -2,7 +2,8 @@
 
 import { addDays, formatDate, formatWeekday, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { IVE_SLOTS, nextIveBlock } from '../lib/ive'
-import type { StudyBlockInput } from '../types'
+import { blockTerms } from '../lib/categories'
+import type { Category, StudyBlockInput } from '../types'
 import { Icon } from './Icon'
 import { TimeInput } from './TimeInput'
 
@@ -19,22 +20,25 @@ export function StudyBlocksEditor({
   blocks,
   onChange,
   entryDate,
+  category,
   disabled,
 }: {
   blocks: StudyBlockInput[]
   onChange: (blocks: StudyBlockInput[]) => void
   entryDate: DateKey
+  category: Category
   disabled: boolean
 }) {
+  const terms = blockTerms(category)
   const update = (i: number, patch: Partial<StudyBlockInput>) =>
     onChange(blocks.map((b, j) => (j === i ? { ...b, ...patch } : b)))
 
   return (
     <section className="tile p-4">
-      <h3 className="mb-2 flex items-center gap-2 font-bold"><Icon name="book" className="ink-accent h-5 w-5" /> Lernzeiten</h3>
+      <h3 className="mb-2 flex items-center gap-2 font-bold"><Icon name="book" className="ink-accent h-5 w-5" /> {terms.many}</h3>
 
       {blocks.length === 0 && (
-        <p className="mb-2 text-sm text-slate-500">Noch keine Lernzeiten geplant.</p>
+        <p className="mb-2 text-sm text-slate-500">Noch keine {terms.many} geplant.</p>
       )}
 
       <ul className="space-y-3">
@@ -49,7 +53,7 @@ export function StudyBlocksEditor({
                   className="input w-auto! flex-1"
                   value={b.date}
                   disabled={disabled}
-                  aria-label="Tag der Lernzeit"
+                  aria-label={`Tag der ${terms.one}`}
                   onChange={(e) => e.target.value && update(i, { date: e.target.value })}
                 />
                 <TimeInput label="Von" value={b.start} disabled={disabled} onChange={(start) => update(i, { start })} />
@@ -69,7 +73,7 @@ export function StudyBlocksEditor({
                   type="button"
                   className="btn-icon text-slate-500"
                   disabled={disabled}
-                  aria-label="Lernzeit entfernen"
+                  aria-label={`${terms.one} entfernen`}
                   onClick={() => onChange(blocks.filter((_, j) => j !== i))}
                 >
                   <Icon name="trash" />
@@ -91,7 +95,7 @@ export function StudyBlocksEditor({
         disabled={disabled}
         onClick={() => onChange([...blocks, suggestBlock(entryDate, blocks)])}
       >
-        <Icon name="plus" /> Lernzeit hinzufügen
+        <Icon name="plus" /> {terms.one} hinzufügen
       </button>
 
       {/* Schnellwahl: feste IVE-Lektionen in der Schule */}

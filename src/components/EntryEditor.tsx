@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR } from '../lib/categories'
+import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR, blockTerms } from '../lib/categories'
 import { addDays, daysBetween, formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
 import { shiftOpenBlocks } from '../lib/studyBlocks'
@@ -107,7 +107,7 @@ export function EntryEditor({
     if (isMultiDay && endDate <= date) return 'Der letzte Tag muss nach dem ersten liegen.'
     if (!isMultiDay && hasTime && timeToMinutes(end) <= timeToMinutes(start)) return 'Die Endzeit muss nach der Startzeit liegen.'
     if (blocks.some((b) => timeToMinutes(b.end) <= timeToMinutes(b.start)))
-      return 'Bei einer Lernzeit liegt das Ende vor dem Start.'
+      return `Bei einer ${blockTerms(category).one} liegt das Ende vor dem Start.`
     return null
   }
 
@@ -225,7 +225,7 @@ export function EntryEditor({
       )}
       {isCopy && (
         <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900 dark:bg-blue-950 dark:text-blue-200">
-          Das ist eine Kopie. Passe z. B. Titel und Datum an und tippe auf „Speichern“. Lernzeiten und Dateien werden
+          Das ist eine Kopie. Passe z. B. Titel und Datum an und tippe auf „Speichern“. {blockTerms(category).many} und Dateien werden
           nicht übernommen (Links schon), das Original bleibt unverändert.
         </p>
       )}
@@ -315,7 +315,7 @@ export function EntryEditor({
                 {unshiftedDays > 0 ? 'hinten' : 'vorne'} verschoben.
               </span>
               <button type="button" className="btn-surface ink-accent min-h-9! text-sm" disabled={readOnly} onClick={shiftBlocks}>
-                {openBlockCount === 1 ? 'Offene Lernzeit' : `${openBlockCount} offene Lernzeiten`} mitverschieben
+                {openBlockCount === 1 ? `Offene ${blockTerms(category).one}` : `${openBlockCount} offene ${blockTerms(category).many}`} mitverschieben
               </button>
             </div>
           )}
@@ -438,7 +438,7 @@ export function EntryEditor({
           </section>
         )}
 
-        <StudyBlocksEditor blocks={blocks} onChange={setBlocks} entryDate={date} disabled={readOnly} />
+        <StudyBlocksEditor blocks={blocks} onChange={setBlocks} entryDate={date} category={category} disabled={readOnly} />
 
         <AttachmentsEditor
           kept={keptAttachments}
