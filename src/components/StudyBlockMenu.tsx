@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useData } from '../data/DataProvider'
+import { blockTerms } from '../lib/categories'
 import { formatDate, formatWeekday, isoToLocal } from '../lib/dates'
 import { Icon } from './Icon'
 import { Modal } from './Modal'
@@ -37,7 +38,7 @@ export function StudyBlockMenu({
   }
 
   return (
-    <Modal title={entry.title} eyebrow={block.done ? 'Lernzeit · erledigt' : 'Lernzeit'} icon="book" onClose={onClose}>
+    <Modal title={entry.title} eyebrow={block.done ? `${blockTerms(entry.category).one} · erledigt` : blockTerms(entry.category).one} icon="book" onClose={onClose}>
       <p className="text-slate-600 dark:text-slate-300">
         {formatWeekday(start.date, 'long')}, {formatDate(start.date)} · {start.time}–{end.time} Uhr
       </p>

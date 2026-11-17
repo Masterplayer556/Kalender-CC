@@ -5,7 +5,7 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useData } from '../data/DataProvider'
 import { loadPref, savePref } from '../lib/cache'
-import { CATEGORIES, entryColor } from '../lib/categories'
+import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatDate, formatTime, formatWeekday, isoToLocal, isoWeek, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
 import { busiestWeek, dayLoads, heatLevel, loadCount } from '../lib/heatmap'
@@ -202,8 +202,8 @@ export function HeatmapView({
                   <button key={b.id} className={`heat-row ${b.done ? 'opacity-60' : ''}`} onClick={() => onOpenBlock(b.id)}>
                     <span className="heat-time">{isoToLocal(b.starts_at).time}</span>
                     <Icon name="book" className="h-4 w-4 shrink-0" style={{ color: entryColor(entry, subjectById) }} />
-                    <span className={`min-w-0 flex-1 truncate ${b.done ? 'line-through' : ''}`}>Lernen: {entry.title}</span>
-                    <span className="heat-tag">Lernzeit</span>
+                    <span className={`min-w-0 flex-1 truncate ${b.done ? 'line-through' : ''}`}>{blockTerms(entry.category).prefix}: {entry.title}</span>
+                    <span className="heat-tag">{blockTerms(entry.category).one}</span>
                   </button>
                 )
               })}

@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, entryColor } from '../lib/categories'
+import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
 import { addDays, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { bandLanes } from '../lib/layout'
@@ -407,7 +407,7 @@ function CompactMonth({
                 >
                   <span className={`min-w-0 flex-1 font-medium ${b.done ? 'text-slate-400 line-through' : ''}`}>
                     <InlineIcon name="book" />
-                    Lernen: {entry.title}
+                    {blockTerms(entry.category).prefix}: {entry.title}
                   </span>
                   <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                     {isoToLocal(b.starts_at).time}–{isoToLocal(b.ends_at).time}

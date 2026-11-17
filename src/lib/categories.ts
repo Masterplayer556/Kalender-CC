@@ -27,3 +27,10 @@ export const SUBJECT_PALETTE = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#78716c',
 ]
+
+/** Wie die Zeitblöcke eines Eintrags heissen: bei Tests "Lernzeit", sonst "Auftragszeit". */
+export function blockTerms(category: Category): { one: string; many: string; prefix: string } {
+  return category === 'test'
+    ? { one: 'Lernzeit', many: 'Lernzeiten', prefix: 'Lernen' }
+    : { one: 'Auftragszeit', many: 'Auftragszeiten', prefix: 'Auftrag' }
+}

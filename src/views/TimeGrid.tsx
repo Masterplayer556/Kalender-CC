@@ -10,7 +10,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useData } from '../data/DataProvider'
-import { CATEGORIES, entryColor } from '../lib/categories'
+import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatWeekday, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { entryCovers } from '../lib/grouping'
 import { MINUTES_PER_DAY, clipToDay, layoutDay } from '../lib/layout'
@@ -243,7 +243,7 @@ export function TimeGrid({
                   >
                     <div className={`font-semibold ${done ? 'line-through' : ''}`} lang="de">
                       {it.kind === 'study' ? <InlineIcon name="book" /> : !narrow && <InlineIcon name={CATEGORIES[it.entry.category].icon} />}
-                      {it.kind === 'study' && !narrow ? `Lernen: ${it.entry.title}` : it.entry.title}
+                      {it.kind === 'study' && !narrow ? `${blockTerms(it.entry.category).prefix}: ${it.entry.title}` : it.entry.title}
                     </div>
                     {height >= 32 && !narrow && (
                       <div className="text-slate-600 dark:text-slate-300">
