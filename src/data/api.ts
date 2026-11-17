@@ -382,3 +382,26 @@ export async function saveBmRating(semester: string, subject: BmSubject, fach: n
     .upsert({ semester, subject, fach, pers, updated_at: new Date().toISOString() }, { onConflict: 'user_id,semester,subject' })
   if (error) throw error
 }
+
+// ---------------------------------------------------------------------
+// Einstellungen auf allen Geräten (Notenziele, Design …)
+// ---------------------------------------------------------------------
+
+/** Alle Einstellungen laden; null, wenn 009_user_prefs.sql noch nicht ausgeführt wurde. */
+export async function fetchPrefs(): Promise<{ name: string; value: unknown }[] | null> {
+  const { data, error } = await supabase.from('user_prefs').select('name, value')
+  if (error) {
+    if (error.code === 'PGRST205' || error.code === '42P01') return null // Tabelle existiert nicht
+    throw error
+  }
+  return data
+}
+
+/** Einstellungen speichern (legt die Zeilen an, falls es sie noch nicht gibt). */
+export async function savePrefs(prefs: Record<string, unknown>): Promise<void> {
+  const updated_at = new Date().toISOString()
+  const rows = Object.entries(prefs).map(([name, value]) => ({ name, value, updated_at }))
+  if (rows.length === 0) return
+  const { error } = await supabase.from('user_prefs').upsert(rows, { onConflict: 'user_id,name' })
+  if (error) throw error
+}

@@ -1,9 +1,7 @@
 // Liste "Als Nächstes": kommende Einträge, gruppiert nach Heute / Morgen / Diese Woche / Später.
 
-import { useState } from 'react'
 import { EntryRow } from '../components/EntryRow'
 import { InlineIcon } from '../components/Icon'
-import { loadPref, savePref } from '../lib/cache'
 import { todayKey } from '../lib/dates'
 import { groupUpcoming } from '../lib/grouping'
 import { useData } from '../data/DataProvider'
@@ -28,8 +26,8 @@ export function UpcomingView({
   onOpenPeriod: (req: PeriodRequest) => void
   showToday: boolean // auf breiten Bildschirmen steht "Heute" schon in der Seitenleiste
 }) {
-  const { gradesByEntry, gradesMissing } = useData()
-  const [showDone, setShowDone] = useState(() => loadPref('showDone', false))
+  const { gradesByEntry, gradesMissing, prefs, setPref } = useData()
+  const showDone = prefs.showDone === true // auf allen Geräten gleich
   const today = todayKey()
   const groups = groupUpcoming(entries, today, showDone)
   const overdue = overdueEntries(entries, today)
@@ -45,10 +43,7 @@ export function UpcomingView({
             type="checkbox"
             className="h-5 w-5"
             checked={showDone}
-            onChange={(e) => {
-              setShowDone(e.target.checked)
-              savePref('showDone', e.target.checked)
-            }}
+            onChange={(e) => setPref('showDone', e.target.checked)}
           />
           Erledigte anzeigen
         </label>

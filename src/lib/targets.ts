@@ -1,6 +1,6 @@
-// Notenziele: pro Fach (Zeugnisnote) und für den Gesamtschnitt. Gespeichert auf diesem Gerät.
+// Notenziele: pro Fach (Zeugnisnote) und für den Gesamtschnitt.
+// Gespeichert in der Datenbank (Einstellung "gradeTargets"), also auf allen Geräten gleich.
 
-import { loadPref, savePref } from './cache'
 import { requiredGrade, roundToHalf, type Weighted } from './grades'
 
 export const OVERALL = 'gesamt'
@@ -8,15 +8,16 @@ export const TARGET_OPTIONS = [4, 4.5, 5, 5.5, 6]
 
 export type Targets = Record<string, number>
 
-export function loadTargets(): Targets {
-  return loadPref<Targets>('gradeTargets', {})
+/** Gespeicherten Wert prüfen (kommt aus der Datenbank bzw. dem localStorage) */
+export function asTargets(value: unknown): Targets {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => typeof v === 'number')) as Targets
 }
 
 export function withTarget(targets: Targets, key: string, value: number | null): Targets {
   const next = { ...targets }
   if (value === null) delete next[key]
   else next[key] = value
-  savePref('gradeTargets', next)
   return next
 }
 

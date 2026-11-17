@@ -5,12 +5,27 @@
 // 1. Sofort die zuletzt gespeicherten Daten aus dem Offline-Cache anzeigen (falls vorhanden).
 // 2. Frische Daten von Supabase laden und den Cache aktualisieren.
 // 3. Erneut laden, wenn die App wieder in den Vordergrund kommt (z. B. Wechsel iPad ↔ Computer).
+//
+// Dazu kommen Einstellungen wie Notenziele und Design (lib/syncedPrefs.ts): Sie gelten auf allen
+// Geräten, lassen sich aber auch offline ändern und werden dann beim nächsten Laden hochgeladen.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
 import { useOnline } from './useOnline'
 import { loadSnapshot, saveSnapshot } from '../lib/cache'
 import { friendlyError } from '../lib/supabase'
+import {
+  loadLocalPrefs,
+  loadPending,
+  mergePrefs,
+  missingOnServer,
+  prefsFromRows,
+  saveLocalPrefs,
+  savePending,
+  withoutUploaded,
+  type PrefName,
+  type SyncedPrefs,
+} from '../lib/syncedPrefs'
 import type {
   Attachment,
   BmRating,
@@ -71,6 +86,10 @@ interface DataValue {
   restorePeriod: (period: Period) => Promise<void>
   /** BM-Kreuze speichern. Wird sofort angezeigt und im Hintergrund gespeichert. */
   saveBm: (semester: string, subject: BmSubject, fach: number, pers: number) => Promise<void>
+  /** Einstellungen, die auf allen Geräten gleich sind (Notenziele, Design …) */
+  prefs: SyncedPrefs
+  /** Einstellung ändern: sofort lokal, dann im Hintergrund hochladen (offline: sobald wieder online). */
+  setPref: <K extends PrefName>(name: K, value: SyncedPrefs[K]) => void
 }
 
 const DataContext = createContext<DataValue | null>(null)
@@ -90,7 +109,37 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
+  const [prefs, setPrefs] = useState<SyncedPrefs>(loadLocalPrefs)
   const online = useOnline()
+
+  // --- Einstellungen hochladen ---
+  // Wann wurde welche Einstellung zuletzt auf diesem Gerät geändert? (Ein Laden, das vorher begann,
+  // darf sie nicht mit dem alten Server-Stand überschreiben.)
+  const prefChangedAt = useRef(new Map<PrefName, number>())
+  const prefsMissing = useRef(false) // Tabelle user_prefs fehlt → nur lokal speichern
+  const prefQueue = useRef<Promise<void>>(Promise.resolve())
+  /** Ausstehende Einstellungen hochladen – nacheinander, damit nichts sich überholt. */
+  const flushPrefs = useCallback(() => {
+    const job = prefQueue.current.then(async () => {
+      const pending = loadPending(userId)
+      if (prefsMissing.current || !navigator.onLine || Object.keys(pending).length === 0) return
+      await api.savePrefs(pending as Record<string, unknown>)
+      savePending(userId, withoutUploaded(loadPending(userId), pending))
+    })
+    prefQueue.current = job.catch(() => {}) // fehlgeschlagen → bleibt ausstehend, nächster Versuch beim Laden
+    return prefQueue.current
+  }, [userId])
+
+  const setPref = useCallback(
+    <K extends PrefName>(name: K, value: SyncedPrefs[K]) => {
+      prefChangedAt.current.set(name, Date.now())
+      setPrefs((p) => ({ ...p, [name]: value }))
+      saveLocalPrefs({ [name]: value })
+      savePending(userId, { ...loadPending(userId), [name]: value })
+      flushPrefs()
+    },
+    [userId, flushPrefs],
+  )
 
   // Mehrere Ladevorgänge können sich überholen (z. B. App kommt in den Vordergrund, während gerade
   // gespeichert wird). Nur die zuletzt gestartete Abfrage darf den Stand setzen – sonst könnte eine
@@ -99,9 +148,27 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const reload = useCallback(async () => {
     const seq = ++loadSeq.current
     const isLatest = () => seq === loadSeq.current
+    const startedAt = Date.now()
     try {
-      const data = await api.fetchEverything()
+      await flushPrefs() // zuerst Offline-Änderungen hochladen, sonst kämen gleich die alten Werte zurück
+      const [data, prefRows] = await Promise.all([api.fetchEverything(), api.fetchPrefs()])
       if (!isLatest()) return
+      prefsMissing.current = prefRows === null
+      if (prefRows) {
+        const server = prefsFromRows(prefRows)
+        // Früher nur auf diesem Gerät gespeichert (z. B. Notenziele) → einmalig hochladen
+        const missing = missingOnServer(loadLocalPrefs(), server)
+        if (Object.keys(missing).length) {
+          savePending(userId, { ...missing, ...loadPending(userId) })
+          flushPrefs()
+        }
+        const changedMeanwhile = new Set([...prefChangedAt.current].filter(([, t]) => t >= startedAt).map(([n]) => n))
+        setPrefs((current) => {
+          const next = mergePrefs(current, server, loadPending(userId), changedMeanwhile)
+          saveLocalPrefs(next)
+          return next
+        })
+      }
       const savedAt = new Date().toISOString()
       setSubjects(data.subjects)
       setEntries(data.entries)
@@ -121,7 +188,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     } finally {
       if (isLatest()) setLoading(false)
     }
-  }, [userId])
+  }, [userId, flushPrefs])
 
   // Laden beim Start, beim Wiederverbinden und wenn die App wieder sichtbar wird
   useEffect(() => {
@@ -223,8 +290,10 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       deletePeriod: (id) => mutate(() => api.deletePeriod(id)),
       restorePeriod: (period) => mutate(() => api.restorePeriod(period)),
       saveBm,
+      prefs,
+      setPref,
     }
-  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, reload, mutate, saveBm])
+  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, reload, mutate, saveBm, prefs, setPref])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

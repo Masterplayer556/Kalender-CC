@@ -3,6 +3,7 @@
 
 import { MODES, MODE_NAMES, THEMES, type ThemeName } from '../lib/theme'
 import { Icon } from './Icon'
+import { useData } from '../data/DataProvider'
 import { useTheme } from './ThemeProvider'
 
 function Preview({ name, dark }: { name: ThemeName; dark: boolean }) {
@@ -100,6 +101,7 @@ function Preview({ name, dark }: { name: ThemeName; dark: boolean }) {
 
 export function ThemePicker() {
   const { theme, mode, dark, setTheme, setMode } = useTheme()
+  const { setPref } = useData() // Design gilt auf allen Geräten
   return (
     <section className="space-y-3" aria-labelledby="design-title">
       <h2 id="design-title" className="section-title">
@@ -113,7 +115,10 @@ export function ThemePicker() {
               key={name}
               className={`tile overflow-hidden text-left ${active ? 'ring-[3px] ring-(--accent) ring-offset-2 ring-offset-(--bg)' : ''}`}
               aria-pressed={active}
-              onClick={() => setTheme(name)}
+              onClick={() => {
+                setTheme(name)
+                setPref('theme', name)
+              }}
             >
               <Preview name={name} dark={dark} />
               <div className="flex items-center gap-2 p-3">
@@ -135,7 +140,10 @@ export function ThemePicker() {
         <span className="flex-1 font-bold">Hell / Dunkel</span>
         <div className="segment" role="group" aria-label="Hell oder Dunkel">
           {MODE_NAMES.map((m) => (
-            <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
+            <button key={m} aria-pressed={mode === m} onClick={() => {
+                setMode(m)
+                setPref('themeMode', m)
+              }}>
               {MODES[m]}
             </button>
           ))}
