@@ -4,7 +4,6 @@
 
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useData } from '../data/DataProvider'
-import { loadPref, savePref } from '../lib/cache'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatDate, formatTime, formatWeekday, isoToLocal, isoWeek, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
@@ -35,16 +34,13 @@ export function HeatmapView({
 }) {
   const { theme } = useTheme()
   const neon = theme === 'neon'
-  const { periods, subjectById, entryById } = useData()
+  const { periods, subjectById, entryById, prefs, setPref } = useData()
   const today = todayKey()
   const month = date.slice(0, 7)
   const weeks = useMemo(() => monthGrid(date), [date])
-  // "Nur Offenes": Erledigtes zählt in Raster, stressigster Woche und Monatszahlen nicht mit (pro Gerät gemerkt)
-  const [openOnly, setOpenOnlyState] = useState(() => loadPref('heatmapOpenOnly', false))
-  const setOpenOnly = (value: boolean) => {
-    setOpenOnlyState(value)
-    savePref('heatmapOpenOnly', value)
-  }
+  // "Nur Offenes": Erledigtes zählt in Raster, stressigster Woche und Monatszahlen nicht mit (auf allen Geräten gleich)
+  const openOnly = prefs.heatmapOpenOnly === true
+  const setOpenOnly = (value: boolean) => setPref('heatmapOpenOnly', value)
   const loads = useMemo(() => dayLoads(weeks.flat(), entries, blocks, openOnly), [weeks, entries, blocks, openOnly])
   const busiest = busiestWeek(weeks, loads, month)
   const [selected, setSelected] = useState<DateKey>(today.startsWith(month) ? today : `${month}-01`)

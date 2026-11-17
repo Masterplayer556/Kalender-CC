@@ -13,6 +13,7 @@ import { EMPTY_FILTERS, isFilterActive, matchesFilters, type Filters } from './l
 import { Header } from './components/Header'
 import { SideRail, TabBar } from './components/Nav'
 import { ThemeProvider } from './components/ThemeProvider'
+import { ThemeSync } from './components/ThemeSync'
 import { HomeView } from './views/HomeView'
 import { FilterBar } from './components/FilterBar'
 import { StatusBanner } from './components/StatusBanner'
@@ -54,6 +55,7 @@ function AuthGate() {
   return (
     // key: Bei Benutzerwechsel alles frisch aufbauen
     <DataProvider key={session.user.id} userId={session.user.id}>
+      <ThemeSync />
       <ToastProvider>
         <Shell />
       </ToastProvider>

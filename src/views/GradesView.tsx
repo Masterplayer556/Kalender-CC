@@ -21,7 +21,7 @@ import {
   type Weighted,
 } from '../lib/grades'
 import { overallTrend, runningAverage, trendDelta } from '../lib/gradeStats'
-import { OVERALL, TARGET_OPTIONS, loadTargets, targetStatus, withTarget } from '../lib/targets'
+import { OVERALL, TARGET_OPTIONS, asTargets, targetStatus, withTarget } from '../lib/targets'
 import type { Grade, Subject } from '../types'
 
 const ALL = 'alle'
@@ -269,7 +269,7 @@ export function GradesView({
   onOpenGrade: (req: GradeRequest) => void
   onGoSubjects: () => void
 }) {
-  const { grades, gradesMissing, subjects, online } = useData()
+  const { grades, gradesMissing, subjects, online, prefs, setPref } = useData()
   const { theme } = useTheme()
   const neon = theme === 'neon'
   const today = todayKey()
@@ -279,8 +279,9 @@ export function GradesView({
     setSemesterState(key)
     savePref('gradeSemester', key)
   }
-  const [targets, setTargets] = useState(loadTargets)
-  const setTarget = (key: string, v: number | null) => setTargets((t) => withTarget(t, key, v))
+  // Notenziele: auf allen Geräten gleich (Einstellung "gradeTargets")
+  const targets = asTargets(prefs.gradeTargets)
+  const setTarget = (key: string, v: number | null) => setPref('gradeTargets', withTarget(targets, key, v))
 
   // Alle Semester, in denen es Noten gibt, plus das aktuelle – neueste zuerst
   const semesterOptions = useMemo(() => {
