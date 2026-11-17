@@ -13,6 +13,7 @@ import {
   startOfWeek,
   timeToMinutes,
   weekDays,
+  weeksAndDays,
 } from '../src/lib/dates'
 
 // Alle Tests laufen in der Zeitzone Europe/Zurich (siehe vite.config.ts).
@@ -114,5 +115,15 @@ describe('Kalenderwoche (ISO)', () => {
     ['2026-12-31', 53],
   ])('%s → KW %i', (date, week) => {
     expect(isoWeek(date)).toBe(week)
+  })
+})
+
+describe('Wochen und Tage (Ferien-Countdown)', () => {
+  it('rechnet Tage in Wochen und Tage um', () => {
+    expect(weeksAndDays(3)).toBeNull()
+    expect(weeksAndDays(7)).toBe('1 Woche')
+    expect(weeksAndDays(8)).toBe('1 Woche und 1 Tag')
+    expect(weeksAndDays(14)).toBe('2 Wochen')
+    expect(weeksAndDays(45)).toBe('6 Wochen und 3 Tage')
   })
 })

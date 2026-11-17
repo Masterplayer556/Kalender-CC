@@ -9,7 +9,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
   Schnellwahl „IVE (Di)“, „IVE (Do)“, „IVE (Fr)“ trägt die nächste IVE-Lektion in der Schule ein (Di 14:30–15:15, Do 13:40–14:25, Fr 11:10–11:55); nochmals tippen nimmt die Woche danach.
 - **Fächer** mit eigener Farbe (über das Etikett-Symbol oben rechts)
 - **Events** (🎉) für Schulanlässe, Exkursionen, Aufführungen … Ohne Fach sind sie pink, und vergangene Events gelten nie als „überfällig“. Mit „mehrtägig“ dauert ein Event mehrere Tage (ganztägig) und erscheint im Monat als durchgehendes Band.
-- **Ferien & freie Tage** (Etikett-Symbol oben rechts → „Ferien & freie Tage“): Zeiträume von–bis als 🏖️ Ferien, 🎈 Schulfrei oder 🎒 Lager & Reisen. Sie erscheinen als farbiges Band im Monat und oben in Woche/Tag. Die Heute-Übersicht zeigt einen Countdown bis zu den nächsten Ferien mit den verbleibenden Schultagen.
+- **Ferien & freie Tage** (Etikett-Symbol oben rechts → „Ferien & freie Tage“): Zeiträume von–bis als 🏖️ Ferien, 🎈 Schulfrei oder 🎒 Lager & Reisen. Sie erscheinen als farbiges Band im Monat und oben in Woche/Tag. Die Heute-Übersicht zeigt einen Countdown bis zu den nächsten Ferien (in Tagen und Wochen, z. B. „45 = 6 Wochen und 3 Tage“) mit den verbleibenden Schultagen.
 - **Ansichten:**
   - Monat (Woche beginnt am Montag)
   - Woche und Tag als Zeitraster von 0 bis 24 Uhr mit roter Linie für die aktuelle Uhrzeit
