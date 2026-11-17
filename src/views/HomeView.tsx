@@ -7,7 +7,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { useData } from '../data/DataProvider'
 import { entryColor } from '../lib/categories'
-import { addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, type DateKey } from '../lib/dates'
+import { addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
 import { roundToHalf, semesterOf, weightedAverage } from '../lib/grades'
 import { overallTrend, trendDelta } from '../lib/gradeStats'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
@@ -247,6 +247,7 @@ export function HomeView({
               <div className="mt-1 leading-tight font-bold">
                 {neon ? holiday.period.name : `Tage bis ${holiday.period.name}`}
               </div>
+              {weeksAndDays(holiday.daysUntil) && <div className="text-sm font-semibold opacity-85">= {weeksAndDays(holiday.daysUntil)}</div>}
               <div className="muted text-sm">
                 noch {holiday.schoolDays} {holiday.schoolDays === 1 ? 'Schultag' : 'Schultage'}
               </div>

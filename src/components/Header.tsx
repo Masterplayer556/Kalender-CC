@@ -44,7 +44,7 @@ function heading(route: Route, email: string, compact: boolean): { eyebrow: stri
     case 'woche':
       return { eyebrow: formatWeekRange(d), title: `Woche ${isoWeek(d)}` }
     case 'tag':
-      return { eyebrow: `${monthName(d)} ${d.slice(0, 4)}`, title: `${formatWeekday(d, compact ? 'short' : 'long')}, ${Number(d.slice(8))}.` }
+      return { eyebrow: `${monthName(d)} ${d.slice(0, 4)}`, title: `${formatWeekday(d, compact ? 'short' : 'long')}, ${Number(d.slice(8))}` } // Punkt kommt vom Design (.dot)
     case 'liste':
       return { eyebrow: 'Kalender', title: 'Als Nächstes' }
     case 'noten':

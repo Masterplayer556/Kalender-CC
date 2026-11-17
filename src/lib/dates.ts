@@ -100,6 +100,16 @@ export function countdown(today: DateKey, key: DateKey): string {
   return n > 0 ? `in ${n} Tagen` : `vor ${-n} Tagen`
 }
 
+/** Tage als Wochen + Tage: 45 → "6 Wochen und 3 Tage", 14 → "2 Wochen". Unter 7 Tagen: null. */
+export function weeksAndDays(days: number): string | null {
+  if (days < 7) return null
+  const w = Math.floor(days / 7)
+  const d = days % 7
+  const weeks = w === 1 ? '1 Woche' : `${w} Wochen`
+  if (d === 0) return weeks
+  return `${weeks} und ${d === 1 ? '1 Tag' : `${d} Tage`}`
+}
+
 // ---------------------------------------------------------------------
 // Formatierung für die Anzeige
 // ---------------------------------------------------------------------

@@ -4,7 +4,7 @@
 import { useData } from '../data/DataProvider'
 import { Icon, InlineIcon } from './Icon'
 import { CATEGORIES, entryColor } from '../lib/categories'
-import { countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey } from '../lib/dates'
+import { countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weeksAndDays } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
 import { PERIOD_KINDS, holidayStatus } from '../lib/periods'
 import type { PeriodRequest } from './PeriodEditor'
@@ -73,7 +73,8 @@ export function TodayPanel({
               <>
                 <span className="block truncate font-medium">{holiday.period.name}</span>
                 <span className="block text-xs text-slate-600 dark:text-slate-300">
-                  {countdown(today, holiday.period.start_date)} · noch {holiday.schoolDays}{' '}
+                  {countdown(today, holiday.period.start_date)}
+                  {weeksAndDays(holiday.daysUntil) && ` (${weeksAndDays(holiday.daysUntil)})`} · noch {holiday.schoolDays}{' '}
                   {holiday.schoolDays === 1 ? 'Schultag' : 'Schultage'}
                 </span>
               </>
