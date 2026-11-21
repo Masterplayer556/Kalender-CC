@@ -1,11 +1,9 @@
 // Einstellungen, die auf allen Geräten gleich sein sollen (Tabelle user_prefs, Migration 009).
 // Zusätzlich liegen sie im localStorage: für den Start ohne Internet und damit beim Öffnen nichts aufblitzt.
 // Offline geänderte Werte warten in einer Liste "ausstehend" und werden beim nächsten Laden hochgeladen.
-//
-// Bewusst NICHT synchronisiert (gehören zum jeweiligen Gerät bzw. zur aktuellen Ansicht):
-// Filter, zuletzt benutzte Kalender-Ansicht, gewähltes Noten-Semester.
 
 import { loadPref, savePref } from './cache'
+import type { Filters } from './filters'
 import type { Targets } from './targets'
 
 export interface SyncedPrefs {
@@ -14,10 +12,22 @@ export interface SyncedPrefs {
   themeMode?: string // auto | light | dark
   showDone?: boolean // Liste "Als Nächstes": Erledigte anzeigen
   heatmapOpenOnly?: boolean // Heatmap: nur Offenes zählen
+  filters?: Filters // Filter nach Kategorie und Fach
+  calendarView?: string // zuletzt benutzte Kalender-Ansicht (monat, woche …)
+  gradeSemester?: string // gewähltes Semester im Noten-Tab, z. B. "2026-1"
 }
 export type PrefName = keyof SyncedPrefs
 
-export const SYNCED_PREFS: PrefName[] = ['gradeTargets', 'theme', 'themeMode', 'showDone', 'heatmapOpenOnly']
+export const SYNCED_PREFS: PrefName[] = [
+  'gradeTargets',
+  'theme',
+  'themeMode',
+  'showDone',
+  'heatmapOpenOnly',
+  'filters',
+  'calendarView',
+  'gradeSemester',
+]
 
 /** Stand dieses Geräts (localStorage) */
 export function loadLocalPrefs(): SyncedPrefs {

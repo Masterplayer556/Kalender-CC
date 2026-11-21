@@ -12,6 +12,14 @@ export interface Filters {
 
 export const EMPTY_FILTERS: Filters = { categories: [], subjects: [] }
 
+/** Gespeicherten Wert prüfen (kommt aus der Datenbank bzw. dem localStorage) */
+export function asFilters(value: unknown): Filters {
+  const v = value as Partial<Filters> | null
+  const strings = (x: unknown) => (Array.isArray(x) ? x.filter((s): s is string => typeof s === 'string') : [])
+  if (!v || typeof v !== 'object') return EMPTY_FILTERS
+  return { categories: strings(v.categories) as Category[], subjects: strings(v.subjects) }
+}
+
 export function isFilterActive(f: Filters): boolean {
   return f.categories.length > 0 || f.subjects.length > 0
 }

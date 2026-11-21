@@ -9,7 +9,6 @@ import { GradeChart, type ChartDot } from '../components/GradeChart'
 import type { GradeRequest } from '../components/GradeEditor'
 import { Icon } from '../components/Icon'
 import { useTheme } from '../components/ThemeProvider'
-import { loadPref, savePref } from '../lib/cache'
 import { addDays, formatDate, todayKey, type DateKey } from '../lib/dates'
 import {
   formatGrade,
@@ -274,11 +273,10 @@ export function GradesView({
   const neon = theme === 'neon'
   const today = todayKey()
   const current = semesterOf(today)
-  const [semester, setSemesterState] = useState<string>(() => loadPref('gradeSemester', current.key))
-  const setSemester = (key: string) => {
-    setSemesterState(key)
-    savePref('gradeSemester', key)
-  }
+  // Gewähltes Semester: auf allen Geräten gleich (Einstellung "gradeSemester")
+  const saved = prefs.gradeSemester
+  const semester = typeof saved === 'string' && /^\d{4}-[12]$/.test(saved) ? saved : current.key
+  const setSemester = (key: string) => setPref('gradeSemester', key)
   // Notenziele: auf allen Geräten gleich (Einstellung "gradeTargets")
   const targets = asTargets(prefs.gradeTargets)
   const setTarget = (key: string, v: number | null) => setPref('gradeTargets', withTarget(targets, key, v))
