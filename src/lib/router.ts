@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { addDays, addMonths, isDateKey, todayKey, type DateKey } from './dates'
-import { loadPref, savePref } from './cache'
 
 export type ViewName = 'heute' | 'monat' | 'woche' | 'tag' | 'liste' | 'heatmap' | 'noten' | 'mehr'
 
@@ -48,11 +47,9 @@ export function stepDate(route: Route, direction: 1 | -1): DateKey {
   return addDays(route.date, direction)
 }
 
-/** Zuletzt benutzte Kalender-Ansicht (für den Tab "Kalender") */
-export const lastCalendarView = (): CalendarView => {
-  const v = loadPref<string>('calendarView', 'monat')
-  return (CALENDAR_VIEWS as string[]).includes(v) ? (v as CalendarView) : 'monat'
-}
+/** Zuletzt benutzte Kalender-Ansicht (für den Tab "Kalender"); gespeichert als Einstellung "calendarView" */
+export const lastCalendarView = (saved: unknown): CalendarView =>
+  (CALENDAR_VIEWS as unknown[]).includes(saved) ? (saved as CalendarView) : 'monat'
 
 /** React-Hook: aktuelle Route + Funktion zum Wechseln */
 export function useRoute(): [Route, (next: Partial<Route>) => void] {
@@ -69,7 +66,6 @@ export function useRoute(): [Route, (next: Partial<Route>) => void] {
   const navigate = useCallback(
     (next: Partial<Route>) => {
       const target = { ...route, ...next }
-      if (isCalendarView(target.view)) savePref('calendarView', target.view) // letzte Kalender-Ansicht merken
       window.location.hash = toHash(target)
     },
     [route],

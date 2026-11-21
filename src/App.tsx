@@ -8,8 +8,7 @@ import { supabaseConfigured } from './lib/supabase'
 import { hasPeriod, isCalendarView, lastCalendarView, sectionOf, stepDate, useRoute, type Route, type Section } from './lib/router'
 import { HeatmapView } from './views/HeatmapView'
 import { todayKey, weekDays } from './lib/dates'
-import { loadPref, savePref } from './lib/cache'
-import { EMPTY_FILTERS, isFilterActive, matchesFilters, type Filters } from './lib/filters'
+import { asFilters, isFilterActive, matchesFilters, type Filters } from './lib/filters'
 import { Header } from './components/Header'
 import { SideRail, TabBar } from './components/Nav'
 import { ThemeProvider } from './components/ThemeProvider'
@@ -64,10 +63,15 @@ function AuthGate() {
 }
 
 function Shell() {
-  const { entries, blocks, loading, online } = useData()
+  const { entries, blocks, loading, online, prefs, setPref } = useData()
   const [route, navigate] = useRoute()
   const [search, setSearch] = useState('')
-  const [filters, setFiltersState] = useState<Filters>(() => loadPref('filters', EMPTY_FILTERS))
+  // Filter und zuletzt benutzte Kalender-Ansicht: auf allen Geräten gleich
+  const filters = useMemo(() => asFilters(prefs.filters), [prefs.filters])
+  const setFilters = (f: Filters) => setPref('filters', f)
+  useEffect(() => {
+    if (isCalendarView(route.view) && prefs.calendarView !== route.view) setPref('calendarView', route.view)
+  }, [route.view, prefs.calendarView, setPref])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [editor, setEditor] = useState<EditorRequest | null>(null)
   const [blockMenu, setBlockMenu] = useState<string | null>(null) // id des angetippten Lernblocks
@@ -131,11 +135,6 @@ function Shell() {
   const mainRef = useRef<HTMLElement>(null)
   useSwipe(mainRef, goStep, isCalendar)
 
-  const setFilters = (f: Filters) => {
-    setFiltersState(f)
-    savePref('filters', f)
-  }
-
   // Filter einmal hier anwenden; alle Ansichten bekommen die gefilterten Listen.
   const { visibleEntries, visibleBlocks } = useMemo(() => {
     const visibleEntries = entries.filter((e) => matchesFilters(e, filters))
@@ -147,7 +146,7 @@ function Shell() {
   const goSection = (section: Section) => {
     setSearch('')
     setFiltersOpen(false)
-    if (section === 'kalender') changeView({ view: isCalendarView(route.view) ? route.view : lastCalendarView() })
+    if (section === 'kalender') changeView({ view: isCalendarView(route.view) ? route.view : lastCalendarView(prefs.calendarView) })
     else changeView({ view: section })
   }
 

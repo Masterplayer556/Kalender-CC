@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchesFilters, matchesSearch, NO_SUBJECT } from '../src/lib/filters'
+import { asFilters, EMPTY_FILTERS, matchesFilters, matchesSearch, NO_SUBJECT } from '../src/lib/filters'
 import { compareEntries, entryCovers, groupFor, groupUpcoming } from '../src/lib/grouping'
 import type { Entry } from '../src/types'
 
@@ -100,5 +100,13 @@ describe('groupFor: "Diese Woche" = bis Sonntag', () => {
   it('Sonntag: Montag ist "Morgen", nicht "Diese Woche"', () => {
     expect(groupFor('2026-10-25', '2026-10-26')).toBe('Morgen')
     expect(groupFor('2026-10-25', '2026-10-27')).toBe('Später')
+  })
+})
+
+describe('asFilters', () => {
+  it('prüft gespeicherte Filter', () => {
+    expect(asFilters({ categories: ['test', 3], subjects: ['abc'] })).toEqual({ categories: ['test'], subjects: ['abc'] })
+    expect(asFilters(null)).toEqual(EMPTY_FILTERS)
+    expect(asFilters({})).toEqual(EMPTY_FILTERS)
   })
 })
