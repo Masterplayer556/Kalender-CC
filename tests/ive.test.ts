@@ -19,3 +19,19 @@ describe('IVE-Lektionen als Lernzeit', () => {
     expect(nextIveBlock(fr, blocks, '2026-11-04').date).toBe('2026-11-13')
   })
 })
+
+describe('IVE-Schnellwahl schlägt nur kommende Schullektionen vor', () => {
+  it('heutige Lektion, die schon begonnen hat → nächste Woche', () => {
+    // Dienstag 2026-11-10, 15:00 (Lektion 14:30–15:15 läuft schon)
+    expect(nextIveBlock(di, [], '2026-11-10', 15 * 60).date).toBe('2026-11-17')
+    expect(nextIveBlock(di, [], '2026-11-10', 14 * 60).date).toBe('2026-11-10')
+  })
+  it('überspringt Ferien und freie Tage', () => {
+    const ferien = { start_date: '2026-12-19', end_date: '2027-01-03' }
+    // Dienstag 2026-12-15 → 22. und 29. Dezember in den Ferien → 5. Januar
+    expect(nextIveBlock(di, [{ date: '2026-12-15', start: '14:30', end: '15:15', done: false }], '2026-12-14', 0, [ferien]).date).toBe(
+      '2027-01-05',
+    )
+    expect(nextIveBlock(fr, [], '2026-11-04', 0, [{ start_date: '2026-11-06', end_date: '2026-11-06' }]).date).toBe('2026-11-13')
+  })
+})

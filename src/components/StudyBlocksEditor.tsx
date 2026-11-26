@@ -1,6 +1,7 @@
 // Bereich "Lernzeiten" im Eintrag-Formular: beliebig viele Zeiträume hinzufügen/entfernen.
 
 import { addDays, formatDate, formatWeekday, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
+import { useData } from '../data/DataProvider'
 import { IVE_SLOTS, nextIveBlock } from '../lib/ive'
 import { blockTerms } from '../lib/categories'
 import type { Category, StudyBlockInput } from '../types'
@@ -29,6 +30,7 @@ export function StudyBlocksEditor({
   category: Category
   disabled: boolean
 }) {
+  const { periods } = useData()
   const terms = blockTerms(category)
   const update = (i: number, patch: Partial<StudyBlockInput>) =>
     onChange(blocks.map((b, j) => (j === i ? { ...b, ...patch } : b)))
@@ -107,7 +109,10 @@ export function StudyBlocksEditor({
             className="chip flex-1 justify-center border-(--line) font-semibold"
             disabled={disabled}
             title={`${slot.start}–${slot.end}`}
-            onClick={() => onChange([...blocks, nextIveBlock(slot, blocks, todayKey())])}
+            onClick={() => {
+              const now = new Date()
+              onChange([...blocks, nextIveBlock(slot, blocks, todayKey(), now.getHours() * 60 + now.getMinutes(), periods)])
+            }}
           >
             {slot.label}
             <span className="muted text-xs font-normal">{slot.start}</span>
