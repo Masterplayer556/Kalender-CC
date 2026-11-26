@@ -72,9 +72,10 @@ export interface Attachment {
 }
 
 /** Anhang im Formular, der noch nicht gespeichert ist */
+// id wird schon im Formular vergeben: Ein erneuter Versuch nach einem Fehler legt den Anhang nicht doppelt an.
 export type PendingAttachment =
-  | { kind: 'file'; file: File; name: string }
-  | { kind: 'link'; url: string; name: string }
+  | { id: string; kind: 'file'; file: File; name: string }
+  | { id: string; kind: 'link'; url: string; name: string }
 
 /** Was das Formular beim Speichern eines Eintrags übergibt. */
 export interface EntryInput {

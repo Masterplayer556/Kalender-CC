@@ -67,8 +67,9 @@ interface DataValue {
   attachmentsByEntry: Map<string, Attachment[]>
   gradesByEntry: Map<string, Grade[]> // verknüpfte Noten eines Tests (meist eine, bei „mehrere Noten“ auch mehr)
   reload: () => Promise<void>
+  /** target.create: neuer Eintrag mit der im Formular vergebenen id (erneuter Versuch legt nichts doppelt an) */
   saveEntry: (
-    id: string | null,
+    target: { id: string; create: boolean },
     input: EntryInput,
     blocks: StudyBlockInput[],
     attachments?: { added: PendingAttachment[]; removed: Attachment[] },
@@ -288,10 +289,11 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       attachmentsByEntry,
       gradesByEntry,
       reload,
-      saveEntry: (id, input, newBlocks, att) =>
+      saveEntry: (target, input, newBlocks, att) =>
         mutate(async () => {
-          const previousBlockIds = id ? (blocksByEntry.get(id) ?? []).map((b) => b.id) : []
-          await api.saveEntry(id, input, newBlocks, previousBlockIds, att)
+          // Auch bei einem neuen Eintrag: Lernzeiten, die ein fehlgeschlagener Versuch schon angelegt hat
+          const previousBlockIds = (blocksByEntry.get(target.id) ?? []).map((b) => b.id)
+          await api.saveEntry(target, input, newBlocks, previousBlockIds, att)
         }),
       deleteEntry: (id) => mutate(() => api.deleteEntry(id)),
       restoreEntry: (entry, entryBlocks, att, gradeIds) => mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),

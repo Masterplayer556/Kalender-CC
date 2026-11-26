@@ -88,16 +88,26 @@ async function fetchOptional<T>(table: string, orderBy: string): Promise<T[] | n
  * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, entfernte gelöscht.
  * - Anhänge: neue Dateien werden hochgeladen, neue Links gespeichert, entfernte gelöscht.
  */
+/**
+ * Eintrag mit Lernzeiten und Anhängen speichern. Alle ids kommen vom Gerät (neuer Eintrag, neue Lernzeiten,
+ * neue Anhänge) und es wird mit upsert geschrieben: Bricht das Speichern mittendrin ab (z. B. Netz weg)
+ * und man versucht es nochmals, entstehen keine doppelten Einträge, Lernzeiten oder Anhänge.
+ */
 export async function saveEntry(
-  entryId: string | null,
+  target: { id: string; create: boolean },
   input: EntryInput,
   blocks: StudyBlockInput[],
   previousBlockIds: string[],
   attachments: { added: PendingAttachment[]; removed: Attachment[] } = { added: [], removed: [] },
 ): Promise<string> {
-  // 1. Eintrag speichern und seine id erhalten
+  // 1. Eintrag speichern (neu: upsert mit der vorab vergebenen id)
   const write = (row: Partial<EntryInput>) =>
-    (entryId ? supabase.from('entries').update(row).eq('id', entryId) : supabase.from('entries').insert(row)).select('id').single()
+    (target.create
+      ? supabase.from('entries').upsert({ id: target.id, ...row })
+      : supabase.from('entries').update(row).eq('id', target.id)
+    )
+      .select('id')
+      .single()
   let { data, error } = await write(input)
   // PGRST204 = Spalte unbekannt: 007_multi_grade_tests.sql noch nicht ausgeführt → ohne den Haken speichern
   if (error?.code === 'PGRST204' && /multi_grade/.test(error.message) && !input.multi_grade) {
@@ -105,7 +115,7 @@ export async function saveEntry(
     ;({ data, error } = await write(rest))
   }
   // PGRST116 = keine Zeile getroffen: Der Eintrag wurde inzwischen gelöscht (z. B. auf einem anderen Gerät)
-  if (entryId && (error?.code === 'PGRST116' || (!error && !data)))
+  if (!target.create && (error?.code === 'PGRST116' || (!error && !data)))
     throw new Error('Diesen Eintrag gibt es nicht mehr – er wurde wohl auf einem anderen Gerät gelöscht.')
   if (error || !data) throw error ?? new Error('Der Eintrag konnte nicht gespeichert werden.')
   const id = data.id as string
@@ -118,23 +128,17 @@ export async function saveEntry(
     if (delError) throw delError
   }
 
-  // 3. Bestehende aktualisieren, neue anlegen
-  const toRow = (b: StudyBlockInput) => ({
+  // 3. Bestehende aktualisieren, neue anlegen (in einem upsert; neue ohne id bekommen hier eine)
+  const rows = blocks.map((b) => ({
+    id: b.id ?? crypto.randomUUID(),
     entry_id: id,
     starts_at: localToIso(b.date, b.start),
     ends_at: localToIso(b.date, b.end),
     done: b.done,
-  })
-  const existing = blocks.filter((b) => b.id).map((b) => ({ id: b.id!, ...toRow(b) }))
-  const created = blocks.filter((b) => !b.id).map(toRow)
-
-  if (existing.length) {
-    const { error: upError } = await supabase.from('study_blocks').upsert(existing)
+  }))
+  if (rows.length) {
+    const { error: upError } = await supabase.from('study_blocks').upsert(rows)
     if (upError) throw upError
-  }
-  if (created.length) {
-    const { error: insError } = await supabase.from('study_blocks').insert(created)
-    if (insError) throw insError
   }
 
   // 4. Anhänge
@@ -161,8 +165,10 @@ export function safeFileName(name: string): string {
 }
 
 async function addAttachment(entryId: string, a: PendingAttachment): Promise<void> {
+  // Schon angelegt (früherer Versuch)? Dann nichts tun.
+  const once = { onConflict: 'id', ignoreDuplicates: true }
   if (a.kind === 'link') {
-    const { error } = await supabase.from('attachments').insert({ entry_id: entryId, kind: 'link', name: a.name, url: a.url })
+    const { error } = await supabase.from('attachments').upsert({ id: a.id, entry_id: entryId, kind: 'link', name: a.name, url: a.url }, once)
     if (error) throw error
     return
   }
@@ -170,21 +176,26 @@ async function addAttachment(entryId: string, a: PendingAttachment): Promise<voi
   const { data: auth } = await supabase.auth.getSession()
   const userId = auth.session?.user.id
   if (!userId) throw new Error('Nicht angemeldet.')
-  const path = `${userId}/${entryId}/${crypto.randomUUID().slice(0, 8)}-${safeFileName(a.name)}`
+  // Pfad aus der id des Anhangs: Ein zweiter Versuch ersetzt die Datei, statt eine weitere abzulegen
+  const path = `${userId}/${entryId}/${a.id.slice(0, 8)}-${safeFileName(a.name)}`
 
   const { error: upError } = await supabase.storage
     .from(BUCKET)
-    .upload(path, a.file, { contentType: a.file.type || undefined })
+    .upload(path, a.file, { contentType: a.file.type || undefined, upsert: true })
   if (upError) throw upError
 
-  const { error } = await supabase.from('attachments').insert({
-    entry_id: entryId,
-    kind: 'file',
-    name: a.name,
-    storage_path: path,
-    size: a.file.size,
-    mime: a.file.type || null,
-  })
+  const { error } = await supabase.from('attachments').upsert(
+    {
+      id: a.id,
+      entry_id: entryId,
+      kind: 'file',
+      name: a.name,
+      storage_path: path,
+      size: a.file.size,
+      mime: a.file.type || null,
+    },
+    once,
+  )
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]) // hochgeladene Datei nicht verwaist liegen lassen
     throw error
