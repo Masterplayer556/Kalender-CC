@@ -1,6 +1,6 @@
 // Dialog "Neuer Eintrag" / "Eintrag bearbeiten".
 
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR, blockTerms } from '../lib/categories'
 import { addDays, daysBetween, formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
@@ -77,7 +77,12 @@ export function EntryEditor({
       return { id: b.id, date: s.date, start: s.time, end: isoToLocal(b.ends_at).time, done: b.done }
     }),
   )
-  const savedAttachments = existing ? (attachmentsByEntry.get(existing.id) ?? []) : []
+  // Stand beim Öffnen: Nur was davon im Formular entfernt wird, löscht das Speichern. Was ein anderes Gerät
+  // inzwischen hinzugefügt hat (kommt beim Neuladen im Hintergrund dazu), bleibt stehen.
+  const [openedBlockIds] = useState(() => blocks.flatMap((b) => (b.id ? [b.id] : [])))
+  const [savedAttachments] = useState<Attachment[]>(() => (existing ? (attachmentsByEntry.get(existing.id) ?? []) : []))
+  // ids, die ein (fehlgeschlagener) Speicherversuch schon angelegt haben kann
+  const attempted = useRef(new Set<string>())
   const [keptAttachments, setKeptAttachments] = useState<Attachment[]>(savedAttachments)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const linkedGrades = editingId ? (gradesByEntry.get(editingId) ?? []) : []
@@ -123,9 +128,20 @@ export function EntryEditor({
     // Neue Lernzeiten bekommen jetzt ihre id – ein zweiter Versuch legt sie dann nicht doppelt an
     const savedBlocks = blocks.map((b) => (b.id ? b : { ...b, id: crypto.randomUUID() }))
     setBlocks(savedBlocks)
+    const targetId = editingId ?? newId
+    const has = (list: { id?: string }[], id: string) => list.some((x) => x.id === id)
+    // Entfernt = beim Öffnen vorhanden (bzw. von einem früheren Versuch angelegt) und jetzt nicht mehr in der Liste
+    const removedBlockIds = [...(isCopy ? [] : openedBlockIds), ...attempted.current].filter((id) => !has(savedBlocks, id))
+    // Vergleich über die id, nicht über das Objekt: Lädt die App im Hintergrund neu, sind es neue Objekte.
+    // Beim Duplizieren gehören die gespeicherten Anhänge dem Original – nichts davon löschen.
+    const attemptedAttachments = (attachmentsByEntry.get(targetId) ?? []).filter((a) => attempted.current.has(a.id))
+    const removedAttachments = [...(isCopy ? [] : savedAttachments), ...attemptedAttachments].filter(
+      (a, i, list) => list.findIndex((x) => x.id === a.id) === i && !has(keptAttachments, a.id) && !has(pendingAttachments, a.id),
+    )
+    for (const x of [...savedBlocks, ...pendingAttachments]) attempted.current.add(x.id!)
     try {
       await saveEntry(
-        { id: editingId ?? newId, create: !editingId },
+        { id: targetId, create: !editingId },
         {
           title: title.trim(),
           category,
@@ -139,16 +155,8 @@ export function EntryEditor({
           multi_grade: category === 'test' && multiGrade,
         },
         savedBlocks,
-        {
-          added: pendingAttachments,
-          // Beim Duplizieren gehören die gespeicherten Anhänge dem Original – nichts löschen.
-          // Vergleich über die id, nicht über das Objekt: Lädt die App im Hintergrund neu (z. B. nach dem
-          // Öffnen eines Anhangs in einer anderen App), sind es neue Objekte – sonst gälten alle als entfernt.
-          // Anhänge, die ein fehlgeschlagener Versuch schon angelegt hat, sind noch "neu", nicht entfernt.
-          removed: isCopy
-            ? []
-            : savedAttachments.filter((a) => !keptAttachments.some((k) => k.id === a.id) && !pendingAttachments.some((p) => p.id === a.id)),
-        },
+        removedBlockIds,
+        { added: pendingAttachments, removed: removedAttachments },
       )
       onClose()
     } catch (err) {
@@ -162,6 +170,7 @@ export function EntryEditor({
     if (!existing) return
     // Gespeicherten Stand merken, damit "Rückgängig" ihn wiederherstellen kann
     const savedBlocks = blocksByEntry.get(existing.id) ?? []
+    const liveAttachments = attachmentsByEntry.get(existing.id) ?? savedAttachments // samt denen anderer Geräte
     const gradeIds = linkedGrades.map((g) => g.id)
     setSaving(true)
     try {
@@ -169,9 +178,9 @@ export function EntryEditor({
       onClose()
       showToast({
         message: `„${existing.title}“ gelöscht`,
-        action: { label: 'Rückgängig', run: () => restoreEntry(existing, savedBlocks, savedAttachments, gradeIds) },
+        action: { label: 'Rückgängig', run: () => restoreEntry(existing, savedBlocks, liveAttachments, gradeIds) },
         // Erst wenn "Rückgängig" nicht mehr möglich ist, die Dateien wirklich aus dem Speicher löschen
-        onExpire: () => void purgeAttachmentFiles(savedAttachments),
+        onExpire: () => void purgeAttachmentFiles(liveAttachments),
       })
     } catch (err) {
       setError((err as Error).message)
@@ -184,6 +193,7 @@ export function EntryEditor({
   function handleDuplicate() {
     setIsCopy(true)
     setNewId(crypto.randomUUID())
+    attempted.current = new Set() // frühere Versuche betreffen das Original, nicht die Kopie
     setDone(false)
     setBlocks([])
     setUnshiftedDays(0)

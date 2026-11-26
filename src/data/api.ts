@@ -84,12 +84,12 @@ async function fetchOptional<T>(table: string, orderBy: string): Promise<T[] | n
 
 /**
  * Speichert einen Eintrag samt Lernzeiten und Anhängen.
- * - entryId = null → neuer Eintrag
- * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, entfernte gelöscht.
- * - Anhänge: neue Dateien werden hochgeladen, neue Links gespeichert, entfernte gelöscht.
- */
-/**
- * Eintrag mit Lernzeiten und Anhängen speichern. Alle ids kommen vom Gerät (neuer Eintrag, neue Lernzeiten,
+ * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, die in removedBlockIds gelöscht.
+ * - Anhänge: neue Dateien werden hochgeladen, neue Links gespeichert, die in attachments.removed gelöscht.
+ * Gelöscht wird nur, was im Formular entfernt wurde: Bearbeitet ein anderes Gerät denselben Eintrag und
+ * fügt etwas hinzu, bleibt das stehen.
+ *
+ * Alle ids kommen vom Gerät (neuer Eintrag, neue Lernzeiten,
  * neue Anhänge) und es wird mit upsert geschrieben: Bricht das Speichern mittendrin ab (z. B. Netz weg)
  * und man versucht es nochmals, entstehen keine doppelten Einträge, Lernzeiten oder Anhänge.
  */
@@ -97,7 +97,7 @@ export async function saveEntry(
   target: { id: string; create: boolean },
   input: EntryInput,
   blocks: StudyBlockInput[],
-  previousBlockIds: string[],
+  removedBlockIds: string[],
   attachments: { added: PendingAttachment[]; removed: Attachment[] } = { added: [], removed: [] },
 ): Promise<string> {
   // 1. Eintrag speichern (neu: upsert mit der vorab vergebenen id)
@@ -120,9 +120,9 @@ export async function saveEntry(
   if (error || !data) throw error ?? new Error('Der Eintrag konnte nicht gespeichert werden.')
   const id = data.id as string
 
-  // 2. Entfernte Lernzeiten löschen
+  // 2. Im Formular entfernte Lernzeiten löschen
   const keptIds = new Set(blocks.map((b) => b.id).filter(Boolean))
-  const removed = previousBlockIds.filter((bid) => !keptIds.has(bid))
+  const removed = removedBlockIds.filter((bid) => !keptIds.has(bid))
   if (removed.length) {
     const { error: delError } = await supabase.from('study_blocks').delete().in('id', removed)
     if (delError) throw delError
