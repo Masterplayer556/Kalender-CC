@@ -15,17 +15,21 @@ import { useOnline } from './useOnline'
 import { loadSnapshot, saveSnapshot } from '../lib/cache'
 import { friendlyError } from '../lib/supabase'
 import {
+  TARGET_ROW,
+  changedRows,
   loadLocalPrefs,
   loadPending,
   mergePrefs,
   missingOnServer,
-  prefsFromRows,
   saveLocalPrefs,
   savePending,
+  serverRows,
+  stamp,
   withoutUploaded,
   type PrefName,
   type SyncedPrefs,
 } from '../lib/syncedPrefs'
+import { asTargets } from '../lib/targets'
 import type {
   Attachment,
   BmRating,
@@ -110,12 +114,16 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<SyncedPrefs>(loadLocalPrefs)
+  const prefsRef = useRef(prefs) // aktueller Stand für setPref (welche Notenziele haben sich geändert?)
+  useEffect(() => {
+    prefsRef.current = prefs
+  }, [prefs])
   const online = useOnline()
 
   // --- Einstellungen hochladen ---
-  // Wann wurde welche Einstellung zuletzt auf diesem Gerät geändert? (Ein Laden, das vorher begann,
+  // Wann wurde welche Zeile zuletzt auf diesem Gerät geändert? (Ein Laden, das vorher begann,
   // darf sie nicht mit dem alten Server-Stand überschreiben.)
-  const prefChangedAt = useRef(new Map<PrefName, number>())
+  const prefChangedAt = useRef(new Map<string, number>())
   const prefsMissing = useRef(false) // Tabelle user_prefs fehlt → nur lokal speichern
   const prefQueue = useRef<Promise<void>>(Promise.resolve())
   /** Ausstehende Einstellungen hochladen – nacheinander, damit nichts sich überholt. */
@@ -123,7 +131,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     const job = prefQueue.current.then(async () => {
       const pending = loadPending(userId)
       if (prefsMissing.current || !navigator.onLine || Object.keys(pending).length === 0) return
-      await api.savePrefs(pending as Record<string, unknown>)
+      await api.savePrefs(pending)
       savePending(userId, withoutUploaded(loadPending(userId), pending))
     })
     prefQueue.current = job.catch(() => {}) // fehlgeschlagen → bleibt ausstehend, nächster Versuch beim Laden
@@ -132,10 +140,14 @@ export function DataProvider({ userId, children }: { userId: string; children: R
 
   const setPref = useCallback(
     <K extends PrefName>(name: K, value: SyncedPrefs[K]) => {
-      prefChangedAt.current.set(name, Date.now())
+      // Nur die geänderten Zeilen hochladen (bei Notenzielen: nur das geänderte Fach), mit Zeitpunkt
+      const at = Date.now()
+      const changes = changedRows(name, prefsRef.current[name], value)
+      for (const row of Object.keys(changes)) prefChangedAt.current.set(row, at)
+      prefsRef.current = { ...prefsRef.current, [name]: value }
       setPrefs((p) => ({ ...p, [name]: value }))
       saveLocalPrefs({ [name]: value })
-      savePending(userId, { ...loadPending(userId), [name]: value })
+      savePending(userId, { ...loadPending(userId), ...stamp(changes, at) })
       flushPrefs()
     },
     [userId, flushPrefs],
@@ -155,11 +167,17 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       if (!isLatest()) return
       prefsMissing.current = prefRows === null
       if (prefRows) {
-        const server = prefsFromRows(prefRows)
+        const knownTargets = [
+          ...Object.keys(asTargets(prefsRef.current.gradeTargets)),
+          ...Object.keys(loadPending(userId))
+            .filter((n) => n.startsWith(TARGET_ROW))
+            .map((n) => n.slice(TARGET_ROW.length)),
+        ]
+        const server = serverRows(prefRows, knownTargets)
         // Früher nur auf diesem Gerät gespeichert (z. B. Notenziele) → einmalig hochladen
         const missing = missingOnServer(loadLocalPrefs(), server)
         if (Object.keys(missing).length) {
-          savePending(userId, { ...missing, ...loadPending(userId) })
+          savePending(userId, { ...stamp(missing, Date.now()), ...loadPending(userId) })
           flushPrefs()
         }
         const changedMeanwhile = new Set([...prefChangedAt.current].filter(([, t]) => t >= startedAt).map(([n]) => n))
