@@ -114,7 +114,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
-  const [prefs, setPrefs] = useState<SyncedPrefs>(loadLocalPrefs)
+  const [prefs, setPrefs] = useState<SyncedPrefs>(() => loadLocalPrefs(userId))
   const prefsRef = useRef(prefs) // aktueller Stand für setPref (welche Notenziele haben sich geändert?)
   useEffect(() => {
     prefsRef.current = prefs
@@ -147,7 +147,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       for (const row of Object.keys(changes)) prefChangedAt.current.set(row, at)
       prefsRef.current = { ...prefsRef.current, [name]: value }
       setPrefs((p) => ({ ...p, [name]: value }))
-      saveLocalPrefs({ [name]: value })
+      saveLocalPrefs(userId, { [name]: value })
       savePending(userId, { ...loadPending(userId), ...stamp(changes, at) })
       flushPrefs()
     },
@@ -176,7 +176,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         ]
         const server = serverRows(prefRows, knownTargets)
         // Früher nur auf diesem Gerät gespeichert (z. B. Notenziele) → einmalig hochladen
-        const missing = missingOnServer(loadLocalPrefs(), server)
+        const missing = missingOnServer(loadLocalPrefs(userId), server)
         if (Object.keys(missing).length) {
           savePending(userId, { ...stamp(missing, Date.now()), ...loadPending(userId) })
           flushPrefs()
@@ -184,7 +184,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         const changedMeanwhile = new Set([...prefChangedAt.current].filter(([, t]) => t >= startedAt).map(([n]) => n))
         setPrefs((current) => {
           const next = mergePrefs(current, server, loadPending(userId), changedMeanwhile)
-          saveLocalPrefs(next)
+          saveLocalPrefs(userId, next)
           return next
         })
       }

@@ -61,3 +61,19 @@ export function savePref(name: string, value: unknown): void {
     /* ignorieren */
   }
 }
+
+export function hasPref(name: string): boolean {
+  try {
+    return localStorage.getItem(`kalender-pref:${name}`) !== null
+  } catch {
+    return false
+  }
+}
+
+export function removePref(name: string): void {
+  try {
+    localStorage.removeItem(`kalender-pref:${name}`)
+  } catch {
+    /* ignorieren */
+  }
+}
