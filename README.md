@@ -31,7 +31,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **BM-Einschätzung** (ganz unten im Noten-Tab): kleine Tabelle mit den Fächern Mathe, Deutsch, Franz und NMG (NT & RZG) nebeneinander und darunter je einem Feld für die **fachliche** und die **persönliche Kompetenz** (8 Felder). Jedes Feld ist **Ja**, **Nein** oder noch offen; nochmals tippen macht es wieder offen. **Ziel: 6 × Ja** – die Sektion zeigt, wie viele Ja noch fehlen, ob das Ziel noch erreichbar ist und den Vergleich mit dem letzten Semester (▲/▼). Gespeichert pro Semester (gleiche Auswahl wie oben bei den Noten) und auf allen Geräten gleich.
 - **Design** (unter „Mehr“): **Sunset** (warm, farbige Kacheln, grosse Zahlen, Sonne mit Strahlen) oder **Neon** (Raster, Mono-Schrift, Lime mit Cyan und Pink – hell mit harten Schatten, dunkel leuchtend) – jeweils **hell, dunkel oder automatisch** nach Systemeinstellung. Gilt auf allen Geräten. Zahlen zählen beim Öffnen hoch und einiges bewegt sich dezent; mit „Bewegung reduzieren“ in den Geräte-Einstellungen bleibt alles ruhig.
 - **Einstellungen auf allen Geräten:** Notenziele, Design (Sunset/Neon, hell/dunkel), Filter, die zuletzt benutzte Kalender-Ansicht, das gewählte Noten-Semester, „Erledigte anzeigen“ und „Nur Offenes“ in der Heatmap sind auf iPad, Handy und Computer gleich. Sie lassen sich auch offline ändern und werden hochgeladen, sobald wieder Internet da ist.
-- **Offline:** Die zuletzt geladenen Einträge bleiben sichtbar. Ändern geht erst wieder mit Internet.
+- **Offline:** Die zuletzt geladenen Daten bleiben sichtbar. **Abhaken** (Einträge und Lernzeiten) sowie **Einträge anlegen und bearbeiten** (samt Lernzeiten) gehen auch ohne Internet: Die Änderung erscheint sofort und wird hochgeladen, sobald wieder Internet da ist (die Leiste oben zeigt, wie viele Änderungen noch warten). Wurde derselbe Eintrag inzwischen auf einem anderen Gerät gelöscht, bleibt er gelöscht; wurde er dort geändert, gewinnt die neuere Änderung. Anhänge, Löschen, Duplizieren, Noten, Fächer und Ferien brauchen weiterhin Internet.
 
 ---
 
@@ -57,6 +57,7 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
    Danach `supabase/migrations/010_user_prefs_newer_wins.sql` (bei Einstellungen gewinnt die neuere Änderung, Notenziele pro Fach).
    Danach `supabase/migrations/011_revoke_truncate.sql` (entfernt überflüssige Rechte wie „ganze Tabelle leeren“).
    Danach `supabase/migrations/012_save_entry.sql` (Eintrag und Lernzeiten in einem Schritt speichern – nie mehr nur halb gespeichert).
+   Danach `supabase/migrations/013_study_blocks_updated_at.sql` (Lernzeiten merken sich ihre letzte Änderung – für offline abgehakte Lernzeiten).
    **Schon eingerichtet?** Dann nur die neueren Dateien ausführen, die noch fehlen. Bestehende Daten bleiben erhalten.
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)

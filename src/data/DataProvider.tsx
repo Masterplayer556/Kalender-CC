@@ -9,11 +9,15 @@
 //
 // Dazu kommen Einstellungen wie Notenziele und Design (lib/syncedPrefs.ts): Sie gelten auf allen
 // Geräten, lassen sich aber auch offline ändern und werden dann beim nächsten Laden hochgeladen.
+//
+// Abhaken und Speichern von Einträgen geht auch offline (lib/outbox.ts): Die Änderung erscheint sofort,
+// wartet in einer Warteschlange und wird nachgeschickt, sobald wieder Internet da ist.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
 import { useOnline } from './useOnline'
 import { loadPref, loadSnapshot, savePref, saveSnapshot } from '../lib/cache'
+import { applyOutbox, asOutbox, conflictThreshold, dequeue, enqueue as enqueueOp, isRetryable, type OutboxOp } from '../lib/outbox'
 import { asQueue, dueItems, enqueue, type PurgeItem } from '../lib/purge'
 import { shouldReloadOnReturn } from '../lib/refresh'
 import { friendlyError } from '../lib/supabase'
@@ -60,6 +64,11 @@ interface DataValue {
   periodsMissing: boolean // true, solange 004_events_and_periods.sql nicht ausgeführt wurde
   bm: BmRating[] // BM-Einschätzung: Kreuze pro Semester und Fach
   bmMissing: boolean // true, solange 006_bm.sql nicht ausgeführt wurde
+  /** So viele offline gemachte Änderungen warten noch aufs Hochladen */
+  pendingChanges: number
+  /** Hinweis, wenn eine offline gemachte Änderung nicht übernommen werden konnte (null = keiner) */
+  syncNotice: string | null
+  dismissSyncNotice: () => void
   loading: boolean // true nur beim allerersten Laden ohne Cache
   error: string | null // letzter Ladefehler
   lastSync: string | null // Zeitpunkt der letzten erfolgreichen Synchronisation
@@ -112,11 +121,31 @@ const UNDO_GRACE_MS = 60_000
 /** So lange darf ein Speichern mit hochgeladener Datei dauern bzw. wiederholt werden, bevor aufgeräumt wird */
 const UPLOAD_GRACE_MS = 60 * 60_000
 
+/** Nach so vielen ms wird eine wartende Offline-Änderung erneut gesendet (solange online) */
+const OUTBOX_RETRY_MS = 30_000
+
 export function DataProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const cached = useMemo(() => loadSnapshot(userId), [userId])
+  // Offline-Warteschlange: liegt im localStorage, übersteht also das Schliessen der App
+  const outboxKey = `outbox:${userId}`
+  const readOutbox = useCallback(() => asOutbox(loadPref(outboxKey, [])), [outboxKey])
+  // Beim Start: Daten aus dem Cache plus die noch wartenden Offline-Änderungen
+  const initial = useMemo(
+    () => applyOutbox({ entries: cached?.entries ?? [], blocks: cached?.blocks ?? [] }, readOutbox(), userId),
+    [cached, readOutbox, userId],
+  )
   const [subjects, setSubjects] = useState<Subject[]>(cached?.subjects ?? [])
-  const [entries, setEntries] = useState<Entry[]>(cached?.entries ?? [])
-  const [blocks, setBlocks] = useState<StudyBlock[]>(cached?.blocks ?? [])
+  const [entries, setEntries] = useState<Entry[]>(initial.entries)
+  const [blocks, setBlocks] = useState<StudyBlock[]>(initial.blocks)
+  // Aktueller Stand für die Änderungs-Funktionen (die sich nicht bei jeder Änderung neu bilden sollen)
+  const entriesRef = useRef(entries)
+  const blocksRef = useRef(blocks)
+  useEffect(() => {
+    entriesRef.current = entries
+    blocksRef.current = blocks
+  }, [entries, blocks])
+  const [pendingChanges, setPendingChanges] = useState(() => readOutbox().length)
+  const [syncNotice, setSyncNotice] = useState<string | null>(null)
   const [grades, setGrades] = useState<Grade[]>(cached?.grades ?? [])
   const [gradesMissing, setGradesMissing] = useState(cached?.gradesMissing ?? false)
   const [attachments, setAttachments] = useState<Attachment[]>(cached?.attachments ?? [])
@@ -145,7 +174,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   // (und damit jede Liste) unverändert – nichts zeichnet sich neu. Lokale Änderungen (z. B. sofort
   // angezeigte BM-Kreuze) löschen den Vergleichswert, damit der Server-Stand danach sicher übernommen wird.
   const loadedJson = useRef<Record<string, string>>(
-    cached ? Object.fromEntries(Object.entries(cached).map(([k, v]) => [k, JSON.stringify(v)])) : {},
+    cached ? Object.fromEntries(Object.entries({ ...cached, ...initial }).map(([k, v]) => [k, JSON.stringify(v)])) : {},
   )
   const changed = (key: string, value: unknown) => {
     const json = JSON.stringify(value)
@@ -213,6 +242,70 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     [purgeKey],
   )
 
+  // --- Offline-Warteschlange für Einträge und Lernzeiten (lib/outbox.ts) ---
+  const writeOutbox = useCallback(
+    (queue: OutboxOp[]) => {
+      savePref(outboxKey, queue)
+      setPendingChanges(queue.length)
+    },
+    [outboxKey],
+  )
+  const inflight = useRef<string | undefined>(undefined) // key der Änderung, die gerade gesendet wird
+  /** Änderung in die Warteschlange stellen und sofort anzeigen */
+  const queueChange = useCallback(
+    (op: OutboxOp) => {
+      writeOutbox(enqueueOp(readOutbox(), op, inflight.current))
+      const next = applyOutbox({ entries: entriesRef.current, blocks: blocksRef.current }, [op], userId)
+      delete loadedJson.current.entries
+      delete loadedJson.current.blocks
+      entriesRef.current = next.entries
+      blocksRef.current = next.blocks
+      setEntries(next.entries)
+      setBlocks(next.blocks)
+    },
+    [readOutbox, writeOutbox, userId],
+  )
+  const outboxQueue = useRef<Promise<void>>(Promise.resolve())
+  /** Wartende Änderungen der Reihe nach senden. Netzfehler: bleiben für später; andere Fehler: Hinweis. */
+  const flushOutbox = useCallback(() => {
+    const job = outboxQueue.current.then(async () => {
+      let skipped = 0
+      const failed: string[] = []
+      while (navigator.onLine) {
+        const op = readOutbox()[0]
+        if (!op) break
+        inflight.current = op.key
+        try {
+          const notAfter = conflictThreshold(op)
+          const applied =
+            op.kind === 'saveEntry'
+              ? (await api.saveEntryRows({ id: op.id, create: op.create }, op.entry, op.blocks, op.removedBlockIds, op.create ? undefined : notAfter)) === 'saved'
+              : await api.setDoneIfUnchanged(op.kind === 'entryDone' ? 'entries' : 'study_blocks', op.id, op.done, notAfter)
+          if (!applied) skipped++ // gelöscht oder auf dem Server neuer: Der Server gewinnt
+        } catch (err) {
+          if (isRetryable(err)) break // bleibt in der Warteschlange, nächster Versuch später
+          failed.push(friendlyError(err))
+        } finally {
+          inflight.current = undefined
+        }
+        writeOutbox(dequeue(readOutbox(), op.key))
+      }
+      if (skipped || failed.length) {
+        const parts = []
+        if (skipped)
+          parts.push(
+            skipped === 1
+              ? 'Eine offline gemachte Änderung wurde nicht übernommen: Der Eintrag wurde inzwischen auf einem anderen Gerät geändert oder gelöscht.'
+              : `${skipped} offline gemachte Änderungen wurden nicht übernommen: Die Einträge wurden inzwischen auf einem anderen Gerät geändert oder gelöscht.`,
+          )
+        for (const msg of failed) parts.push(`Eine offline gemachte Änderung konnte nicht gespeichert werden: ${msg}`)
+        setSyncNotice(parts.join(' '))
+      }
+    })
+    outboxQueue.current = job.catch(() => {})
+    return outboxQueue.current
+  }, [readOutbox, writeOutbox])
+
   // Mehrere Ladevorgänge können sich überholen (z. B. App kommt in den Vordergrund, während gerade
   // gespeichert wird). Nur die zuletzt gestartete Abfrage darf den Stand setzen – sonst könnte eine
   // ältere, langsamere Antwort die frischen Daten wieder mit dem alten Stand überschreiben.
@@ -223,9 +316,12 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     const isLatest = () => seq === loadSeq.current
     const startedAt = Date.now()
     try {
-      await flushPrefs() // zuerst Offline-Änderungen hochladen, sonst kämen gleich die alten Werte zurück
+      // Zuerst Offline-Änderungen hochladen, sonst kämen gleich die alten Werte zurück
+      await Promise.all([flushPrefs(), flushOutbox()])
       const [data, prefRows] = await Promise.all([api.fetchEverything(), api.fetchPrefs()])
       if (!isLatest()) return
+      // Was noch wartet (z. B. gerade offline abgehakt), bleibt sichtbar
+      const shown = applyOutbox({ entries: data.entries, blocks: data.blocks }, readOutbox(), userId)
       prefsMissing.current = prefRows === null
       if (prefRows) {
         const knownTargets = [
@@ -252,8 +348,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       const savedAt = new Date().toISOString()
       // Nur geänderte Tabellen übernehmen (Flags wie gradesMissing ändern sich ohnehin nur selten)
       if (changed('subjects', data.subjects)) setSubjects(data.subjects)
-      if (changed('entries', data.entries)) setEntries(data.entries)
-      if (changed('blocks', data.blocks)) setBlocks(data.blocks)
+      if (changed('entries', shown.entries)) setEntries(shown.entries)
+      if (changed('blocks', shown.blocks)) setBlocks(shown.blocks)
       if (changed('grades', data.grades)) setGrades(data.grades)
       if (changed('attachments', data.attachments)) setAttachments(data.attachments)
       if (changed('periods', data.periods)) setPeriods(data.periods)
@@ -274,7 +370,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     } finally {
       if (isLatest()) setLoading(false)
     }
-  }, [userId, flushPrefs, flushPurge])
+  }, [userId, flushPrefs, flushPurge, flushOutbox, readOutbox])
 
   // Laden beim Start, beim Wiederverbinden und wenn die App wieder sichtbar wird
   useEffect(() => {
@@ -290,10 +386,19 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     }
   }, [reload])
 
+  // Warten noch Offline-Änderungen (z. B. Server kurz nicht erreichbar), regelmässig erneut versuchen
+  useEffect(() => {
+    if (pendingChanges === 0) return
+    const timer = setInterval(() => navigator.onLine && reload(), OUTBOX_RETRY_MS)
+    return () => clearInterval(timer)
+  }, [pendingChanges, reload])
+
   /** Hülle für alle Änderungen: offline sperren, Fehler übersetzen, danach neu laden. */
   const mutate = useCallback(
     async (action: () => Promise<void>) => {
       if (!navigator.onLine) throw new Error('Offline – Änderungen nicht möglich')
+      // Offline gemachte Änderungen zuerst senden (z. B. Note zu einem offline angelegten Test)
+      if (readOutbox().length) await flushOutbox()
       try {
         await action()
       } catch (err) {
@@ -302,9 +407,35 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         await reload()
       }
     },
-    [reload],
+    [reload, readOutbox, flushOutbox],
   )
 
+  /**
+   * Änderung an Einträgen/Lernzeiten: online direkt senden; offline (oder wenn das Netz unterwegs wegbricht)
+   * in die Warteschlange. Warten schon Offline-Änderungen, kommt die neue dahinter (Reihenfolge bleibt).
+   */
+  const sendOrQueue = useCallback(
+    async (op: OutboxOp, send: () => Promise<void>, canQueue = true) => {
+      if (navigator.onLine && readOutbox().length) await flushOutbox()
+      if (canQueue && (!navigator.onLine || readOutbox().length)) {
+        queueChange(op)
+        if (navigator.onLine) await reload()
+        return
+      }
+      try {
+        await send()
+      } catch (err) {
+        if (canQueue && isRetryable(err)) {
+          queueChange(op) // kommt später nochmals
+          return
+        }
+        await reload() // Server-Stand wieder anzeigen
+        throw new Error(friendlyError(err))
+      }
+      await reload()
+    },
+    [readOutbox, flushOutbox, queueChange, reload],
+  )
   // BM-Kreuze: Beim schnellen Antippen soll jede Änderung in der richtigen Reihenfolge ankommen.
   const bmQueue = useRef<Promise<void>>(Promise.resolve())
   const saveBm = useCallback(
@@ -360,7 +491,31 @@ export function DataProvider({ userId, children }: { userId: string; children: R
           ...uploads.map((a) => ({ id: a.id, path: api.attachmentPath(userId, target.id, a), due: now + UPLOAD_GRACE_MS })),
           ...(att?.removed ?? []).flatMap((a) => (a.storage_path ? [{ id: a.id, path: a.storage_path, due: now }] : [])),
         ])
-        await mutate(() => api.saveEntry(target, input, newBlocks, removedBlockIds, att).then(() => {}))
+        // Anhänge brauchen Internet (Datei-Upload); alles andere geht auch offline
+        const withAttachments = (att?.added.length ?? 0) + (att?.removed.length ?? 0) > 0
+        if (withAttachments && !navigator.onLine)
+          throw new Error('Offline – Anhänge lassen sich nur mit Internet hinzufügen oder entfernen. Ohne Änderung an den Anhängen kannst du speichern.')
+        const rows = api.blockRows(newBlocks)
+        const keep = new Set(rows.map((b) => b.id))
+        const op: OutboxOp = {
+          kind: 'saveEntry',
+          key: crypto.randomUUID(),
+          id: target.id,
+          create: target.create,
+          entry: input,
+          blocks: rows,
+          removedBlockIds: removedBlockIds.filter((id) => !keep.has(id)),
+          at: Date.now(),
+          base: baseOf(entriesRef.current.find((e) => e.id === target.id)),
+        }
+        await sendOrQueue(
+          op,
+          async () => {
+            const blockInputs = newBlocks.map((b, i) => ({ ...b, id: rows[i].id }))
+            await api.saveEntry(target, input, blockInputs, removedBlockIds, att)
+          },
+          !withAttachments,
+        )
         void flushPurge(uploads.map((a) => a.id)) // gespeichert → die Anhänge gibt es, nichts zu löschen
       },
       deleteEntry: (id: string) => {
@@ -375,20 +530,19 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
       purgeAttachmentFiles: (list: Attachment[]) => flushPurge(list.map((a) => a.id)),
       attachmentUrls: (list: Attachment[]) => api.attachmentUrls(list),
-      // Abhaken: sofort anzeigen, dann speichern (bei einem Fehler zeigt das Neuladen wieder den Server-Stand)
+      // Abhaken: sofort anzeigen, dann speichern – offline später (bei einem Fehler zeigt das Neuladen
+      // wieder den Server-Stand)
       setEntryDone: (id: string, done: boolean) => {
-        if (navigator.onLine) {
-          delete loadedJson.current.entries
-          setEntries((list) => list.map((e) => (e.id === id ? { ...e, done } : e)))
-        }
-        return mutate(() => api.setEntryDone(id, done))
+        delete loadedJson.current.entries
+        setEntries((list) => list.map((e) => (e.id === id ? { ...e, done } : e)))
+        const base = baseOf(entriesRef.current.find((e) => e.id === id))
+        return sendOrQueue({ kind: 'entryDone', key: crypto.randomUUID(), id, done, at: Date.now(), base }, () => api.setEntryDone(id, done))
       },
       setBlockDone: (id: string, done: boolean) => {
-        if (navigator.onLine) {
-          delete loadedJson.current.blocks
-          setBlocks((list) => list.map((b) => (b.id === id ? { ...b, done } : b)))
-        }
-        return mutate(() => api.setBlockDone(id, done))
+        delete loadedJson.current.blocks
+        setBlocks((list) => list.map((b) => (b.id === id ? { ...b, done } : b)))
+        const base = baseOf(blocksRef.current.find((b) => b.id === id))
+        return sendOrQueue({ kind: 'blockDone', key: crypto.randomUUID(), id, done, at: Date.now(), base }, () => api.setBlockDone(id, done))
       },
       saveSubject: (id: string | null, name: string, color: string) => mutate(() => api.saveSubject(id, name, color)),
       deleteSubject: (id: string) => mutate(() => api.deleteSubject(id)),
@@ -401,8 +555,9 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       saveBm,
       setPref,
     }),
-    [reload, mutate, saveBm, setPref, userId, queuePurge, flushPurge],
+    [reload, mutate, sendOrQueue, saveBm, setPref, userId, queuePurge, flushPurge],
   )
+  const dismissSyncNotice = useCallback(() => setSyncNotice(null), [])
 
   const value = useMemo<DataValue>(
     () => ({
@@ -416,6 +571,9 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       periodsMissing,
       bm,
       bmMissing,
+      pendingChanges,
+      syncNotice,
+      dismissSyncNotice,
       loading,
       error,
       lastSync,
@@ -428,10 +586,15 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       prefs,
       ...actions,
     }),
-    [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, subjectById, entryById, blocksByEntry, attachmentsByEntry, gradesByEntry, prefs, actions],
+    [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, pendingChanges, syncNotice, dismissSyncNotice, loading, error, lastSync, online, subjectById, entryById, blocksByEntry, attachmentsByEntry, gradesByEntry, prefs, actions],
   )
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
+}
+
+/** Stand der Zeile, wie ihn das Gerät zuletzt vom Server kannte (für Konflikte, lib/outbox.ts) */
+function baseOf(row: { updated_at?: string } | undefined): string | undefined {
+  return row?.updated_at || undefined
 }
 
 /** Liste → Map nach Schlüssel (ohne Schlüssel: weggelassen). Einmal durch die Liste statt immer neu kopieren. */

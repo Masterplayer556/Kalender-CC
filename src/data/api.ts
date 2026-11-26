@@ -128,8 +128,8 @@ export async function saveEntry(
 }
 
 /**
- * Eintrag und Lernzeiten speichern (ohne Anhänge). changedAt: Zeitpunkt einer offline gemachten Änderung –
- * ist der Eintrag auf dem Server neuer, bleibt er stehen ('stale'). Fehlt Migration 012, wird in mehreren
+ * Eintrag und Lernzeiten speichern (ohne Anhänge). changedAt (ISO): bei offline gemachten Änderungen –
+ * ist der Eintrag auf dem Server neuer, bleibt er stehen ('stale', siehe lib/outbox.ts). Fehlt Migration 012, wird in mehreren
  * Schritten gespeichert (wie früher).
  */
 export async function saveEntryRows(
@@ -137,7 +137,7 @@ export async function saveEntryRows(
   input: EntryInput,
   rows: { id: string; starts_at: string; ends_at: string; done: boolean }[],
   removedBlockIds: string[],
-  changedAt?: number,
+  changedAt?: string,
 ): Promise<SaveResult> {
   const { data, error } = await supabase.rpc('save_entry', {
     p_id: target.id,
@@ -145,7 +145,7 @@ export async function saveEntryRows(
     p_entry: input,
     p_blocks: rows,
     p_removed_block_ids: removedBlockIds,
-    p_changed_at: changedAt === undefined ? null : new Date(changedAt).toISOString(),
+    p_changed_at: changedAt ?? null,
   })
   // PGRST202 = Funktion unbekannt: 012_save_entry.sql noch nicht ausgeführt
   if (error?.code === 'PGRST202') return saveEntryInSteps(target, input, rows, removedBlockIds)
@@ -372,6 +372,23 @@ export async function setEntryDone(id: string, done: boolean): Promise<void> {
 export async function setBlockDone(id: string, done: boolean): Promise<void> {
   const { error } = await supabase.from('study_blocks').update({ done }).eq('id', id)
   if (error) throw error
+}
+
+/**
+ * Offline gemachten Haken nachsenden: nur, wenn es die Zeile noch gibt und sie auf dem Server nicht nach
+ * `notAfter` geändert wurde (lib/outbox.ts). false = entfallen (gelöscht oder auf dem Server neuer).
+ */
+export async function setDoneIfUnchanged(table: 'entries' | 'study_blocks', id: string, done: boolean, notAfter: string): Promise<boolean> {
+  const run = (check: boolean) => {
+    let q = supabase.from(table).update({ done }).eq('id', id)
+    if (check) q = q.lte('updated_at', notAfter)
+    return q.select('id')
+  }
+  let { data, error } = await run(true)
+  // 42703 = Spalte unbekannt: Lernzeiten ohne updated_at (013_study_blocks_updated_at.sql fehlt) → ohne Prüfung
+  if (error?.code === '42703') ({ data, error } = await run(false))
+  if (error) throw error
+  return (data ?? []).length > 0
 }
 
 // ---------------------------------------------------------------------

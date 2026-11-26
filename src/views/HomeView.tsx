@@ -66,7 +66,7 @@ export function HomeView({
 }) {
   const { theme } = useTheme()
   const neon = theme === 'neon'
-  const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradesByEntry, online, setEntryDone } = useData()
+  const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradesByEntry, setEntryDone } = useData()
   const today = todayKey()
   const nowIso = new Date(useClock()).toISOString() // „vorbei – abhaken?“ aktualisiert sich jede Minute
   const colorOf = (e: Entry) => entryColor(e, subjectById)
@@ -120,7 +120,7 @@ export function HomeView({
         sort: e.start_time ?? '',
         time: e.start_time ? formatTime(e.start_time) : '—',
         sub: e.end_time ? `bis ${formatTime(e.end_time)}` : e.start_time ? '' : e.end_date ? 'mehrtägig' : 'offen',
-        node: <EntryCard entry={e} color={colorOf(e)} onOpen={() => onOpenEntry(e.id)} canEdit={online} onToggle={(done) => setEntryDone(e.id, done).catch((err) => alert(err.message))} />,
+        node: <EntryCard entry={e} color={colorOf(e)} onOpen={() => onOpenEntry(e.id)} onToggle={(done) => setEntryDone(e.id, done).catch((err) => alert(err.message))} />,
       })),
     ...blocks
       .filter((b) => isoToLocal(b.starts_at).date === today && entryById.has(b.entry_id))
@@ -479,7 +479,7 @@ export function HomeView({
 }
 
 /** Eintrag in "Dein Tag": Titel, Fach, Haken zum Abhaken */
-function EntryCard({ entry, color, onOpen, onToggle, canEdit }: { entry: Entry; color: string; onOpen: () => void; onToggle: (done: boolean) => void; canEdit: boolean }) {
+function EntryCard({ entry, color, onOpen, onToggle }: { entry: Entry; color: string; onOpen: () => void; onToggle: (done: boolean) => void }) {
   const { subjectById } = useData()
   const { theme } = useTheme()
   return (
@@ -503,7 +503,6 @@ function EntryCard({ entry, color, onOpen, onToggle, canEdit }: { entry: Entry; 
         className="grid h-11 w-11 shrink-0 place-items-center"
         aria-label={entry.done ? `${entry.title} als offen markieren` : `${entry.title} erledigt`}
         aria-pressed={entry.done}
-        disabled={!canEdit}
         onClick={() => onToggle(!entry.done)}
       >
         <span

@@ -49,7 +49,7 @@ export function SideRail({ section, onSection, onAdd, addLabel, canAdd }: NavPro
       <button
         className="nav-plus mb-3 grid h-14 w-14 place-items-center"
         aria-label={addLabel}
-        title={canAdd ? addLabel : 'Offline – Änderungen nicht möglich'}
+        title={canAdd ? addLabel : 'Offline – Noten nur mit Internet'}
         disabled={!canAdd}
         onClick={onAdd}
       >

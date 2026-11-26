@@ -77,8 +77,7 @@ describe('Eintrag speichern (save_entry)', () => {
 
   it('Zeitpunkt einer Offline-Änderung wird mitgeschickt; Server neuer → stale', async () => {
     rpcResult = { data: 'stale', error: null }
-    const at = Date.UTC(2026, 10, 26, 12)
-    expect(await saveEntryRows({ id: 'e1', create: false }, input, [], [], at)).toBe('stale')
+    expect(await saveEntryRows({ id: 'e1', create: false }, input, [], [], '2026-11-26T12:00:00.000Z')).toBe('stale')
     expect((calls[0].args[1] as Record<string, unknown>).p_changed_at).toBe('2026-11-26T12:00:00.000Z')
   })
 

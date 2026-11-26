@@ -89,7 +89,8 @@ export function EntryEditor({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const readOnly = !online || saving
+  // Offline geht alles ausser Anhänge, Löschen, Duplizieren und Noten (wird später nachgeschickt, lib/outbox.ts)
+  const readOnly = saving
 
   // Um so viele Tage wurde der Termin in diesem Formular verschoben, ohne dass die Lernzeiten mitkamen
   const [unshiftedDays, setUnshiftedDays] = useState(0)
@@ -221,10 +222,10 @@ export function EntryEditor({
         <>
           {editingId && (
             <>
-              <button type="button" className="btn-danger" onClick={handleDelete} disabled={readOnly}>
+              <button type="button" className="btn-danger" onClick={handleDelete} disabled={readOnly || !online}>
                 Löschen
               </button>
-              <button type="button" className="btn-secondary" onClick={handleDuplicate} disabled={readOnly}>
+              <button type="button" className="btn-secondary" onClick={handleDuplicate} disabled={readOnly || !online}>
                 Duplizieren
               </button>
             </>
@@ -241,7 +242,8 @@ export function EntryEditor({
     >
       {!online && (
         <p className="mb-4 rounded-xl bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          Offline – Änderungen nicht möglich.
+          Offline – deine Änderungen werden gespeichert, sobald du wieder online bist. Anhänge, Löschen, Duplizieren und
+          Noten gehen nur mit Internet.
         </p>
       )}
       {isCopy && (
@@ -466,7 +468,7 @@ export function EntryEditor({
           pending={pendingAttachments}
           onChangeKept={setKeptAttachments}
           onChangePending={setPendingAttachments}
-          disabled={readOnly}
+          disabled={readOnly || !online}
         />
 
         {error && (

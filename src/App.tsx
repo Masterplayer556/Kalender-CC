@@ -155,7 +155,8 @@ function Shell() {
 
   const openEntry = (entryId: string) => setEditor({ entryId })
   const openDay = (date: string) => changeView({ view: 'tag', date })
-  const createAt = (date: string, time?: string) => online && setEditor({ date, time })
+  // Einträge gehen auch offline (werden nachgeschickt, lib/outbox.ts)
+  const createAt = (date: string, time?: string) => setEditor({ date, time })
 
   /** iPad/Computer: Kalender in einer Kachel mit Abstand zum Rand. iPhone: auf einem Blatt bis zum unteren Rand. */
   const framed = (node: ReactNode) =>
@@ -247,7 +248,7 @@ function Shell() {
     onSection: goSection,
     onAdd,
     addLabel,
-    canAdd: online,
+    canAdd: online || !onGradesTab, // Noten nur mit Internet
   }
 
   return (

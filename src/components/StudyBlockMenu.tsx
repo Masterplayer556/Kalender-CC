@@ -43,14 +43,14 @@ export function StudyBlockMenu({
         {formatWeekday(start.date, 'long')}, {formatDate(start.date)} · {start.time}–{end} Uhr
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <button className="btn-primary flex-1" disabled={!online || busy} onClick={toggle}>
+        <button className="btn-primary flex-1" disabled={busy} onClick={toggle}>
           {block.done ? 'Als nicht erledigt markieren' : <><Icon name="check" strokeWidth={3} /> Als erledigt markieren</>}
         </button>
         <button className="btn-secondary flex-1" onClick={() => onOpenEntry(entry.id)}>
           Eintrag öffnen
         </button>
       </div>
-      {!online && <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Offline – Änderungen nicht möglich.</p>}
+      {!online && <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Offline – wird gespeichert, sobald du wieder online bist.</p>}
       {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
     </Modal>
   )
