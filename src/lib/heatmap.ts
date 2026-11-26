@@ -5,7 +5,7 @@
 // also wie viel an einem Tag los war. Mit "Nur Offenes" zählt nur, was noch nicht abgehakt ist.
 
 import { isoToLocal, type DateKey } from './dates'
-import { entryCovers } from './grouping'
+import { entryCovers, entryEnd } from './grouping'
 import type { Entry, StudyBlock } from '../types'
 
 export interface DayLoad {
@@ -81,4 +81,28 @@ export function busiestWeek(
     if (sum.score > 0 && (!best || sum.score > best.load.score)) best = { week, load: sum }
   }
   return best
+}
+
+/**
+ * Monat in Zahlen (month = "JJJJ-MM"): Jeder Eintrag zählt einmal, auch wenn er mehrere Tage dauert
+ * (im Raster zählt er an jedem seiner Tage). Lernzeiten zählen in dem Monat, in dem sie beginnen.
+ */
+export function monthTotals(
+  month: string,
+  allEntries: Entry[],
+  allBlocks: StudyBlock[],
+  openOnly = false,
+): { tests: number; others: number; study: number } {
+  const totals = { tests: 0, others: 0, study: 0 }
+  for (const e of allEntries) {
+    if (openOnly && e.done) continue
+    if (e.date.slice(0, 7) > month || entryEnd(e).slice(0, 7) < month) continue
+    if (e.category === 'test') totals.tests++
+    else totals.others++
+  }
+  for (const b of allBlocks) {
+    if (openOnly && b.done) continue
+    if (isoToLocal(b.starts_at).date.startsWith(month)) totals.study++
+  }
+  return totals
 }

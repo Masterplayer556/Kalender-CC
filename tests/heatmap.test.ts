@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busiestWeek, dayLoads, heatLevel, loadCount } from '../src/lib/heatmap'
+import { busiestWeek, dayLoads, heatLevel, loadCount, monthTotals } from '../src/lib/heatmap'
 import type { Entry, StudyBlock } from '../src/types'
 
 const entry = (date: string, category: Entry['category'], end_date: string | null = null) =>
@@ -60,5 +60,26 @@ describe('busiestWeek', () => {
   })
   it('leerer Monat → null', () => {
     expect(busiestWeek([['2026-11-02']], dayLoads(['2026-11-02'], [], []), '2026-11')).toBeNull()
+  })
+})
+
+describe('monthTotals', () => {
+  it('mehrtägige Einträge zählen im Monat nur einmal, auch über den Monatswechsel', () => {
+    const lager = entry('2026-11-23', 'event', '2026-11-27')
+    const ueberMonat = entry('2026-10-30', 'event', '2026-11-02')
+    expect(monthTotals('2026-11', [lager, ueberMonat, entry('2026-11-03', 'test')], [block('2026-11-03')])).toEqual({
+      tests: 1,
+      others: 2,
+      study: 1,
+    })
+    expect(monthTotals('2026-12', [lager], [])).toEqual({ tests: 0, others: 0, study: 0 })
+  })
+  it('„Nur Offenes“ lässt Erledigtes weg', () => {
+    const done = { ...entry('2026-11-03', 'test'), done: true } as Entry
+    expect(monthTotals('2026-11', [done], [{ ...block('2026-11-03'), done: true } as StudyBlock], true)).toEqual({
+      tests: 0,
+      others: 0,
+      study: 0,
+    })
   })
 })
