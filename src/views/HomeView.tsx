@@ -9,7 +9,7 @@ import { useClock } from '../components/useClock'
 import { useData } from '../data/DataProvider'
 import { blockTerms, entryColor } from '../lib/categories'
 import { blockEndTime, addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
-import { roundToHalf, semesterOf, weightedAverage } from '../lib/grades'
+import { gradesInSemester, overallAverage, semesterOf } from '../lib/grades'
 import { overallTrend, trendDelta } from '../lib/gradeStats'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
 import { overdueEntries, testsAwaitingGrade } from '../lib/overdue'
@@ -89,12 +89,10 @@ export function HomeView({
       : null
 
   // --- Schnitt (aktuelles Semester) ---
-  const semKey = semesterOf(today).key
-  const semGrades = grades.filter((g) => semesterOf(g.date).key === semKey)
-  const bySubject = new Map<string, typeof semGrades>()
-  for (const g of semGrades) bySubject.set(g.subject_id, [...(bySubject.get(g.subject_id) ?? []), g])
-  const reports = [...bySubject.values()].map((list) => roundToHalf(weightedAverage(list)!))
-  const overall = reports.length ? reports.reduce((a, b) => a + b, 0) / reports.length : null
+  // Gleiche Rechnung wie im Noten-Tab (lib/grades.ts), nur Fächer, die es noch gibt
+  const semGrades = gradesInSemester(grades, semesterOf(today).key).filter((g) => subjectById.has(g.subject_id))
+  const average = overallAverage(semGrades)
+  const overall = average?.overall ?? null
   const trend = overallTrend(semGrades)
   const delta = trendDelta(trend, addDays(today, -30))
 
@@ -285,7 +283,7 @@ export function HomeView({
               )}
               <div className="mt-auto">
                 <div className="num num-grad text-5xl md:text-[56px]"><CountUp value={overall} delay={140} format={(n) => n.toFixed(2)} /></div>
-                <div className="muted mt-1 text-sm">Zeugnis-⌀ · {bySubject.size} Fächer</div>
+                <div className="muted mt-1 text-sm">Zeugnis-⌀ · {average!.reports.size} Fächer</div>
               </div>
             </>
           )}

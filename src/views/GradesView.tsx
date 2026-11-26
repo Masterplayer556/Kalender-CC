@@ -14,11 +14,15 @@ import {
   ALL_SEMESTERS,
   formatGrade,
   gradeClass,
+  gradesInSemester,
+  groupBySubject,
+  overallAverage,
   pickSemester,
   requiredGrade,
   roundToHalf,
   semesterChoice,
   semesterOf,
+  semesterRange,
   weightedAverage,
   type Weighted,
 } from '../lib/grades'
@@ -27,12 +31,6 @@ import { OVERALL, TARGET_OPTIONS, asTargets, targetStatus, withTarget } from '..
 import type { Grade, Subject } from '../types'
 
 const ALL = ALL_SEMESTERS
-
-/** Zeitraum eines Semesters: "2026-1" → 01.08.2026–31.01.2027, "2026-2" → 01.02.2027–31.07.2027 */
-function semesterRange(key: string): [DateKey, DateKey] {
-  const [y, half] = key.split('-').map(Number)
-  return half === 1 ? [`${y}-08-01`, `${y + 1}-01-31`] : [`${y + 1}-02-01`, `${y + 1}-07-31`]
-}
 
 function GradeBadge({ value, big }: { value: number; big?: boolean }) {
   return (
@@ -294,18 +292,15 @@ export function GradesView({
     return [...map].sort((a, b) => b[0].localeCompare(a[0]))
   }, [grades, current.key, current.label])
 
-  const visible = semester === ALL ? grades : grades.filter((g) => semesterOf(g.date).key === semester)
-  const bySubject = new Map<string, Grade[]>()
-  for (const g of visible) bySubject.set(g.subject_id, [...(bySubject.get(g.subject_id) ?? []), g])
+  const visible = gradesInSemester(grades, semester)
+  const bySubject = groupBySubject(visible)
   const withGrades = subjects.filter((s) => bySubject.has(s.id))
   const withoutGrades = subjects.filter((s) => !bySubject.has(s.id))
 
-  // Gesamtschnitt wie im Zeugnis: Durchschnitt der gerundeten Fachnoten
-  const reportGrades = withGrades.map((s) => roundToHalf(weightedAverage(bySubject.get(s.id)!)!))
-  const overall = reportGrades.length ? reportGrades.reduce((a, b) => a + b, 0) / reportGrades.length : null
-  const rawOverall = withGrades.length
-    ? withGrades.reduce((sum, s) => sum + weightedAverage(bySubject.get(s.id)!)!, 0) / withGrades.length
-    : null
+  // Gesamtschnitt wie im Zeugnis: Durchschnitt der gerundeten Fachnoten (lib/grades.ts, wie in der Heute-Kachel)
+  const average = overallAverage(withGrades.flatMap((s) => bySubject.get(s.id)!))
+  const overall = average?.overall ?? null
+  const reportGrades = withGrades.map((s) => average!.reports.get(s.id)!)
   const insufficient = reportGrades.filter((x) => x < 4).length
   const trend = overallTrend(visible)
   const delta = trendDelta(trend, addDays(today, -30))
@@ -386,7 +381,7 @@ export function GradesView({
                   <span className="pb-3"><Delta value={delta} /></span>
                 </div>
                 <div className="mt-2 text-sm font-semibold opacity-85">
-                  Ø der Zeugnisnoten · ungerundet {rawOverall!.toFixed(2)}
+                  Ø der Zeugnisnoten · ungerundet {average!.raw.toFixed(2)}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <TargetPicker value={targets[OVERALL]} onChange={(v) => setTarget(OVERALL, v)} onHero={!neon} />
