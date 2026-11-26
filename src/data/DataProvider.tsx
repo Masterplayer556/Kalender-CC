@@ -4,8 +4,9 @@
 // Ablauf beim Start:
 // 1. Sofort die zuletzt gespeicherten Daten aus dem Offline-Cache anzeigen (falls vorhanden).
 // 2. Frische Daten von Supabase laden und den Cache aktualisieren.
-// 3. Erneut laden, wenn die App wieder in den Vordergrund kommt (z. B. Wechsel iPad ↔ Computer) –
-//    aber nur, wenn das letzte Laden mindestens 30 s her ist (lib/refresh.ts).
+// 3. Änderungen anderer Geräte kommen per Supabase Realtime sofort (data/useRealtime.ts); dann wird nur
+//    die betroffene Tabelle neu geladen. War die App länger im Hintergrund, lädt sie beim Zurückkehren
+//    einmal alles (höchstens alle 30 s, lib/refresh.ts).
 //
 // Dazu kommen Einstellungen wie Notenziele und Design (lib/syncedPrefs.ts): Sie gelten auf allen
 // Geräten, lassen sich aber auch offline ändern und werden dann beim nächsten Laden hochgeladen.
@@ -16,6 +17,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
 import { useOnline } from './useOnline'
+import { useRealtime, type RealtimeTable } from './useRealtime'
 import { loadPref, loadSnapshot, savePref, saveSnapshot } from '../lib/cache'
 import { applyOutbox, asOutbox, conflictThreshold, dequeue, enqueue as enqueueOp, isRetryable, type OutboxOp } from '../lib/outbox'
 import { asQueue, dueItems, enqueue, type PurgeItem } from '../lib/purge'
@@ -120,6 +122,21 @@ const DataContext = createContext<DataValue | null>(null)
 const UNDO_GRACE_MS = 60_000
 /** So lange darf ein Speichern mit hochgeladener Datei dauern bzw. wiederholt werden, bevor aufgeräumt wird */
 const UPLOAD_GRACE_MS = 60 * 60_000
+
+/** Was einzeln geladen werden kann: die Tabellen und die Einstellungen */
+type LoadKey = api.DataKey | 'prefs'
+const KEY_OF_TABLE: Record<RealtimeTable, LoadKey> = {
+  subjects: 'subjects',
+  entries: 'entries',
+  study_blocks: 'blocks',
+  grades: 'grades',
+  attachments: 'attachments',
+  periods: 'periods',
+  bm_ratings: 'bm',
+  user_prefs: 'prefs',
+}
+/** Realtime-Meldungen so lange sammeln, bevor geladen wird */
+const REALTIME_DEBOUNCE_MS = 400
 
 /** Nach so vielen ms wird eine wartende Offline-Änderung erneut gesendet (solange online) */
 const OUTBOX_RETRY_MS = 30_000
@@ -307,84 +324,148 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   }, [readOutbox, writeOutbox])
 
   // Mehrere Ladevorgänge können sich überholen (z. B. App kommt in den Vordergrund, während gerade
-  // gespeichert wird). Nur die zuletzt gestartete Abfrage darf den Stand setzen – sonst könnte eine
-  // ältere, langsamere Antwort die frischen Daten wieder mit dem alten Stand überschreiben.
+  // gespeichert wird). Pro Tabelle darf nur die zuletzt gestartete Abfrage den Stand setzen – sonst könnte
+  // eine ältere, langsamere Antwort die frischen Daten wieder mit dem alten Stand überschreiben.
   const loadSeq = useRef(0)
-  const lastLoadAt = useRef<number | null>(null) // Beginn des letzten erfolgreichen Ladens (Date.now())
-  const reload = useCallback(async () => {
-    const seq = ++loadSeq.current
-    const isLatest = () => seq === loadSeq.current
-    const startedAt = Date.now()
-    try {
-      // Zuerst Offline-Änderungen hochladen, sonst kämen gleich die alten Werte zurück
-      await Promise.all([flushPrefs(), flushOutbox()])
-      const [data, prefRows] = await Promise.all([api.fetchEverything(), api.fetchPrefs()])
-      if (!isLatest()) return
-      // Was noch wartet (z. B. gerade offline abgehakt), bleibt sichtbar
-      const shown = applyOutbox({ entries: data.entries, blocks: data.blocks }, readOutbox(), userId)
-      prefsMissing.current = prefRows === null
-      if (prefRows) {
-        const knownTargets = [
-          ...Object.keys(asTargets(prefsRef.current.gradeTargets)),
-          ...Object.keys(loadPending(userId))
-            .filter((n) => n.startsWith(TARGET_ROW))
-            .map((n) => n.slice(TARGET_ROW.length)),
-        ]
-        const server = serverRows(prefRows, knownTargets)
-        // Früher nur auf diesem Gerät gespeichert (z. B. Notenziele) → einmalig hochladen
-        const missing = missingOnServer(loadLocalPrefs(userId), server)
-        if (Object.keys(missing).length) {
-          savePending(userId, { ...stamp(missing, Date.now()), ...loadPending(userId) })
-          flushPrefs()
-        }
-        const changedMeanwhile = new Set([...prefChangedAt.current].filter(([, t]) => t >= startedAt).map(([n]) => n))
-        setPrefs((current) => {
-          const next = mergePrefs(current, server, loadPending(userId), changedMeanwhile)
-          if (JSON.stringify(next) === JSON.stringify(current)) return current // nichts geändert
-          saveLocalPrefs(userId, next)
-          return next
-        })
-      }
-      const savedAt = new Date().toISOString()
-      // Nur geänderte Tabellen übernehmen (Flags wie gradesMissing ändern sich ohnehin nur selten)
-      if (changed('subjects', data.subjects)) setSubjects(data.subjects)
-      if (changed('entries', shown.entries)) setEntries(shown.entries)
-      if (changed('blocks', shown.blocks)) setBlocks(shown.blocks)
-      if (changed('grades', data.grades)) setGrades(data.grades)
-      if (changed('attachments', data.attachments)) setAttachments(data.attachments)
-      if (changed('periods', data.periods)) setPeriods(data.periods)
-      if (changed('bm', data.bm)) setBm(data.bm)
-      setGradesMissing(data.gradesMissing)
-      setPeriodsMissing(data.periodsMissing)
-      setBmMissing(data.bmMissing)
-      lastSyncRef.current = savedAt
-      lastLoadAt.current = startedAt
-      setError(null)
-      saveSnapshot(userId, { ...data, savedAt })
-      void flushPurge()
-    } catch (err) {
-      if (isLatest()) {
-        setLastSync(lastSyncRef.current)
-        setError(friendlyError(err))
-      }
-    } finally {
-      if (isLatest()) setLoading(false)
-    }
-  }, [userId, flushPrefs, flushPurge, flushOutbox, readOutbox])
+  const latestSeq = useRef(new Map<LoadKey, number>())
+  const lastLoadAt = useRef<number | null>(null) // Beginn des letzten erfolgreichen vollständigen Ladens
+  // Zuletzt geladener Server-Stand (ohne wartende Offline-Änderungen) – für den Offline-Cache und um nach
+  // dem Laden einer einzelnen Tabelle die Offline-Änderungen wieder darüberzulegen
+  const server = useRef<api.LoadedData>({
+    subjects: cached?.subjects ?? [],
+    entries: cached?.entries ?? [],
+    blocks: cached?.blocks ?? [],
+    grades: cached?.grades ?? [],
+    gradesMissing: cached?.gradesMissing ?? false,
+    attachments: cached?.attachments ?? [],
+    periods: cached?.periods ?? [],
+    periodsMissing: cached?.periodsMissing ?? false,
+    bm: cached?.bm ?? [],
+    bmMissing: cached?.bmMissing ?? false,
+  })
 
-  // Laden beim Start, beim Wiederverbinden und wenn die App wieder sichtbar wird
+  /** Alles laden – oder mit `only` nur einzelne Tabellen (Realtime-Meldung). */
+  const reload = useCallback(
+    async (only?: LoadKey[]) => {
+      const keys: LoadKey[] = only ?? [...api.DATA_KEYS, 'prefs']
+      const seq = ++loadSeq.current
+      for (const k of keys) latestSeq.current.set(k, seq)
+      const isLatest = (k: LoadKey) => latestSeq.current.get(k) === seq
+      const startedAt = Date.now()
+      try {
+        // Zuerst Offline-Änderungen hochladen, sonst kämen gleich die alten Werte zurück
+        await Promise.all([flushPrefs(), flushOutbox()])
+        const dataKeys = keys.filter((k): k is api.DataKey => k !== 'prefs')
+        const [data, prefRows] = await Promise.all([
+          api.fetchPart(dataKeys),
+          keys.includes('prefs') ? api.fetchPrefs() : Promise.resolve(undefined),
+        ])
+        if (prefRows !== undefined && isLatest('prefs')) {
+          prefsMissing.current = prefRows === null
+          if (prefRows) {
+            const knownTargets = [
+              ...Object.keys(asTargets(prefsRef.current.gradeTargets)),
+              ...Object.keys(loadPending(userId))
+                .filter((n) => n.startsWith(TARGET_ROW))
+                .map((n) => n.slice(TARGET_ROW.length)),
+            ]
+            const serverPrefs = serverRows(prefRows, knownTargets)
+            // Früher nur auf diesem Gerät gespeichert (z. B. Notenziele) → einmalig hochladen
+            const missing = missingOnServer(loadLocalPrefs(userId), serverPrefs)
+            if (Object.keys(missing).length) {
+              savePending(userId, { ...stamp(missing, Date.now()), ...loadPending(userId) })
+              flushPrefs()
+            }
+            const changedMeanwhile = new Set([...prefChangedAt.current].filter(([, t]) => t >= startedAt).map(([n]) => n))
+            setPrefs((current) => {
+              const next = mergePrefs(current, serverPrefs, loadPending(userId), changedMeanwhile)
+              if (JSON.stringify(next) === JSON.stringify(current)) return current // nichts geändert
+              saveLocalPrefs(userId, next)
+              return next
+            })
+          }
+        }
+        // Nur Tabellen übernehmen, für die keine neuere Abfrage läuft
+        const fresh = dataKeys.filter(isLatest)
+        if (fresh.length === 0) return
+        const s = server.current
+        for (const k of fresh) {
+          if (k === 'grades') Object.assign(s, { grades: data.grades, gradesMissing: data.gradesMissing })
+          else if (k === 'periods') Object.assign(s, { periods: data.periods, periodsMissing: data.periodsMissing })
+          else if (k === 'bm') Object.assign(s, { bm: data.bm, bmMissing: data.bmMissing })
+          else Object.assign(s, { [k]: data[k] })
+        }
+        // Was noch wartet (z. B. gerade offline abgehakt), bleibt sichtbar
+        const shown = applyOutbox({ entries: s.entries, blocks: s.blocks }, readOutbox(), userId)
+        // Nur geänderte Tabellen übernehmen (Flags wie gradesMissing ändern sich ohnehin nur selten)
+        if (changed('subjects', s.subjects)) setSubjects(s.subjects)
+        if (changed('entries', shown.entries)) setEntries(shown.entries)
+        if (changed('blocks', shown.blocks)) setBlocks(shown.blocks)
+        if (changed('grades', s.grades)) setGrades(s.grades)
+        if (changed('attachments', s.attachments)) setAttachments(s.attachments)
+        if (changed('periods', s.periods)) setPeriods(s.periods)
+        if (changed('bm', s.bm)) setBm(s.bm)
+        setGradesMissing(s.gradesMissing)
+        setPeriodsMissing(s.periodsMissing)
+        setBmMissing(s.bmMissing)
+        const savedAt = new Date().toISOString()
+        if (!only) {
+          lastSyncRef.current = savedAt
+          lastLoadAt.current = startedAt
+        }
+        setError(null)
+        saveSnapshot(userId, { ...s, savedAt: lastSyncRef.current ?? savedAt })
+        if (!only) void flushPurge()
+      } catch (err) {
+        if (keys.some(isLatest)) {
+          setLastSync(lastSyncRef.current)
+          setError(friendlyError(err))
+        }
+      } finally {
+        if (keys.some(isLatest)) setLoading(false)
+      }
+    },
+    [userId, flushPrefs, flushPurge, flushOutbox, readOutbox],
+  )
+  const reloadAll = useCallback(() => reload(), [reload])
+
+  // Laden beim Start und beim Wiederverbinden
   useEffect(() => {
     reload()
-    const onVisible = () =>
-      document.visibilityState === 'visible' && shouldReloadOnReturn(lastLoadAt.current, Date.now()) && reload()
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('online', reload)
+    const onOnline = () => reload()
+    window.addEventListener('online', onOnline)
+    const seqs = latestSeq.current
     return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('online', reload)
-      loadSeq.current++ // z. B. abgemeldet: ein noch laufendes Laden legt keinen Offline-Cache mehr an
+      window.removeEventListener('online', onOnline)
+      seqs.clear() // z. B. abgemeldet: ein noch laufendes Laden legt keinen Offline-Cache mehr an
     }
   }, [reload])
+
+  // Realtime: Änderungen anderer Geräte sofort übernehmen – nur die betroffene Tabelle neu laden.
+  // Mehrere Meldungen kurz hintereinander (z. B. Eintrag mit 5 Lernzeiten gespeichert) → einmal laden.
+  const changedTables = useRef(new Set<LoadKey>())
+  const changeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(changeTimer.current), [])
+  const onRealtimeChange = useCallback(
+    (table: RealtimeTable) => {
+      changedTables.current.add(KEY_OF_TABLE[table])
+      clearTimeout(changeTimer.current)
+      changeTimer.current = setTimeout(() => {
+        const keys = [...changedTables.current]
+        changedTables.current.clear()
+        void reload(keys)
+      }, REALTIME_DEBOUNCE_MS)
+    },
+    [reload],
+  )
+  // Verpasst? Nach einer Unterbrechung immer, beim Zurückkehren höchstens alle 30 s (lib/refresh.ts)
+  const onCatchUp = useCallback(
+    (force: boolean) => {
+      if (force || shouldReloadOnReturn(lastLoadAt.current, Date.now())) void reload()
+    },
+    [reload],
+  )
+  useRealtime({ userId, onChange: onRealtimeChange, onCatchUp })
 
   // Warten noch Offline-Änderungen (z. B. Server kurz nicht erreichbar), regelmässig erneut versuchen
   useEffect(() => {
@@ -475,7 +556,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   // Änderungs-Funktionen: bleiben gleich, solange der Benutzer gleich bleibt
   const actions = useMemo(
     () => ({
-      reload,
+      reload: reloadAll,
       saveEntry: async (
         target: { id: string; create: boolean },
         input: EntryInput,
@@ -555,7 +636,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       saveBm,
       setPref,
     }),
-    [reload, mutate, sendOrQueue, saveBm, setPref, userId, queuePurge, flushPurge],
+    [reloadAll, mutate, sendOrQueue, saveBm, setPref, userId, queuePurge, flushPurge],
   )
   const dismissSyncNotice = useCallback(() => setSyncNotice(null), [])
 
