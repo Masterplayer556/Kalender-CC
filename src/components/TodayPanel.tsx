@@ -4,7 +4,7 @@
 import { useData } from '../data/DataProvider'
 import { Icon, InlineIcon } from './Icon'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
-import { countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weeksAndDays } from '../lib/dates'
+import { blockEndTime, countdown, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weeksAndDays } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
 import { PERIOD_KINDS, holidayStatus } from '../lib/periods'
 import type { PeriodRequest } from './PeriodEditor'
@@ -125,7 +125,7 @@ export function TodayPanel({
                   <Icon name={b.done ? 'check' : past ? 'clock' : 'book'} className="h-4 w-4 shrink-0" />
                   <span className={`min-w-0 flex-1 truncate ${b.done ? 'line-through' : ''}`}>{blockTerms(entry.category).prefix}: {entry.title}</span>
                   <span className="text-sm tabular-nums">
-                    {isoToLocal(b.starts_at).time}–{isoToLocal(b.ends_at).time}
+                    {isoToLocal(b.starts_at).time}–{blockEndTime(b.starts_at, b.ends_at)}
                   </span>
                 </button>
               </li>
@@ -166,7 +166,7 @@ export function TodayPanel({
               <div className="truncate font-medium"><InlineIcon name="book" />{entryById.get(nextBlock.entry_id)!.title}</div>
               <div className="text-xs text-slate-500 tabular-nums">
                 {formatWeekday(isoToLocal(nextBlock.starts_at).date)}, {isoToLocal(nextBlock.starts_at).time}–
-                {isoToLocal(nextBlock.ends_at).time}
+                {blockEndTime(nextBlock.starts_at, nextBlock.ends_at)}
               </div>
             </button>
           )}

@@ -60,7 +60,7 @@ export function StudyBlocksEditor({
                 />
                 <TimeInput label="Von" value={b.start} disabled={disabled} onChange={(start) => update(i, { start })} />
                 <span>–</span>
-                <TimeInput label="Bis" value={b.end} disabled={disabled} onChange={(end) => update(i, { end })} />
+                <TimeInput label="Bis" value={b.end} disabled={disabled} onChange={(end) => update(i, { end })} endOfDay />
                 <label className="flex min-h-11 items-center gap-2 px-1 text-sm">
                   <input
                     type="checkbox"

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useData } from '../data/DataProvider'
 import { blockTerms } from '../lib/categories'
-import { formatDate, formatWeekday, isoToLocal } from '../lib/dates'
+import { blockEndTime, formatDate, formatWeekday, isoToLocal } from '../lib/dates'
 import { Icon } from './Icon'
 import { Modal } from './Modal'
 
@@ -24,7 +24,7 @@ export function StudyBlockMenu({
   if (!block || !entry) return null // z. B. inzwischen gelöscht
 
   const start = isoToLocal(block.starts_at)
-  const end = isoToLocal(block.ends_at)
+  const end = blockEndTime(block.starts_at, block.ends_at)
 
   async function toggle() {
     setBusy(true)
@@ -40,7 +40,7 @@ export function StudyBlockMenu({
   return (
     <Modal title={entry.title} eyebrow={block.done ? `${blockTerms(entry.category).one} · erledigt` : blockTerms(entry.category).one} icon="book" onClose={onClose} busy={busy}>
       <p className="text-slate-600 dark:text-slate-300">
-        {formatWeekday(start.date, 'long')}, {formatDate(start.date)} · {start.time}–{end.time} Uhr
+        {formatWeekday(start.date, 'long')}, {formatDate(start.date)} · {start.time}–{end} Uhr
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <button className="btn-primary flex-1" disabled={!online || busy} onClick={toggle}>

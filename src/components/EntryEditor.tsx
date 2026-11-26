@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, CATEGORY_KEYS, NO_SUBJECT_COLOR, blockTerms } from '../lib/categories'
-import { addDays, daysBetween, formatTime, isoToLocal, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
+import { addDays, blockEndTime, daysBetween, endTimeOf, formatTime, isoToLocal, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { formatGrade, gradeClass } from '../lib/grades'
 import { shiftOpenBlocks } from '../lib/studyBlocks'
 import type { Attachment, Category, PendingAttachment, StudyBlockInput } from '../types'
@@ -65,7 +65,7 @@ export function EntryEditor({
   const isMultiDay = category === 'event' && multiDay
   const [start, setStart] = useState(initialStart)
   const [end, setEnd] = useState(
-    existing?.end_time ? formatTime(existing.end_time) : minutesToTime(Math.min(timeToMinutes(initialStart) + 60, 1435)),
+    existing?.end_time ? formatTime(existing.end_time) : endTimeOf(timeToMinutes(initialStart) + 60),
   )
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [done, setDone] = useState(existing?.done ?? false)
@@ -74,7 +74,7 @@ export function EntryEditor({
   const [blocks, setBlocks] = useState<StudyBlockInput[]>(() =>
     (existing ? (blocksByEntry.get(existing.id) ?? []) : []).map((b) => {
       const s = isoToLocal(b.starts_at)
-      return { id: b.id, date: s.date, start: s.time, end: isoToLocal(b.ends_at).time, done: b.done }
+      return { id: b.id, date: s.date, start: s.time, end: blockEndTime(b.starts_at, b.ends_at), done: b.done }
     }),
   )
   // Stand beim Öffnen: Nur was davon im Formular entfernt wird, löscht das Speichern. Was ein anderes Gerät
@@ -362,7 +362,7 @@ export function EntryEditor({
               <div className="flex flex-wrap items-center gap-2">
                 <TimeInput label="Von" value={start} disabled={readOnly} onChange={setStart} />
                 <span className="muted">bis</span>
-                <TimeInput label="Bis" value={end} disabled={readOnly} onChange={setEnd} />
+                <TimeInput label="Bis" value={end} disabled={readOnly} onChange={setEnd} endOfDay />
               </div>
             )}
           </div>

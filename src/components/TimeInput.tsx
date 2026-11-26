@@ -10,15 +10,18 @@ export function TimeInput({
   onChange,
   disabled,
   label,
+  endOfDay,
 }: {
   value: string // "HH:MM"
   onChange: (value: string) => void
   disabled?: boolean
   label: string // für Screenreader
+  endOfDay?: boolean // Endzeit: zusätzlich "24:00" (bis Mitternacht) wählbar
 }) {
   const [h, m] = value.split(':')
-  // Falls eine Minute nicht im 5er-Raster liegt (z. B. 17:33), trotzdem anzeigen
-  const minutes = MINUTES.includes(m) ? MINUTES : [...MINUTES, m].sort()
+  const hours = endOfDay ? [...HOURS, '24'] : HOURS
+  // Falls eine Minute nicht im 5er-Raster liegt (z. B. 17:33), trotzdem anzeigen. Um 24 Uhr gibt es nur :00.
+  const minutes = h === '24' ? ['00'] : MINUTES.includes(m) ? MINUTES : [...MINUTES, m].sort()
 
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
@@ -27,9 +30,9 @@ export function TimeInput({
         value={h}
         disabled={disabled}
         aria-label={`${label} Stunde`}
-        onChange={(e) => onChange(`${e.target.value}:${m}`)}
+        onChange={(e) => onChange(`${e.target.value}:${e.target.value === '24' ? '00' : m}`)}
       >
-        {HOURS.map((x) => (
+        {hours.map((x) => (
           <option key={x}>{x}</option>
         ))}
       </select>

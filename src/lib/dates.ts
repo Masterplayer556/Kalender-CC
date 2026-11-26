@@ -175,3 +175,21 @@ export function isoToLocal(iso: string): { date: DateKey; time: string } {
   const d = new Date(iso)
   return { date: toDateKey(d), time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }
 }
+
+/** Tagesende als Uhrzeit: Eine Endzeit "24:00" ist erlaubt (bis Mitternacht). */
+export const END_OF_DAY = '24:00'
+
+/** Minuten → Endzeit: wie minutesToTime, aber 1440 und mehr = "24:00" */
+export function endTimeOf(minutes: number): string {
+  return minutes >= 24 * 60 ? END_OF_DAY : minutesToTime(minutes)
+}
+
+/**
+ * Endzeit einer Lernzeit als "HH:MM". Endet sie genau um Mitternacht nach ihrem Beginn-Tag,
+ * ist das "24:00" (nicht "00:00" – sonst läge das Ende vor dem Start).
+ */
+export function blockEndTime(startsAt: string, endsAt: string): string {
+  const start = isoToLocal(startsAt)
+  const end = isoToLocal(endsAt)
+  return end.date > start.date && end.time === '00:00' ? END_OF_DAY : end.time
+}
