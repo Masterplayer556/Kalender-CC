@@ -15,8 +15,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Neue Versionen der App werden automatisch im Hintergrund geladen.
-      registerType: 'autoUpdate',
+      // Neue Versionen werden im Hintergrund geladen; übernommen werden sie erst nach Tippen auf
+      // "Neu laden" (components/UpdateBanner.tsx) – sonst lüde die App mitten im Formular neu.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Kalender-Tracker',
