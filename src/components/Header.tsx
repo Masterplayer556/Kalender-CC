@@ -4,7 +4,8 @@
 import { useState } from 'react'
 import { useAuth } from '../data/AuthProvider'
 import { formatWeekRange, formatWeekday, isoWeek, parseDateKey, todayKey } from '../lib/dates'
-import { semesterOf } from '../lib/grades'
+import { useData } from '../data/DataProvider'
+import { pickSemester, semesterLabel, semesterOf } from '../lib/grades'
 import { hasPeriod, isCalendarView, type CalendarView, type Route } from '../lib/router'
 import { Icon } from './Icon'
 import { useMediaQuery } from './useMediaQuery'
@@ -31,7 +32,7 @@ const monthName = (key: string) => parseDateKey(key).toLocaleDateString('de-CH',
 const longDay = (key: string) => parseDateKey(key).toLocaleDateString('de-CH', { day: 'numeric', month: 'long' })
 
 /** Eyebrow und Titel je nach Ansicht */
-function heading(route: Route, email: string, compact: boolean, hour: number): { eyebrow: string; title: string } {
+function heading(route: Route, email: string, compact: boolean, hour: number, semester: string): { eyebrow: string; title: string } {
   const d = route.date
   switch (route.view) {
     case 'heute': {
@@ -50,7 +51,7 @@ function heading(route: Route, email: string, compact: boolean, hour: number): {
     case 'liste':
       return { eyebrow: 'Kalender', title: 'Als Nächstes' }
     case 'noten':
-      return { eyebrow: semesterOf(todayKey()).label, title: 'Noten' }
+      return { eyebrow: semesterLabel(semester), title: 'Noten' }
     case 'mehr':
       return { eyebrow: email, title: 'Mehr' }
   }
@@ -78,6 +79,9 @@ export function Header({
   onToday: () => void
 }) {
   const { session } = useAuth()
+  const { prefs } = useData()
+  // Im Noten-Tab: das dort gewählte Semester (nicht einfach das aktuelle)
+  const semester = pickSemester(prefs.gradeSemester, semesterOf(todayKey()).key)
   const isCalendar = isCalendarView(route.view)
   const showsDates = hasPeriod(route.view)
   // iPhone (schmal): Pfeile weg (dort wird gewischt), Suche hinter einer Lupe
@@ -85,7 +89,7 @@ export function Header({
   const hour = useClock(hourOf) // Begrüssung wechselt auch bei offener App
   const [searchOpen, setSearchOpen] = useState(false)
   const showSearchField = !compact || searchOpen || search !== ''
-  const { eyebrow, title } = search ? { eyebrow: 'Titel und Notizen', title: 'Suche' } : heading(route, session?.user.email ?? '', compact, hour)
+  const { eyebrow, title } = search ? { eyebrow: 'Titel und Notizen', title: 'Suche' } : heading(route, session?.user.email ?? '', compact, hour, semester)
   const canFilter = isCalendar || route.view === 'heute' || !!search
 
   const searchField = (
