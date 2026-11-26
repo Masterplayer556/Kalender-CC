@@ -206,6 +206,7 @@ export function EntryEditor({
       icon={CATEGORIES[category].icon}
       wide
       onClose={onClose}
+      busy={saving}
       footer={
         <>
           {editingId && (
@@ -219,7 +220,7 @@ export function EntryEditor({
             </>
           )}
           <div className="flex-1" />
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
             Abbrechen
           </button>
           <button type="submit" form="entry-form" className="btn-primary" disabled={readOnly}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { Icon, type IconName } from './Icon'
 
 /**
@@ -13,6 +13,7 @@ export function Modal({
   children,
   footer,
   wide = false,
+  busy = false,
 }: {
   title: string
   eyebrow?: string
@@ -21,13 +22,26 @@ export function Modal({
   children: ReactNode
   footer?: ReactNode
   wide?: boolean // breiter auf dem iPad (z. B. Eintrag mit zwei Spalten)
+  busy?: boolean // speichert gerade → lässt sich nicht schliessen (sonst ginge eine Fehlermeldung verloren)
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // Schliessen per Hintergrund, X oder Escape: erst kurz ausblenden, dann wirklich schliessen.
   // (Speichern/Abbrechen in den Formularen schliessen direkt über onClose.)
   const [closing, setClosing] = useState(false)
-  const close = () => setClosing(true)
+  const busyRef = useRef(busy)
+  useEffect(() => {
+    busyRef.current = busy
+  }, [busy])
+  const close = () => {
+    if (!busyRef.current) setClosing(true)
+  }
+  // Hintergrund schliesst nur, wenn auch das Drücken dort begann – nicht, wenn man im Formular Text
+  // markiert und die Maus/den Finger erst über dem Hintergrund loslässt.
+  const pressedOnBackdrop = useRef(false)
+  const onBackdropDown = (e: PointerEvent) => {
+    pressedOnBackdrop.current = e.target === e.currentTarget
+  }
   useEffect(() => {
     if (!closing) return
     const timer = setTimeout(onClose, 180) // Dauer wie .modal-closing in index.css
@@ -39,7 +53,7 @@ export function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       const dialogs = document.querySelectorAll('[role="dialog"]')
-      if (dialogs[dialogs.length - 1] === dialogRef.current) setClosing(true)
+      if (dialogs[dialogs.length - 1] === dialogRef.current && !busyRef.current) setClosing(true)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -48,7 +62,11 @@ export function Modal({
   return (
     <div
       className={`modal-backdrop fixed inset-0 z-50 flex items-stretch justify-center bg-black/45 backdrop-blur-[3px] sm:items-center sm:p-6 ${closing ? 'modal-closing pointer-events-none' : ''}`}
-      onClick={close}
+      onPointerDown={onBackdropDown}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && pressedOnBackdrop.current) close()
+        pressedOnBackdrop.current = false
+      }}
     >
       <div
         ref={dialogRef}
@@ -69,7 +87,7 @@ export function Modal({
             {eyebrow && <div className="eyebrow truncate">{eyebrow}</div>}
             <h2 className="display truncate text-[26px] sm:text-[30px]">{title}</h2>
           </div>
-          <button className="btn-icon btn-surface shrink-0" onClick={close} aria-label="Schließen">
+          <button className="btn-icon btn-surface shrink-0" onClick={close} disabled={busy} aria-label="Schließen">
             <Icon name="close" />
           </button>
         </div>

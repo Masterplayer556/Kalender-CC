@@ -38,7 +38,7 @@ export function StudyBlockMenu({
   }
 
   return (
-    <Modal title={entry.title} eyebrow={block.done ? `${blockTerms(entry.category).one} · erledigt` : blockTerms(entry.category).one} icon="book" onClose={onClose}>
+    <Modal title={entry.title} eyebrow={block.done ? `${blockTerms(entry.category).one} · erledigt` : blockTerms(entry.category).one} icon="book" onClose={onClose} busy={busy}>
       <p className="text-slate-600 dark:text-slate-300">
         {formatWeekday(start.date, 'long')}, {formatDate(start.date)} · {start.time}–{end.time} Uhr
       </p>
