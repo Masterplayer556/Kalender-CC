@@ -9,18 +9,22 @@ import { blockEndTime, countdown, formatDate, formatTime, formatWeekday, isoToLo
 import { compareEntries, entryCovers } from '../lib/grouping'
 import { PERIOD_KINDS, holidayStatus } from '../lib/periods'
 import type { PeriodRequest } from './PeriodEditor'
-import type { Entry } from '../types'
+import type { Entry, StudyBlock } from '../types'
 
 export function TodayPanel({
   onOpenEntry,
   onOpenBlock,
   onOpenPeriod,
+  entries,
+  blocks,
 }: {
+  entries: Entry[] // bereits gefiltert (Filter nach Kategorie und Fach gelten auch hier)
+  blocks: StudyBlock[] // bereits gefiltert
   onOpenEntry: (id: string) => void
   onOpenBlock: (blockId: string) => void
   onOpenPeriod: (req: PeriodRequest) => void
 }) {
-  const { entries, blocks, entryById, subjectById, blocksByEntry, periods, periodsMissing } = useData()
+  const { entryById, subjectById, blocksByEntry, periods, periodsMissing } = useData()
   const today = todayKey()
   const now = new Date(useClock()).toISOString() // aktualisiert sich jede Minute
   const colorOf = (e: Entry) => entryColor(e, subjectById)

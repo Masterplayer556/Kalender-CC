@@ -295,7 +295,13 @@ function Shell() {
           </main>
           {wide && isCalendar && route.view !== 'heatmap' && !loading && (
             <aside className="w-80 shrink-0 overflow-y-auto p-3 pr-5 pb-10">
-              <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} onOpenPeriod={setPeriodEditor} />
+              <TodayPanel
+                entries={visibleEntries}
+                blocks={visibleBlocks}
+                onOpenEntry={openEntry}
+                onOpenBlock={setBlockMenu}
+                onOpenPeriod={setPeriodEditor}
+              />
             </aside>
           )}
         </div>

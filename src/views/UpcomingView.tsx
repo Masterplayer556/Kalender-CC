@@ -26,7 +26,7 @@ export function UpcomingView({
   onOpenPeriod: (req: PeriodRequest) => void
   showToday: boolean // auf breiten Bildschirmen steht "Heute" schon in der Seitenleiste
 }) {
-  const { gradesByEntry, gradesMissing, prefs, setPref } = useData()
+  const { blocks, gradesByEntry, gradesMissing, prefs, setPref } = useData()
   const showDone = prefs.showDone === true // auf allen Geräten gleich
   const today = todayKey()
   const groups = groupUpcoming(entries, today, showDone)
@@ -36,7 +36,15 @@ export function UpcomingView({
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-6 p-3 pb-28">
-        {showToday && <TodayPanel onOpenEntry={onOpenEntry} onOpenBlock={onOpenBlock} onOpenPeriod={onOpenPeriod} />}
+        {showToday && (
+          <TodayPanel
+            entries={entries}
+            blocks={blocks.filter((b) => entries.some((e) => e.id === b.entry_id))} // nur Lernzeiten sichtbarer Einträge
+            onOpenEntry={onOpenEntry}
+            onOpenBlock={onOpenBlock}
+            onOpenPeriod={onOpenPeriod}
+          />
+        )}
 
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
