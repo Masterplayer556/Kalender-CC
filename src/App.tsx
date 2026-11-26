@@ -8,7 +8,7 @@ import { supabaseConfigured } from './lib/supabase'
 import { hasPeriod, isCalendarView, lastCalendarView, sectionOf, stepDate, useRoute, type Route, type Section } from './lib/router'
 import { HeatmapView } from './views/HeatmapView'
 import { todayKey, weekDays } from './lib/dates'
-import { asFilters, isFilterActive, matchesFilters, type Filters } from './lib/filters'
+import { asFilters, isFilterActive, matchesFilters, validFilters, type Filters } from './lib/filters'
 import { Header } from './components/Header'
 import { SideRail, TabBar } from './components/Nav'
 import { ThemeProvider } from './components/ThemeProvider'
@@ -65,11 +65,15 @@ function AuthGate() {
 }
 
 function Shell() {
-  const { entries, blocks, loading, online, prefs, setPref } = useData()
+  const { entries, blocks, subjects, loading, online, prefs, setPref } = useData()
   const [route, navigate] = useRoute()
   const [search, setSearch] = useState('')
   // Filter und zuletzt benutzte Kalender-Ansicht: auf allen Geräten gleich
-  const filters = useMemo(() => asFilters(prefs.filters), [prefs.filters])
+  // Gelöschte Fächer im Filter werden ignoriert (und beim nächsten Ändern des Filters entfernt)
+  const filters = useMemo(
+    () => validFilters(asFilters(prefs.filters), loading ? null : new Set(subjects.map((s) => s.id))),
+    [prefs.filters, subjects, loading],
+  )
   const setFilters = (f: Filters) => setPref('filters', f)
   useEffect(() => {
     if (isCalendarView(route.view) && prefs.calendarView !== route.view) setPref('calendarView', route.view)

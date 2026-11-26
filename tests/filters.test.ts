@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asFilters, EMPTY_FILTERS, matchesFilters, matchesSearch, NO_SUBJECT } from '../src/lib/filters'
+import { asFilters, EMPTY_FILTERS, matchesFilters, matchesSearch, NO_SUBJECT, validFilters } from '../src/lib/filters'
 import { compareEntries, entryCovers, groupFor, groupUpcoming } from '../src/lib/grouping'
 import type { Entry } from '../src/types'
 
@@ -108,5 +108,19 @@ describe('asFilters', () => {
     expect(asFilters({ categories: ['test', 3], subjects: ['abc'] })).toEqual({ categories: ['test'], subjects: ['abc'] })
     expect(asFilters(null)).toEqual(EMPTY_FILTERS)
     expect(asFilters({})).toEqual(EMPTY_FILTERS)
+  })
+})
+
+describe('validFilters', () => {
+  it('ignoriert gelöschte Fächer und unbekannte Kategorien, „ohne Fach“ bleibt', () => {
+    const f = asFilters({ categories: ['test', 'alt'], subjects: ['geloescht', 'mathe', NO_SUBJECT] })
+    expect(validFilters(f, new Set(['mathe']))).toEqual({ categories: ['test'], subjects: ['mathe', NO_SUBJECT] })
+  })
+  it('nur ein gelöschtes Fach im Filter → kein Fach-Filter mehr (statt alles zu verstecken)', () => {
+    expect(validFilters({ categories: [], subjects: ['geloescht'] }, new Set())).toEqual(EMPTY_FILTERS)
+  })
+  it('Fächer noch nicht geladen → Fach-Filter bleibt', () => {
+    const f = { categories: [], subjects: ['mathe'] }
+    expect(validFilters(f, null)).toBe(f)
   })
 })
