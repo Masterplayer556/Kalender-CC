@@ -223,6 +223,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', reload)
+      loadSeq.current++ // z. B. abgemeldet: ein noch laufendes Laden legt keinen Offline-Cache mehr an
     }
   }, [reload])
 
