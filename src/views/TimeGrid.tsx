@@ -114,7 +114,9 @@ export function TimeGrid({
   // narrow = mehrere Tage auf dem iPhone: schmale Spalten, kleinere Schrift
   const narrow = compact && days.length > 1
   const gridCols = { gridTemplateColumns: `${narrow ? '2rem' : '3.5rem'} repeat(${days.length}, minmax(0, 1fr))` }
-  const minWidth = days.length > 1 && !compact ? 'min-w-[44rem]' : ''
+  // Mindestbreite der Woche: schmal genug, dass sie auch im iPad-Hochformat (neben der Leiste links, ab
+  // ca. 618 px) ohne waagrechtes Scrollen hineinpasst – sonst gehört jede Wischgeste dem Scrollen.
+  const minWidth = days.length > 1 && !compact ? 'min-w-[36rem]' : ''
 
   return (
     <div ref={scrollRef} className={`h-full overscroll-contain ${compact ? 'overflow-x-hidden overflow-y-auto' : 'overflow-auto'}`}>
