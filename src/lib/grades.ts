@@ -60,7 +60,21 @@ export function semesterOf(date: DateKey): Semester {
 /** Auswahl "Alle Noten" (alle Semester zusammen) */
 export const ALL_SEMESTERS = 'alle'
 
-/** Gespeicherte Semester-Auswahl prüfen: "alle" oder ein Semester wie "2026-1", sonst das Ersatz-Semester */
+/**
+ * Gespeicherte Auswahl "das jeweils aktuelle Semester": Wer das aktuelle Semester wählt, will nach dem
+ * Semesterwechsel (1. Februar, 1. August) das neue sehen – nicht weiter das alte.
+ */
+export const CURRENT_SEMESTER = 'aktuell'
+
+/** Wert zum Speichern, wenn `key` gewählt wird (das aktuelle Semester wird als "aktuell" gespeichert) */
+export function semesterChoice(key: string, current: string): string {
+  return key === current ? CURRENT_SEMESTER : key
+}
+
+/**
+ * Gespeicherte Semester-Auswahl prüfen: "alle" oder ein Semester wie "2026-1", sonst (auch bei "aktuell")
+ * das Ersatz-Semester = das aktuelle.
+ */
 export function pickSemester(saved: unknown, fallback: string): string {
   return typeof saved === 'string' && (saved === ALL_SEMESTERS || /^\d{4}-[12]$/.test(saved)) ? saved : fallback
 }

@@ -20,7 +20,7 @@ export interface SyncedPrefs {
   heatmapOpenOnly?: boolean // Heatmap: nur Offenes zählen
   filters?: Filters // Filter nach Kategorie und Fach
   calendarView?: string // zuletzt benutzte Kalender-Ansicht (monat, woche …)
-  gradeSemester?: string // gewähltes Semester im Noten-Tab, z. B. "2026-1"
+  gradeSemester?: string // gewähltes Semester im Noten-Tab, z. B. "2026-1", "alle" oder "aktuell"
 }
 export type PrefName = keyof SyncedPrefs
 

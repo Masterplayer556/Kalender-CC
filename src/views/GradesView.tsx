@@ -17,6 +17,7 @@ import {
   pickSemester,
   requiredGrade,
   roundToHalf,
+  semesterChoice,
   semesterOf,
   weightedAverage,
   type Weighted,
@@ -278,7 +279,7 @@ export function GradesView({
   // Gewähltes Semester: auf allen Geräten gleich (Einstellung "gradeSemester")
   const saved = prefs.gradeSemester
   const semester = pickSemester(saved, current.key)
-  const setSemester = (key: string) => setPref('gradeSemester', key)
+  const setSemester = (key: string) => setPref('gradeSemester', semesterChoice(key, current.key))
   // Notenziele: auf allen Geräten gleich (Einstellung "gradeTargets")
   const targets = asTargets(prefs.gradeTargets)
   const setTarget = (key: string, v: number | null) => setPref('gradeTargets', withTarget(targets, key, v))
