@@ -4,17 +4,17 @@
 //               [ Dein Tag ·········· ][ Als Nächstes ]
 //   iPad hoch und iPhone: dieselben Kacheln, enger angeordnet.
 
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useClock } from '../components/useClock'
 import { useData } from '../data/DataProvider'
 import { blockTerms, entryColor } from '../lib/categories'
-import { blockEndTime, addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
+import { blockEndTime, addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, type DateKey } from '../lib/dates'
 import { gradesInSemester, overallAverage, semesterOf } from '../lib/grades'
 import { overallTrend, trendDelta } from '../lib/gradeStats'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
 import { overdueEntries, testsAwaitingGrade } from '../lib/overdue'
-import { PERIOD_KINDS, comparePeriods, holidayStatus, periodCovers } from '../lib/periods'
-import { blockMinutes, formatDuration, hours, studyWeek, weekOutlook } from '../lib/week'
+import { PERIOD_KINDS, comparePeriods, periodCovers } from '../lib/periods'
+import { weekOutlook } from '../lib/week'
 import type { Category, Entry, StudyBlock } from '../types'
 import { CountUp } from '../components/CountUp'
 import { GradeChart } from '../components/GradeChart'
@@ -22,30 +22,13 @@ import type { GradeRequest } from '../components/GradeEditor'
 import { Icon, type IconName } from '../components/Icon'
 import type { PeriodRequest } from '../components/PeriodEditor'
 import { useTheme } from '../components/ThemeProvider'
+import { EntryCard } from '../components/home/EntryCard'
+import { HolidayTile } from '../components/home/HolidayTile'
+import { NextTestTile } from '../components/home/NextTestTile'
+import { StudyWeekTile } from '../components/home/StudyWeekTile'
+import { Tile } from '../components/home/Tile'
 
 export const CATEGORY_ICON: Record<Category, IconName> = { test: 'doc', aufgabe: 'check', event: 'sparkle', sonstiges: 'flag' }
-
-/** Kachel mit Einblend-Animation (--i = Reihenfolge). clip = false für Bereiche, die selbst Kacheln enthalten
- *  (sonst würden deren Schatten am Rand abgeschnitten). */
-function Tile({ i, className = '', children, onClick, label, clip = true }: { i: number; className?: string; children: ReactNode; onClick?: () => void; label?: string; clip?: boolean }) {
-  const style = { '--i': i } as CSSProperties
-  const cls = `tile-in relative text-left ${clip ? 'overflow-hidden' : ''} ${className}`
-  return onClick ? (
-    <button className={cls} style={style} onClick={onClick} aria-label={label}>
-      {children}
-    </button>
-  ) : (
-    <section className={cls} style={style} aria-label={label}>
-      {children}
-    </section>
-  )
-}
-
-/** Countdown, der hochzählt: "3" (Sunset) bzw. "T–3d" (Neon). delay passend zur Kachel (--i). */
-function Countdown({ days, delay }: { days: number; delay?: number }) {
-  const { theme } = useTheme()
-  return <CountUp value={days} delay={delay} format={(n) => (theme === 'neon' ? `T–${Math.round(n)}d` : String(Math.round(n)))} />
-}
 
 export function HomeView({
   entries,
@@ -66,27 +49,13 @@ export function HomeView({
 }) {
   const { theme } = useTheme()
   const neon = theme === 'neon'
-  const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradesByEntry, setEntryDone } = useData()
+  const { subjectById, entryById, periods, grades, gradesMissing, gradesByEntry, setEntryDone } = useData()
   const today = todayKey()
   const nowIso = new Date(useClock()).toISOString() // „vorbei – abhaken?“ aktualisiert sich jede Minute
   const colorOf = (e: Entry) => entryColor(e, subjectById)
 
   // --- Nächster Test ---
   const nextTest = entries.filter((e) => e.category === 'test' && e.date >= today && !e.done).sort(compareEntries)[0]
-  const testBlocks = nextTest ? (blocksByEntry.get(nextTest.id) ?? []) : []
-  const testDone = testBlocks.filter((b) => b.done).length
-  const testDays = nextTest ? daysBetween(today, nextTest.date) : 0
-
-  // --- Ferien ---
-  const holiday = holidayStatus(periods, today)
-  const lastFerien = periods
-    .filter((p) => p.kind === 'ferien' && p.end_date < today)
-    .sort(comparePeriods)
-    .at(-1)
-  const ferienProgress =
-    holiday?.state === 'upcoming' && lastFerien
-      ? daysBetween(lastFerien.end_date, today) / Math.max(1, daysBetween(lastFerien.end_date, holiday.period.start_date))
-      : null
 
   // --- Schnitt (aktuelles Semester) ---
   // Gleiche Rechnung wie im Noten-Tab (lib/grades.ts), nur Fächer, die es noch gibt
@@ -102,8 +71,6 @@ export function HomeView({
   const weekBlocks = blocks
     .filter((b) => inWeek(isoToLocal(b.starts_at).date) && entryById.has(b.entry_id))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
-  // Lernzeit in Minuten (eine IVE-Lektion zählt weniger als ein ganzer Abend), gesamt und pro Fach
-  const study = studyWeek(weekBlocks, (b) => entryById.get(b.entry_id)?.subject_id ?? null)
   // Nur was noch kommt: Erledigtes und die vergangenen Tage der Woche zählen nicht mehr mit
   const ahead = weekOutlook(entries, today)
   const overdue = overdueEntries(entries, today)
@@ -158,110 +125,9 @@ export function HomeView({
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-4 pb-32 md:grid-cols-6 md:gap-4 md:px-6 md:pb-10 lg:grid-cols-12">
-        {/* ---------- Nächster Test ---------- */}
-        <Tile
-          i={0}
-          className={`tile-hero col-span-2 min-h-[210px] p-5 md:col-span-6 md:p-6 lg:col-span-8`}
-          onClick={nextTest ? () => onOpenEntry(nextTest.id) : undefined}
-          label={nextTest ? `Nächster Test: ${nextTest.title}` : 'Kein Test geplant'}
-        >
-          {/* Sonne und Strahlen (Sunset) bzw. Eck-Winkel und Lichtstreifen (Neon) kommen aus index.css (.tile-hero) */}
-          <div className="relative flex h-full flex-col">
-            <div className="flex items-center justify-between gap-2">
-              <span className={neon ? 'tag-label ink-accent' : 'tag-label rounded-full bg-white/20 px-3 py-1.5 backdrop-blur-sm'}>
-                {nextTest && <span aria-hidden className="live-dot" />}
-                {neon ? 'Next_Test' : 'Nächster Test'}
-              </span>
-              {nextTest && (
-                <span className={`text-sm font-bold ${neon ? 'font-mono' : ''}`}>
-                  {formatWeekday(nextTest.date)} {formatDate(nextTest.date).slice(0, 6)}
-                  {nextTest.start_time && ` · ${formatTime(nextTest.start_time)}`}
-                </span>
-              )}
-            </div>
-            {nextTest ? (
-              <>
-                <div className="mt-auto flex flex-wrap items-end gap-x-4 gap-y-1 pt-3">
-                  <span className={`num text-[96px] md:text-[128px] ${neon ? 'ink-accent text-[64px]! md:text-[88px]!' : ''}`}>
-                    {testDays === 0 ? (neon ? 'HEUTE' : '0') : <Countdown days={testDays} />}
-                  </span>
-                  <span className="min-w-0 pb-2 md:pb-4">
-                    {!neon && <span className="block text-xl font-extrabold md:text-2xl">{testDays === 0 ? 'Heute ist es so weit' : testDays === 1 ? 'Tag bis' : 'Tage bis'}</span>}
-                    <span className="block text-xl leading-tight font-extrabold md:text-[28px]">{nextTest.title}</span>
-                    {nextTest.subject_id && (
-                      <span className="block text-sm font-semibold opacity-85">{subjectById.get(nextTest.subject_id)?.name}</span>
-                    )}
-                  </span>
-                </div>
-                <div className="mt-4 flex items-center gap-3">
-                  {testBlocks.length > 0 ? (
-                    <>
-                      <div className={`progress-cells flex-1 ${neon ? '' : 'text-white'}`}>
-                        {testBlocks.map((b) => (
-                          <span key={b.id} className={b.done ? 'on' : ''} />
-                        ))}
-                      </div>
-                      <span className={`shrink-0 text-sm font-bold ${neon ? 'font-mono' : ''}`}>
-                        {testDone}/{testBlocks.length} gelernt
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-sm font-semibold opacity-85">Noch keine Lernzeiten geplant – im Test hinzufügen.</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="mt-auto pt-6">
-                <div className="num text-5xl md:text-6xl">{neon ? 'NULL_TESTS' : 'Kein Test'}</div>
-                <p className="mt-2 font-semibold opacity-85">In nächster Zeit steht kein Test an. Geniess es!</p>
-              </div>
-            )}
-          </div>
-        </Tile>
+        <NextTestTile nextTest={nextTest} today={today} onOpenEntry={onOpenEntry} />
 
-        {/* ---------- Ferien ---------- */}
-        <Tile
-          i={1}
-          className="tile tone-1 col-span-1 flex min-h-[170px] flex-col p-4 md:col-span-3 md:p-5 lg:col-span-4"
-          onClick={() => (holiday ? onOpenPeriod({ periodId: holiday.period.id }) : onOpenPeriod({}))}
-          label="Ferien"
-        >
-          <div className="flex items-center justify-between">
-            <span className="tag-label">Ferien</span>
-            {/* Sonne dreht sich ganz langsam */}
-            <Icon name="sun" className="tone-ink h-6 w-6 animate-[spin_26s_linear_infinite]" />
-          </div>
-          {periodsMissing ? (
-            <p className="muted mt-auto text-sm">Ferien sind noch nicht eingerichtet (siehe README).</p>
-          ) : !holiday ? (
-            <p className="mt-auto text-[15px] font-bold">Ferien eintragen, um den Countdown zu sehen →</p>
-          ) : holiday.state === 'during' ? (
-            <div className="mt-auto">
-              <div className="num text-5xl md:text-6xl">{neon ? 'JETZT' : 'Ferien!'}</div>
-              <div className="mt-1 truncate font-bold">{holiday.period.name}</div>
-              <div className="muted text-sm">{holiday.daysLeft === 1 ? 'Letzter Tag – geniessen!' : `noch ${holiday.daysLeft} Tage`}</div>
-            </div>
-          ) : (
-            <div className="mt-auto">
-              <div className="num text-5xl md:text-[64px]"><Countdown days={holiday.daysUntil} delay={80} /></div>
-              <div className="mt-1 leading-tight font-bold">
-                {neon ? holiday.period.name : `Tage bis ${holiday.period.name}`}
-              </div>
-              {weeksAndDays(holiday.daysUntil) && <div className="text-sm font-semibold opacity-85">= {weeksAndDays(holiday.daysUntil)}</div>}
-              <div className="muted text-sm">
-                noch {holiday.schoolDays} {holiday.schoolDays === 1 ? 'Schultag' : 'Schultage'}
-              </div>
-              {ferienProgress !== null && (
-                <div className={`mt-3 h-2 overflow-hidden bg-(--line) ${neon ? 'rounded-[2px]' : 'rounded-full'}`}>
-                  <div
-                    className={`bar-grow h-full ${neon ? '' : 'rounded-full'}`}
-                    style={{ width: `${Math.min(100, Math.max(4, ferienProgress * 100))}%`, background: neon ? 'var(--neon-2)' : 'var(--btn-bg)' }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </Tile>
+        <HolidayTile today={today} onOpenPeriod={onOpenPeriod} />
 
         {/* ---------- Schnitt ---------- */}
         <Tile i={2} className="tile col-span-1 flex min-h-[170px] flex-col p-4 md:col-span-3 md:p-5 lg:col-span-4" onClick={() => onGo('noten')} label="Notenschnitt">
@@ -290,75 +156,7 @@ export function HomeView({
           )}
         </Tile>
 
-        {/* ---------- Lernwoche ---------- */}
-        <Tile i={3} className="tile tone-2 col-span-2 flex flex-col gap-3 p-4 md:col-span-3 md:p-5 lg:col-span-4" label="Lernzeiten diese Woche">
-          <div className="flex items-center gap-4">
-            {neon ? (
-              <div className="min-w-0 flex-1">
-                <span className="tag-label">Lernzeiten · KW</span>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="num ink-accent text-5xl"><CountUp value={hours(study.done)} delay={200} format={(n) => String(Math.round(n * 10) / 10)} /></span>
-                  <span className="num muted text-2xl">/{hours(study.planned)} h</span>
-                </div>
-                <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(18px,1fr))] gap-1">
-                  {weekBlocks.map((b) => (
-                    <button
-                      key={b.id}
-                      className="aspect-square rounded-[3px] border"
-                      style={b.done ? { background: colorOf(entryById.get(b.entry_id)!), borderColor: 'transparent' } : { borderColor: 'var(--line)' }}
-                      aria-label={`${blockTerms(entryById.get(b.entry_id)!.category).one} ${entryById.get(b.entry_id)!.title}, ${formatDuration(blockMinutes(b))}`}
-                      onClick={() => onOpenBlock(b.id)}
-                    />
-                  ))}
-                  {weekBlocks.length === 0 && <span className="muted col-span-full text-sm">keine geplant</span>}
-                </div>
-              </div>
-            ) : (
-              <>
-                <WeekRing blocks={weekBlocks} colorOf={(b) => colorOf(entryById.get(b.entry_id)!)} />
-                <div className="min-w-0">
-                  <div className="muted text-sm font-semibold">Lernplan diese Woche</div>
-                  <div className="num mt-1 text-4xl">
-                    <CountUp value={hours(study.done)} delay={200} format={(n) => String(Math.round(n * 10) / 10)} />{' '}
-                    <span className="text-xl font-bold">von {hours(study.planned)} h</span>
-                  </div>
-                  <div className="muted mt-1 text-sm">
-                    {weekBlocks.length
-                      ? `${weekBlocks.filter((b) => b.done).length} von ${weekBlocks.length} Lernzeiten erledigt`
-                      : 'Noch keine Lernzeiten geplant'}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-          {/* Pro Fach ein Balken: heller Teil = geplant, voller Teil = erledigt */}
-          {study.bySubject.length > 1 && (
-            <ul className="space-y-1.5" aria-label="Lernzeit pro Fach">
-              {study.bySubject.slice(0, 4).map((t) => {
-                const color = t.subjectId ? (subjectById.get(t.subjectId)?.color ?? 'var(--accent)') : 'var(--accent)'
-                const name = t.subjectId ? (subjectById.get(t.subjectId)?.name ?? 'Fach') : 'ohne Fach'
-                return (
-                  <li key={t.subjectId ?? '-'} className="grid grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_auto] items-center gap-2 text-xs font-semibold">
-                    <span className="truncate">{name}</span>
-                    <span className={`relative h-2 overflow-hidden bg-(--line) ${neon ? 'rounded-[2px]' : 'rounded-full'}`}>
-                      <span
-                        className="absolute inset-y-0 left-0 opacity-35"
-                        style={{ width: `${(t.planned / study.bySubject[0].planned) * 100}%`, background: color }}
-                      />
-                      <span
-                        className="bar-grow absolute inset-y-0 left-0"
-                        style={{ width: `${(t.done / study.bySubject[0].planned) * 100}%`, background: color }}
-                      />
-                    </span>
-                    <span className={`muted tabular-nums ${neon ? 'font-mono' : ''}`}>
-                      {formatDuration(t.done)} / {formatDuration(t.planned)}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </Tile>
+        <StudyWeekTile weekBlocks={weekBlocks} onOpenBlock={onOpenBlock} />
 
         {/* ---------- Noch diese Woche ---------- */}
         <Tile i={4} className="tile tone-3 col-span-2 flex flex-col md:col-span-3 lg:col-span-4" onClick={() => onGo('liste')} label="Noch diese Woche">
@@ -473,87 +271,6 @@ export function HomeView({
             })}
           </div>
         </Tile>
-      </div>
-    </div>
-  )
-}
-
-/** Eintrag in "Dein Tag": Titel, Fach, Haken zum Abhaken */
-function EntryCard({ entry, color, onOpen, onToggle }: { entry: Entry; color: string; onOpen: () => void; onToggle: (done: boolean) => void }) {
-  const { subjectById } = useData()
-  const { theme } = useTheme()
-  return (
-    // Farbiger Streifen links in der Fachfarbe
-    <div className={`tile flex min-h-16 items-center gap-1 pr-2 ${entry.done ? 'opacity-70' : ''}`} style={{ boxShadow: `inset 5px 0 0 ${color}, var(--tile-shadow)` }}>
-      <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4.5 text-left" onClick={onOpen}>
-        <span className="min-w-0 flex-1">
-          <span className={`block truncate text-[17px] font-bold ${entry.done ? 'muted line-through' : ''}`}>{entry.title}</span>
-          <span className="mt-1 flex items-center gap-2 text-[13px]">
-            <span
-              className={`inline-flex h-[22px] items-center rounded-(--r-chip) px-2 text-xs font-bold ${theme === 'neon' ? 'font-mono uppercase' : ''}`}
-              style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}
-            >
-              {entry.subject_id ? subjectById.get(entry.subject_id)?.name : 'ohne Fach'}
-            </span>
-            <span className="muted">{{ test: 'Test', aufgabe: 'Aufgabe', event: 'Event', sonstiges: 'Sonstiges' }[entry.category]}</span>
-          </span>
-        </span>
-      </button>
-      <button
-        className="grid h-11 w-11 shrink-0 place-items-center"
-        aria-label={entry.done ? `${entry.title} als offen markieren` : `${entry.title} erledigt`}
-        aria-pressed={entry.done}
-        onClick={() => onToggle(!entry.done)}
-      >
-        <span
-          className={`grid h-7 w-7 place-items-center border-2 ${theme === 'neon' ? 'rounded-md' : 'rounded-[10px]'} ${
-            entry.done ? 'border-transparent bg-green-600 text-white' : 'border-(--line)'
-          }`}
-        >
-          {entry.done && <Icon name="check" className="check-pop h-4 w-4" strokeWidth={3.4} />}
-        </span>
-      </button>
-    </div>
-  )
-}
-
-/** Ring mit einem Segment pro Lernzeit der Woche, so lang wie ihre Dauer (erledigte in Fachfarbe) */
-function WeekRing({ blocks, colorOf }: { blocks: StudyBlock[]; colorOf: (b: StudyBlock) => string }) {
-  const r = 44
-  const c = 2 * Math.PI * r
-  const minutes = blocks.map(blockMinutes)
-  const total = minutes.reduce((a, b) => a + b, 0)
-  const done = blocks.reduce((sum, b, i) => sum + (b.done ? minutes[i] : 0), 0)
-  const gap = blocks.length > 1 ? 4 : 0
-  let offset = 0
-  return (
-    <div className="relative h-[116px] w-[116px] shrink-0">
-      <svg viewBox="0 0 116 116" className="h-full w-full -rotate-90" aria-hidden="true">
-        <circle cx="58" cy="58" r={r} fill="none" stroke="var(--line)" strokeWidth="12" />
-        {blocks.map((b, i) => {
-          const slot = total ? (minutes[i] / total) * c : 0
-          const start = offset
-          offset += slot
-          return b.done && slot > gap ? (
-            <circle
-              key={b.id}
-              cx="58"
-              cy="58"
-              r={r}
-              fill="none"
-              stroke={colorOf(b)}
-              strokeWidth="12"
-              strokeDasharray={`${slot - gap} ${c - slot + gap}`}
-              strokeDashoffset={-start}
-            />
-          ) : null
-        })}
-      </svg>
-      <div className="absolute inset-0 grid place-items-center text-center">
-        <span>
-          <span className="num block text-2xl">{total ? Math.round((done / total) * 100) : 0}%</span>
-          <span className="muted block text-[11px] font-semibold">gelernt</span>
-        </span>
       </div>
     </div>
   )

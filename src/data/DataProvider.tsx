@@ -16,10 +16,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
+import { outboxNotice, sendOutboxOp } from './outboxSync'
 import { useOnline } from './useOnline'
 import { useRealtime, type RealtimeTable } from './useRealtime'
 import { loadPref, loadSnapshot, savePref, saveSnapshot } from '../lib/cache'
-import { applyOutbox, asOutbox, conflictThreshold, dequeue, enqueue as enqueueOp, isRetryable, type OutboxOp } from '../lib/outbox'
+import { applyOutbox, asOutbox, dequeue, enqueue as enqueueOp, isRetryable, type OutboxOp } from '../lib/outbox'
 import { asQueue, dueItems, enqueue, type PurgeItem } from '../lib/purge'
 import { shouldReloadOnReturn } from '../lib/refresh'
 import { friendlyError } from '../lib/supabase'
@@ -293,11 +294,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         if (!op) break
         inflight.current = op.key
         try {
-          const notAfter = conflictThreshold(op)
-          const applied =
-            op.kind === 'saveEntry'
-              ? (await api.saveEntryRows({ id: op.id, create: op.create }, op.entry, op.blocks, op.removedBlockIds, op.create ? undefined : notAfter)) === 'saved'
-              : await api.setDoneIfUnchanged(op.kind === 'entryDone' ? 'entries' : 'study_blocks', op.id, op.done, notAfter)
+          const applied = await sendOutboxOp(op)
           if (!applied) skipped++ // gelöscht oder auf dem Server neuer: Der Server gewinnt
         } catch (err) {
           if (isRetryable(err)) break // bleibt in der Warteschlange, nächster Versuch später
@@ -307,17 +304,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         }
         writeOutbox(dequeue(readOutbox(), op.key))
       }
-      if (skipped || failed.length) {
-        const parts = []
-        if (skipped)
-          parts.push(
-            skipped === 1
-              ? 'Eine offline gemachte Änderung wurde nicht übernommen: Der Eintrag wurde inzwischen auf einem anderen Gerät geändert oder gelöscht.'
-              : `${skipped} offline gemachte Änderungen wurden nicht übernommen: Die Einträge wurden inzwischen auf einem anderen Gerät geändert oder gelöscht.`,
-          )
-        for (const msg of failed) parts.push(`Eine offline gemachte Änderung konnte nicht gespeichert werden: ${msg}`)
-        setSyncNotice(parts.join(' '))
-      }
+      const notice = outboxNotice(skipped, failed)
+      if (notice) setSyncNotice(notice)
     })
     outboxQueue.current = job.catch(() => {})
     return outboxQueue.current

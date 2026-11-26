@@ -1,0 +1,88 @@
+/* =====================================================================
+   Gemeinsames für beide Designs
+   ===================================================================== */
+
+/* Farbige Kacheln: "tone-1/2/3" neben "tile". Was daraus wird, bestimmt das Design
+   (Sunset: farbiger Verlauf · Neon hell: farbiger Schatten · Neon dunkel: farbiges Glühen). */
+.tone-1 { --tone: var(--tone-1); --tone-bg: var(--tone-1-bg); }
+.tone-2 { --tone: var(--tone-2); --tone-bg: var(--tone-2-bg); }
+.tone-3 { --tone: var(--tone-3); --tone-bg: var(--tone-3-bg); }
+.tone-ink {
+  color: var(--tone, var(--accent-text));
+}
+
+/* Punkt, der pulsiert ("läuft gerade") */
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+  animation: live-pulse 1.8s ease-in-out infinite;
+}
+
+/* Navigation: aktiver Bereich bekommt eine Fläche hinter Symbol und Text, das Symbol hüpft kurz */
+.nav-item {
+  isolation: isolate;
+}
+.nav-item[aria-current='page'] svg {
+  animation: nav-pop 460ms var(--ease-spring);
+}
+/* „+“: Ring, der sich ausbreitet – zieht den Blick sanft an */
+.nav-plus {
+  position: relative;
+  background: var(--btn-bg);
+  color: var(--on-accent);
+}
+.nav-plus:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: ping-ring 3.2s var(--ease-out-smooth) infinite;
+}
+.nav-plus svg {
+  transition: transform 320ms var(--ease-spring);
+}
+.nav-plus:not(:disabled):active svg {
+  transform: rotate(90deg);
+}
+.switch:checked {
+  background: var(--btn-bg);
+}
+
+/* Kacheln heben sich unter dem Mauszeiger leicht an (nur mit Maus/Trackpad, nicht beim Tippen) */
+@media (hover: hover) {
+  button.tile:hover:not(:disabled),
+  button.tile-2:hover:not(:disabled),
+  button.tile-hero:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+  button.tile:hover:not(:disabled) {
+    box-shadow: var(--tile-shadow-up);
+  }
+}
+
+/* Lern-Fortschritt: Kästchen füllen sich nacheinander */
+.progress-cells > span.on {
+  animation: cell-on 520ms var(--ease-spring) both;
+}
+.progress-cells > span.on:nth-child(2) { animation-delay: 70ms; }
+.progress-cells > span.on:nth-child(3) { animation-delay: 140ms; }
+.progress-cells > span.on:nth-child(4) { animation-delay: 210ms; }
+.progress-cells > span.on:nth-child(5) { animation-delay: 280ms; }
+.progress-cells > span.on:nth-child(6) { animation-delay: 350ms; }
+.progress-cells > span.on:nth-child(n + 7) { animation-delay: 420ms; }
+
+/* Balken, der von links wächst (Ferien-Countdown) */
+.bar-grow {
+  transform-origin: left center;
+  animation: grow-x 900ms var(--ease-out-smooth) 200ms both;
+}
+/* Haken erscheint mit kleinem Sprung */
+.check-pop {
+  animation: check-pop 380ms var(--ease-spring);
+}

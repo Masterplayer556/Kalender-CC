@@ -147,9 +147,10 @@ src/
 │  ├─ dates.ts       Datumsrechnung und -formatierung (TT.MM.JJJJ, Wochenstart Montag)
 │  ├─ layout.ts      Position der Blöcke im Zeitraster, Überlappungen
 │  ├─ grouping.ts    Gruppen der Liste „Als Nächstes“
-│  ├─ grades.ts      Notenschnitt, Zeugnisnote, Notenrechner, Semester
+│  ├─ grades.ts      Notenschnitt, Gesamtschnitt, Zeugnisnote, Notenrechner, Semester
+│  ├─ targets.ts     Notenziele, geplante Tests, „Was wäre, wenn“
 │  ├─ overdue.ts     Gruppen „Überfällig“ und „Note eintragen?“
-│  ├─ week.ts        Kachel „Noch diese Woche“ (offene Tests und Aufgaben bis Sonntag)
+│  ├─ week.ts        Kacheln „Noch diese Woche“ und „Lernwoche“ (Stunden pro Fach)
 │  ├─ heatmap.ts     Heatmap: Punkte und Anzahl pro Tag, stressigste Woche
 │  ├─ studyBlocks.ts Lernzeiten mit dem Termin mitverschieben
 │  ├─ periods.ts     Ferien & freie Tage: Arten, Tage nachschlagen, Countdown und Schultage
@@ -158,10 +159,16 @@ src/
 │  ├─ filters.ts     Filter und Suche
 │  ├─ categories.ts  Kategorien mit Symbolen, Farbvorschläge für Fächer
 │  ├─ cache.ts       Offline-Speicher
+│  ├─ outbox.ts      Offline-Warteschlange (Abhaken, Einträge) und Konflikte
+│  ├─ refresh.ts     Wann beim Zurückkehren in die App neu geladen wird
 │  ├─ router.ts      Adressen wie #/woche/2026-10-20
 │  └─ ics.ts         Notizen für einen späteren Export in den Apple-Kalender
-├─ data/           Verbindung zu Supabase (Laden, Speichern, Login)
+├─ data/           Verbindung zu Supabase (Laden, Speichern, Login, Realtime)
+│  └─ api/           Alle Datenbank-Zugriffe, nach Bereich (Laden, Einträge, Anhänge, Noten …)
 ├─ components/     Bausteine (Formular, Kopfzeile, Filter …)
+│  ├─ home/          Kacheln der Heute-Übersicht
+│  └─ grades/        Fach-Karte, Notenrechner, Ziel-Auswahl des Noten-Tabs
+├─ styles/         Gestaltung (Designs Sunset und Neon), eingebunden über index.css
 └─ views/          Die Ansichten Monat, Woche/Tag, Liste, Suche, Fächer, Login
 supabase/migrations/  Datenbankstruktur (SQL)
 tests/                Automatische Tests (npm test)
