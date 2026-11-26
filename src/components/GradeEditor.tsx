@@ -26,8 +26,9 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
   const existing = request.gradeId ? grades.find((g) => g.id === request.gradeId) : undefined
   const fromTest = request.entryId ? entryById.get(request.entryId) : undefined
 
+  // Test ohne Fach: kein Fach vorgeben (sonst landete die Note still im ersten Fach) – man muss eines wählen
   const [subjectId, setSubjectId] = useState(
-    existing?.subject_id ?? fromTest?.subject_id ?? request.subjectId ?? subjects[0]?.id ?? '',
+    existing?.subject_id ?? (fromTest ? (fromTest.subject_id ?? '') : (request.subjectId ?? subjects[0]?.id ?? '')),
   )
   const [entryId, setEntryId] = useState(existing?.entry_id ?? fromTest?.id ?? '')
   const [title, setTitle] = useState(existing?.title ?? fromTest?.title ?? '')
@@ -35,8 +36,9 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
 
   // Tests dieses Fachs, die man verknüpfen kann: noch ohne (andere) Note – oder für mehrere Noten erlaubt.
   // Neueste zuerst.
+  // Ein verknüpfter Test ohne Fach bleibt wählbar, auch wenn jetzt ein Fach gewählt ist.
   const linkableTests = entries
-    .filter((e) => e.category === 'test' && e.subject_id === subjectId)
+    .filter((e) => e.category === 'test' && (e.subject_id === subjectId || (e.id === entryId && !e.subject_id)))
     .filter((e) => e.multi_grade || !(gradesByEntry.get(e.id) ?? []).some((g) => g.id !== existing?.id))
     .sort((a, b) => b.date.localeCompare(a.date))
 
@@ -203,9 +205,15 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
               disabled={readOnly}
               onChange={(e) => {
                 setSubjectId(e.target.value)
-                setEntryId('') // ein Test gehört immer zu genau einem Fach
+                // ein Test gehört immer zu genau einem Fach (ein Test ohne Fach darf bleiben)
+                if (entryById.get(entryId)?.subject_id) setEntryId('')
               }}
             >
+              {!subjectId && (
+                <option value="" disabled>
+                  – Fach wählen –
+                </option>
+              )}
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
