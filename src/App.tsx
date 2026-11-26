@@ -13,6 +13,7 @@ import { Header } from './components/Header'
 import { SideRail, TabBar } from './components/Nav'
 import { ThemeProvider } from './components/ThemeProvider'
 import { ThemeSync } from './components/ThemeSync'
+import { UpdateBanner } from './components/UpdateBanner'
 import { HomeView } from './views/HomeView'
 import { FilterBar } from './components/FilterBar'
 import { StatusBanner } from './components/StatusBanner'
@@ -36,6 +37,7 @@ import { SetupMissingView } from './views/SetupMissingView'
 export default function App() {
   return (
     <ThemeProvider>
+      <UpdateBanner />
       {supabaseConfigured ? (
         <AuthProvider>
           <AuthGate />

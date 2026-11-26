@@ -1,7 +1,7 @@
 // Mini-Router über den "#"-Teil der Adresse, z. B. ".../kalender-tracker/#/woche/2026-10-20".
 // GitHub Pages bekommt den Teil nach "#" nie zu sehen – deshalb klappt Neuladen auf jeder Seite.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { addDays, addMonths, isDateKey, todayKey, type DateKey } from './dates'
 
 export type ViewName = 'heute' | 'monat' | 'woche' | 'tag' | 'liste' | 'heatmap' | 'noten' | 'mehr'
@@ -51,6 +51,15 @@ export function stepDate(route: Route, direction: 1 | -1): DateKey {
 export const lastCalendarView = (saved: unknown): CalendarView =>
   (CALENDAR_VIEWS as unknown[]).includes(saved) ? (saved as CalendarView) : 'monat'
 
+/**
+ * Tageswechsel: Stand die Ansicht auf "heute" (alter Tag), springt sie auf den neuen Tag.
+ * Hat man selbst einen anderen Tag gewählt, bleibt er stehen. null = nichts ändern.
+ */
+export function rollToday(route: Route, prevToday: DateKey, today: DateKey): Route | null {
+  if (prevToday === today || route.date !== prevToday) return null
+  return { ...route, date: today }
+}
+
 /** React-Hook: aktuelle Route + Funktion zum Wechseln */
 export function useRoute(): [Route, (next: Partial<Route>) => void] {
   // Ohne Adresse startet die App in der Heute-Übersicht
@@ -61,6 +70,36 @@ export function useRoute(): [Route, (next: Partial<Route>) => void] {
     const onChange = () => setRoute(read())
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
+  }, [])
+
+  // Nach Mitternacht (App offen gelassen oder aus dem Hintergrund geholt) "heute" neu bestimmen –
+  // sonst öffnen Kalender und Heute-Ansicht weiter den Vortag.
+  const routeRef = useRef(route)
+  useEffect(() => {
+    routeRef.current = route
+  }, [route])
+  useEffect(() => {
+    let lastToday = todayKey()
+    const check = () => {
+      const today = todayKey()
+      const next = rollToday(routeRef.current, lastToday, today)
+      lastToday = today
+      if (!next) return
+      // Adresse ersetzen statt neuen Verlaufseintrag anlegen ("Zurück" soll nicht auf gestern führen)
+      window.history.replaceState(window.history.state, '', toHash(next))
+      routeRef.current = next
+      setRoute(next)
+    }
+    const timer = setInterval(check, 60_000)
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('focus', check)
+    window.addEventListener('pageshow', check)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', check)
+      window.removeEventListener('focus', check)
+      window.removeEventListener('pageshow', check)
+    }
   }, [])
 
   const navigate = useCallback(

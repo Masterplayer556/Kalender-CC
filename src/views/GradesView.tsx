@@ -11,8 +11,10 @@ import { Icon } from '../components/Icon'
 import { useTheme } from '../components/ThemeProvider'
 import { addDays, formatDate, todayKey, type DateKey } from '../lib/dates'
 import {
+  ALL_SEMESTERS,
   formatGrade,
   gradeClass,
+  pickSemester,
   requiredGrade,
   roundToHalf,
   semesterOf,
@@ -23,7 +25,7 @@ import { overallTrend, runningAverage, trendDelta } from '../lib/gradeStats'
 import { OVERALL, TARGET_OPTIONS, asTargets, targetStatus, withTarget } from '../lib/targets'
 import type { Grade, Subject } from '../types'
 
-const ALL = 'alle'
+const ALL = ALL_SEMESTERS
 
 /** Zeitraum eines Semesters: "2026-1" → 01.08.2026–31.01.2027, "2026-2" → 01.02.2027–31.07.2027 */
 function semesterRange(key: string): [DateKey, DateKey] {
@@ -275,7 +277,7 @@ export function GradesView({
   const current = semesterOf(today)
   // Gewähltes Semester: auf allen Geräten gleich (Einstellung "gradeSemester")
   const saved = prefs.gradeSemester
-  const semester = typeof saved === 'string' && /^\d{4}-[12]$/.test(saved) ? saved : current.key
+  const semester = pickSemester(saved, current.key)
   const setSemester = (key: string) => setPref('gradeSemester', key)
   // Notenziele: auf allen Geräten gleich (Einstellung "gradeTargets")
   const targets = asTargets(prefs.gradeTargets)

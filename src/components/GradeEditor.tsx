@@ -109,6 +109,7 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
       eyebrow={subjects.find((s) => s.id === subjectId)?.name ?? 'Noten'}
       icon="award"
       onClose={onClose}
+      busy={saving}
       footer={
         <>
           {existing && (
@@ -117,7 +118,7 @@ export function GradeEditor({ request, onClose }: { request: GradeRequest; onClo
             </button>
           )}
           <div className="flex-1" />
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
             Abbrechen
           </button>
           <button type="submit" form="grade-form" className="btn-primary" disabled={readOnly}>

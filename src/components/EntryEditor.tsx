@@ -48,6 +48,9 @@ export function EntryEditor({
   // Nach "Duplizieren" zeigt das Formular eine Kopie, die als neuer Eintrag gespeichert wird.
   const [isCopy, setIsCopy] = useState(false)
   const editingId = existing && !isCopy ? existing.id : null
+  // id eines neuen Eintrags (bzw. der Kopie) steht schon vor dem Speichern fest: Schlägt das Speichern
+  // halb fehl und man tippt nochmals auf "Speichern", entsteht kein zweiter Eintrag.
+  const [newId, setNewId] = useState(() => crypto.randomUUID())
 
   // Formularzustand – mit den bestehenden Werten bzw. sinnvollen Vorgaben gefüllt
   const initialStart = existing?.start_time ? formatTime(existing.start_time) : (request.time ?? '08:00')
@@ -117,9 +120,12 @@ export function EntryEditor({
     if (problem) return setError(problem)
     setSaving(true)
     setError(null)
+    // Neue Lernzeiten bekommen jetzt ihre id – ein zweiter Versuch legt sie dann nicht doppelt an
+    const savedBlocks = blocks.map((b) => (b.id ? b : { ...b, id: crypto.randomUUID() }))
+    setBlocks(savedBlocks)
     try {
       await saveEntry(
-        editingId,
+        { id: editingId ?? newId, create: !editingId },
         {
           title: title.trim(),
           category,
@@ -132,13 +138,16 @@ export function EntryEditor({
           done,
           multi_grade: category === 'test' && multiGrade,
         },
-        blocks,
+        savedBlocks,
         {
           added: pendingAttachments,
           // Beim Duplizieren gehören die gespeicherten Anhänge dem Original – nichts löschen.
           // Vergleich über die id, nicht über das Objekt: Lädt die App im Hintergrund neu (z. B. nach dem
           // Öffnen eines Anhangs in einer anderen App), sind es neue Objekte – sonst gälten alle als entfernt.
-          removed: isCopy ? [] : savedAttachments.filter((a) => !keptAttachments.some((k) => k.id === a.id)),
+          // Anhänge, die ein fehlgeschlagener Versuch schon angelegt hat, sind noch "neu", nicht entfernt.
+          removed: isCopy
+            ? []
+            : savedAttachments.filter((a) => !keptAttachments.some((k) => k.id === a.id) && !pendingAttachments.some((p) => p.id === a.id)),
         },
       )
       onClose()
@@ -174,14 +183,15 @@ export function EntryEditor({
    *  Links werden übernommen (sie kosten keinen Speicher). */
   function handleDuplicate() {
     setIsCopy(true)
+    setNewId(crypto.randomUUID())
     setDone(false)
     setBlocks([])
     setUnshiftedDays(0)
     setPendingAttachments([
       ...keptAttachments
         .filter((a) => a.kind === 'link')
-        .map((a) => ({ kind: 'link' as const, url: a.url!, name: a.name })),
-      ...pendingAttachments.filter((p) => p.kind === 'link'),
+        .map((a) => ({ id: crypto.randomUUID(), kind: 'link' as const, url: a.url!, name: a.name })),
+      ...pendingAttachments.filter((p) => p.kind === 'link').map((p) => ({ ...p, id: crypto.randomUUID() })),
     ])
     setKeptAttachments([])
     setError(null)
@@ -196,6 +206,7 @@ export function EntryEditor({
       icon={CATEGORIES[category].icon}
       wide
       onClose={onClose}
+      busy={saving}
       footer={
         <>
           {editingId && (
@@ -209,7 +220,7 @@ export function EntryEditor({
             </>
           )}
           <div className="flex-1" />
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
             Abbrechen
           </button>
           <button type="submit" form="entry-form" className="btn-primary" disabled={readOnly}>

@@ -89,6 +89,7 @@ export function PeriodEditor({ request, onClose }: { request: PeriodRequest; onC
       eyebrow={existing ? meta.label : 'Ferien & freie Tage'}
       icon={meta.icon}
       onClose={onClose}
+      busy={saving}
       footer={
         <>
           {existing && (
@@ -97,7 +98,7 @@ export function PeriodEditor({ request, onClose }: { request: PeriodRequest; onC
             </button>
           )}
           <div className="flex-1" />
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
             Abbrechen
           </button>
           <button type="submit" form="period-form" className="btn-primary" disabled={readOnly}>

@@ -81,7 +81,7 @@ export function AttachmentsEditor({
     const tooBig: string[] = []
     for (const file of Array.from(files)) {
       if (file.size > MAX_FILE_SIZE) tooBig.push(file.name)
-      else ok.push({ kind: 'file', file, name: file.name })
+      else ok.push({ id: crypto.randomUUID(), kind: 'file', file, name: file.name })
     }
     onChangePending([...pending, ...ok])
     setMessage(tooBig.length ? `Zu gross (max. 50 MB): ${tooBig.join(', ')}` : null)
@@ -91,7 +91,7 @@ export function AttachmentsEditor({
   function addLink() {
     const url = normalizeUrl(linkUrl)
     if (!url) return setMessage('Das ist kein gültiger Link (z. B. https://onedrive.live.com/…).')
-    onChangePending([...pending, { kind: 'link', url, name: linkName.trim() || linkLabel(url) }])
+    onChangePending([...pending, { id: crypto.randomUUID(), kind: 'link', url, name: linkName.trim() || linkLabel(url) }])
     setLinkUrl('')
     setLinkName('')
     setLinkFormOpen(false)
