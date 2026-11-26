@@ -122,7 +122,11 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   const [periodsMissing, setPeriodsMissing] = useState(cached?.periodsMissing ?? false)
   const [bm, setBm] = useState<BmRating[]>(cached?.bm ?? [])
   const [bmMissing, setBmMissing] = useState(cached?.bmMissing ?? false)
-  const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
+  // Zeitpunkt des letzten erfolgreichen Ladens. Angezeigt wird er nur offline oder bei einem Fehler
+  // (StatusBanner) – deshalb kommt er erst dann in den Zustand, nicht bei jedem Laden (sonst zeichnete
+  // jedes Laden die ganze App neu, auch wenn sich nichts geändert hat).
+  const lastSyncRef = useRef<string | null>(cached?.savedAt ?? null)
+  const [lastSync, setLastSync] = useState<string | null>(lastSyncRef.current)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<SyncedPrefs>(() => loadLocalPrefs(userId))
@@ -131,6 +135,22 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     prefsRef.current = prefs
   }, [prefs])
   const online = useOnline()
+  useEffect(() => {
+    if (!online) setLastSync(lastSyncRef.current)
+  }, [online])
+
+  // Zuletzt geladener Stand je Tabelle (als JSON): Bringt ein Laden dieselben Daten, bleibt der Zustand
+  // (und damit jede Liste) unverändert – nichts zeichnet sich neu. Lokale Änderungen (z. B. sofort
+  // angezeigte BM-Kreuze) löschen den Vergleichswert, damit der Server-Stand danach sicher übernommen wird.
+  const loadedJson = useRef<Record<string, string>>(
+    cached ? Object.fromEntries(Object.entries(cached).map(([k, v]) => [k, JSON.stringify(v)])) : {},
+  )
+  const changed = (key: string, value: unknown) => {
+    const json = JSON.stringify(value)
+    if (loadedJson.current[key] === json) return false
+    loadedJson.current[key] = json
+    return true
+  }
 
   // --- Einstellungen hochladen ---
   // Wann wurde welche Zeile zuletzt auf diesem Gerät geändert? (Ein Laden, das vorher begann,
@@ -221,27 +241,32 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         const changedMeanwhile = new Set([...prefChangedAt.current].filter(([, t]) => t >= startedAt).map(([n]) => n))
         setPrefs((current) => {
           const next = mergePrefs(current, server, loadPending(userId), changedMeanwhile)
+          if (JSON.stringify(next) === JSON.stringify(current)) return current // nichts geändert
           saveLocalPrefs(userId, next)
           return next
         })
       }
       const savedAt = new Date().toISOString()
-      setSubjects(data.subjects)
-      setEntries(data.entries)
-      setBlocks(data.blocks)
-      setGrades(data.grades)
+      // Nur geänderte Tabellen übernehmen (Flags wie gradesMissing ändern sich ohnehin nur selten)
+      if (changed('subjects', data.subjects)) setSubjects(data.subjects)
+      if (changed('entries', data.entries)) setEntries(data.entries)
+      if (changed('blocks', data.blocks)) setBlocks(data.blocks)
+      if (changed('grades', data.grades)) setGrades(data.grades)
+      if (changed('attachments', data.attachments)) setAttachments(data.attachments)
+      if (changed('periods', data.periods)) setPeriods(data.periods)
+      if (changed('bm', data.bm)) setBm(data.bm)
       setGradesMissing(data.gradesMissing)
-      setAttachments(data.attachments)
-      setPeriods(data.periods)
       setPeriodsMissing(data.periodsMissing)
-      setBm(data.bm)
       setBmMissing(data.bmMissing)
-      setLastSync(savedAt)
+      lastSyncRef.current = savedAt
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
       void flushPurge()
     } catch (err) {
-      if (isLatest()) setError(friendlyError(err))
+      if (isLatest()) {
+        setLastSync(lastSyncRef.current)
+        setError(friendlyError(err))
+      }
     } finally {
       if (isLatest()) setLoading(false)
     }
@@ -281,6 +306,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     (semester: string, subject: BmSubject, fach: number, pers: number) => {
       if (!navigator.onLine) return Promise.reject(new Error('Offline – Änderungen nicht möglich'))
       // Sofort anzeigen (ohne auf den Server zu warten)
+      delete loadedJson.current.bm
       setBm((list) => {
         const rest = list.filter((r) => !(r.semester === semester && r.subject === subject))
         const old = list.find((r) => r.semester === semester && r.subject === subject)
@@ -299,15 +325,69 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     [userId, reload],
   )
 
-  const value = useMemo<DataValue>(() => {
-    const blocksByEntry = new Map<string, StudyBlock[]>()
-    for (const b of blocks) blocksByEntry.set(b.entry_id, [...(blocksByEntry.get(b.entry_id) ?? []), b])
-    const attachmentsByEntry = new Map<string, Attachment[]>()
-    for (const a of attachments) attachmentsByEntry.set(a.entry_id, [...(attachmentsByEntry.get(a.entry_id) ?? []), a])
-    const gradesByEntry = new Map<string, Grade[]>()
-    for (const g of grades) if (g.entry_id) gradesByEntry.set(g.entry_id, [...(gradesByEntry.get(g.entry_id) ?? []), g])
+  // Nachschlage-Tabellen: jede nur neu, wenn sich ihre eigene Liste ändert
+  const subjectById = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects])
+  const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries])
+  const blocksByEntry = useMemo(() => groupBy(blocks, (b) => b.entry_id), [blocks])
+  const attachmentsByEntry = useMemo(() => groupBy(attachments, (a) => a.entry_id), [attachments])
+  const gradesByEntry = useMemo(() => groupBy(grades, (g) => g.entry_id), [grades])
+  const attachmentsByEntryRef = useRef(attachmentsByEntry) // für deleteEntry, ohne die Funktionen neu zu erzeugen
+  useEffect(() => {
+    attachmentsByEntryRef.current = attachmentsByEntry
+  }, [attachmentsByEntry])
 
-    return {
+  // Änderungs-Funktionen: bleiben gleich, solange der Benutzer gleich bleibt
+  const actions = useMemo(
+    () => ({
+      reload,
+      saveEntry: async (
+        target: { id: string; create: boolean },
+        input: EntryInput,
+        newBlocks: StudyBlockInput[],
+        removedBlockIds: string[],
+        att?: { added: PendingAttachment[]; removed: Attachment[] },
+      ) => {
+        // Hochgeladene Dateien vormerken: Scheitert das Speichern und wird es nicht wiederholt, liegt die
+        // Datei sonst ohne Anhang im Speicher. Entfernte Anhänge: falls das Löschen der Datei nicht klappt.
+        const now = Date.now()
+        const uploads = (att?.added ?? []).filter((a) => a.kind === 'file')
+        queuePurge([
+          ...uploads.map((a) => ({ id: a.id, path: api.attachmentPath(userId, target.id, a), due: now + UPLOAD_GRACE_MS })),
+          ...(att?.removed ?? []).flatMap((a) => (a.storage_path ? [{ id: a.id, path: a.storage_path, due: now }] : [])),
+        ])
+        await mutate(() => api.saveEntry(target, input, newBlocks, removedBlockIds, att).then(() => {}))
+        void flushPurge(uploads.map((a) => a.id)) // gespeichert → die Anhänge gibt es, nichts zu löschen
+      },
+      deleteEntry: (id: string) => {
+        // Dateien bleiben für "Rückgängig" liegen; danach (auch wenn die App vorher geschlossen wird) weg damit
+        const files = (attachmentsByEntryRef.current.get(id) ?? []).flatMap((a) =>
+          a.storage_path ? [{ id: a.id, path: a.storage_path, due: Date.now() + UNDO_GRACE_MS }] : [],
+        )
+        queuePurge(files)
+        return mutate(() => api.deleteEntry(id))
+      },
+      restoreEntry: (entry: Entry, entryBlocks: StudyBlock[], att: Attachment[], gradeIds: string[]) =>
+        mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
+      purgeAttachmentFiles: (list: Attachment[]) => flushPurge(list.map((a) => a.id)),
+      attachmentUrls: (list: Attachment[]) => api.attachmentUrls(list),
+      setEntryDone: (id: string, done: boolean) => mutate(() => api.setEntryDone(id, done)),
+      setBlockDone: (id: string, done: boolean) => mutate(() => api.setBlockDone(id, done)),
+      saveSubject: (id: string | null, name: string, color: string) => mutate(() => api.saveSubject(id, name, color)),
+      deleteSubject: (id: string) => mutate(() => api.deleteSubject(id)),
+      saveGrade: (id: string | null, input: GradeInput) => mutate(() => api.saveGrade(id, input)),
+      deleteGrade: (id: string) => mutate(() => api.deleteGrade(id)),
+      restoreGrade: (grade: Grade) => mutate(() => api.restoreGrade(grade)),
+      savePeriod: (id: string | null, input: PeriodInput) => mutate(() => api.savePeriod(id, input)),
+      deletePeriod: (id: string) => mutate(() => api.deletePeriod(id)),
+      restorePeriod: (period: Period) => mutate(() => api.restorePeriod(period)),
+      saveBm,
+      setPref,
+    }),
+    [reload, mutate, saveBm, setPref, userId, queuePurge, flushPurge],
+  )
+
+  const value = useMemo<DataValue>(
+    () => ({
       subjects,
       entries,
       blocks,
@@ -322,52 +402,31 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       error,
       lastSync,
       online,
-      subjectById: new Map(subjects.map((s) => [s.id, s])),
-      entryById: new Map(entries.map((e) => [e.id, e])),
+      subjectById,
+      entryById,
       blocksByEntry,
       attachmentsByEntry,
       gradesByEntry,
-      reload,
-      saveEntry: async (target, input, newBlocks, removedBlockIds, att) => {
-        // Hochgeladene Dateien vormerken: Scheitert das Speichern und wird es nicht wiederholt, liegt die
-        // Datei sonst ohne Anhang im Speicher. Entfernte Anhänge: falls das Löschen der Datei nicht klappt.
-        const now = Date.now()
-        const uploads = (att?.added ?? []).filter((a) => a.kind === 'file')
-        queuePurge([
-          ...uploads.map((a) => ({ id: a.id, path: api.attachmentPath(userId, target.id, a), due: now + UPLOAD_GRACE_MS })),
-          ...(att?.removed ?? []).flatMap((a) => (a.storage_path ? [{ id: a.id, path: a.storage_path, due: now }] : [])),
-        ])
-        await mutate(() => api.saveEntry(target, input, newBlocks, removedBlockIds, att).then(() => {}))
-        void flushPurge(uploads.map((a) => a.id)) // gespeichert → die Anhänge gibt es, nichts zu löschen
-      },
-      deleteEntry: (id) => {
-        // Dateien bleiben für "Rückgängig" liegen; danach (auch wenn die App vorher geschlossen wird) weg damit
-        const files = (attachmentsByEntry.get(id) ?? []).flatMap((a) =>
-          a.storage_path ? [{ id: a.id, path: a.storage_path, due: Date.now() + UNDO_GRACE_MS }] : [],
-        )
-        queuePurge(files)
-        return mutate(() => api.deleteEntry(id))
-      },
-      restoreEntry: (entry, entryBlocks, att, gradeIds) => mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
-      purgeAttachmentFiles: (list) => flushPurge(list.map((a) => a.id)),
-      attachmentUrls: (list) => api.attachmentUrls(list),
-      setEntryDone: (id, done) => mutate(() => api.setEntryDone(id, done)),
-      setBlockDone: (id, done) => mutate(() => api.setBlockDone(id, done)),
-      saveSubject: (id, name, color) => mutate(() => api.saveSubject(id, name, color)),
-      deleteSubject: (id) => mutate(() => api.deleteSubject(id)),
-      saveGrade: (id, input) => mutate(() => api.saveGrade(id, input)),
-      deleteGrade: (id) => mutate(() => api.deleteGrade(id)),
-      restoreGrade: (grade) => mutate(() => api.restoreGrade(grade)),
-      savePeriod: (id, input) => mutate(() => api.savePeriod(id, input)),
-      deletePeriod: (id) => mutate(() => api.deletePeriod(id)),
-      restorePeriod: (period) => mutate(() => api.restorePeriod(period)),
-      saveBm,
       prefs,
-      setPref,
-    }
-  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, reload, mutate, saveBm, prefs, setPref, userId, queuePurge, flushPurge])
+      ...actions,
+    }),
+    [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, subjectById, entryById, blocksByEntry, attachmentsByEntry, gradesByEntry, prefs, actions],
+  )
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
+}
+
+/** Liste → Map nach Schlüssel (ohne Schlüssel: weggelassen). Einmal durch die Liste statt immer neu kopieren. */
+function groupBy<T>(list: T[], key: (item: T) => string | null | undefined): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const item of list) {
+    const k = key(item)
+    if (!k) continue
+    const group = map.get(k)
+    if (group) group.push(item)
+    else map.set(k, [item])
+  }
+  return map
 }
 
 export function useData(): DataValue {
