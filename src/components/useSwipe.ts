@@ -34,7 +34,9 @@ export function useSwipe(
 ) {
   // Immer die neueste Funktion verwenden, ohne die Listener neu anzuhängen
   const handler = useRef(onSwipe)
-  handler.current = onSwipe
+  useEffect(() => {
+    handler.current = onSwipe
+  })
 
   useEffect(() => {
     const el = ref.current

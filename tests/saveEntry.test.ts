@@ -13,6 +13,8 @@ vi.mock('../src/lib/supabase', () => {
     }
     for (const k of ['upsert', 'update', 'delete', 'in', 'eq', 'select']) q[k] = rec(k)
     q.single = () => Promise.resolve({ data: { id: 'e1' }, error: null })
+    // Die Abfragen von supabase-js sind "thenable" (man kann sie awaiten) – das bildet der Ersatz nach
+    // oxlint-disable-next-line unicorn/no-thenable
     q.then = (resolve: (v: unknown) => void) => resolve({ error: null })
     return q
   }

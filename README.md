@@ -89,7 +89,9 @@ Voraussetzung: [Node.js](https://nodejs.org) (LTS) ist installiert.
    ```
 3. Öffne **http://localhost:5173/kalender-tracker/** und erstelle über „Konto erstellen“ dein Konto.
 
-Tests ausführen: `npm test`
+Tests ausführen: `npm test` · Code prüfen (Lint): `npm run lint`
+
+Die Tests decken die Logik in `src/lib/` ab und zusätzlich mit `@testing-library/react` einige Oberflächen-Teile (Eintrag-Formular, Lernzeit-Menü, Notenrechner) sowie das Offline-Speichern im DataProvider. Gelintet wird mit [oxlint](https://oxc.rs) (Einstellungen in `.oxlintrc.json`) – ESLint mit TypeScript-Regeln läuft mit TypeScript 7 noch nicht. Auf GitHub laufen Lint und Tests vor jedem Veröffentlichen sowie bei jedem Pull Request (Workflow „Prüfen“).
 
 ### 4. Auf GitHub Pages veröffentlichen
 

@@ -175,7 +175,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   // (StatusBanner) – deshalb kommt er erst dann in den Zustand, nicht bei jedem Laden (sonst zeichnete
   // jedes Laden die ganze App neu, auch wenn sich nichts geändert hat).
   const lastSyncRef = useRef<string | null>(cached?.savedAt ?? null)
-  const [lastSync, setLastSync] = useState<string | null>(lastSyncRef.current)
+  const [lastSync, setLastSync] = useState<string | null>(cached?.savedAt ?? null)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<SyncedPrefs>(() => loadLocalPrefs(userId))

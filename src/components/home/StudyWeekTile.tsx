@@ -96,15 +96,16 @@ function WeekRing({ blocks, colorOf }: { blocks: StudyBlock[]; colorOf: (b: Stud
   const total = minutes.reduce((a, b) => a + b, 0)
   const done = blocks.reduce((sum, b, i) => sum + (b.done ? minutes[i] : 0), 0)
   const gap = blocks.length > 1 ? 4 : 0
-  let offset = 0
+  // Länge jedes Segments und wo es beginnt (Summe der vorherigen)
+  const slots = minutes.map((m) => (total ? (m / total) * c : 0))
+  const starts = slots.map((_, i) => slots.slice(0, i).reduce((a, b) => a + b, 0))
   return (
     <div className="relative h-[116px] w-[116px] shrink-0">
       <svg viewBox="0 0 116 116" className="h-full w-full -rotate-90" aria-hidden="true">
         <circle cx="58" cy="58" r={r} fill="none" stroke="var(--line)" strokeWidth="12" />
         {blocks.map((b, i) => {
-          const slot = total ? (minutes[i] / total) * c : 0
-          const start = offset
-          offset += slot
+          const slot = slots[i]
+          const start = starts[i]
           return b.done && slot > gap ? (
             <circle
               key={b.id}
