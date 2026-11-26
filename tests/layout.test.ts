@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bandLanes, clipToDay, layoutDay } from '../src/lib/layout'
+import { bandLanes, clipToDay, layoutDay, tappedSlot } from '../src/lib/layout'
 
 const at = (iso: string) => new Date(iso) // ohne "Z" = lokale Zeit (Europe/Zurich)
 
@@ -103,5 +103,17 @@ describe('Bänder in der Monatsansicht', () => {
     const a = band('A', '2026-10-26', '2026-10-27')
     const b = band('B', '2026-10-29', '2026-10-30')
     expect(names(bandLanes([a, b], week)).slice(0, 5)).toEqual(['A', 'A', '', 'B', 'B'])
+  })
+})
+
+describe('tappedSlot', () => {
+  it('rundet auf das angetippte halbstündige Feld ab', () => {
+    expect(tappedSlot(17 * 60 + 44, 30)).toBe(17 * 60 + 30)
+    expect(tappedSlot(0, 30)).toBe(0)
+  })
+  it('zwischen 23 und 24 Uhr: 23:00 bzw. 23:30, nie danach', () => {
+    expect(tappedSlot(23 * 60 + 10, 30)).toBe(23 * 60)
+    expect(tappedSlot(23 * 60 + 40, 30)).toBe(23 * 60 + 30)
+    expect(tappedSlot(24 * 60, 30)).toBe(23 * 60 + 30)
   })
 })

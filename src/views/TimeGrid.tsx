@@ -13,7 +13,7 @@ import { useData } from '../data/DataProvider'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatWeekday, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { entryCovers } from '../lib/grouping'
-import { MINUTES_PER_DAY, clipToDay, layoutDay } from '../lib/layout'
+import { MINUTES_PER_DAY, clipToDay, layoutDay, tappedSlot } from '../lib/layout'
 import { PERIOD_KINDS, periodsByDay } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
 import { InlineIcon } from '../components/Icon'
@@ -107,8 +107,7 @@ export function TimeGrid({
 
   function handleColumnClick(day: DateKey, e: MouseEvent<HTMLDivElement>) {
     const y = e.clientY - e.currentTarget.getBoundingClientRect().top
-    const minutes = Math.floor(y / PX_PER_MIN / SLOT_MINUTES) * SLOT_MINUTES
-    onCreateAt(day, minutesToTime(Math.min(minutes, MINUTES_PER_DAY - 60)))
+    onCreateAt(day, minutesToTime(tappedSlot(y / PX_PER_MIN, SLOT_MINUTES)))
   }
 
   // narrow = mehrere Tage auf dem iPhone: schmale Spalten, kleinere Schrift
