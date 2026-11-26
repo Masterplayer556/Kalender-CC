@@ -48,11 +48,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async signOut() {
       if (session) clearSnapshot(session.user.id)
-      await supabase.auth.signOut()
+      // Offline (oder mit abgelaufener Anmeldung, die sich ohne Server nicht erneuern lässt) bricht
+      // supabase.auth.signOut() ab, ohne etwas zu tun – dann auf diesem Gerät trotzdem abmelden.
+      const { error } = navigator.onLine ? await supabase.auth.signOut() : { error: new Error('offline') }
+      if (error) {
+        await signOutLocally()
+        setSession(null)
+      }
     },
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/** Gespeicherte Sitzung auf diesem Gerät löschen, ohne den Server zu fragen. */
+async function signOutLocally(): Promise<void> {
+  // _removeSession ist nicht öffentlich, löscht aber genau die Sitzung und meldet SIGNED_OUT an alle Tabs
+  const auth = supabase.auth as unknown as { _removeSession?: () => Promise<void>; storageKey?: string }
+  try {
+    if (typeof auth._removeSession === 'function') return await auth._removeSession()
+  } catch {
+    /* unten von Hand */
+  }
+  try {
+    if (auth.storageKey) {
+      localStorage.removeItem(auth.storageKey)
+      localStorage.removeItem(`${auth.storageKey}-user`)
+    }
+  } catch {
+    /* ignorieren */
+  }
 }
 
 export function useAuth(): AuthValue {
