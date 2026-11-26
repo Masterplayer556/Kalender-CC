@@ -82,6 +82,21 @@ async function fetchOptional<T>(table: string, orderBy: string): Promise<T[] | n
 // Einträge
 // ---------------------------------------------------------------------
 
+/** Ergebnis von save_entry: gespeichert, Eintrag gibt es nicht mehr, Server-Stand ist neuer */
+export type SaveResult = 'saved' | 'gone' | 'stale'
+
+const GONE_MESSAGE = 'Diesen Eintrag gibt es nicht mehr – er wurde wohl auf einem anderen Gerät gelöscht.'
+
+/** Lernzeiten aus dem Formular als Zeilen (neue bekommen hier ihre id) */
+export function blockRows(blocks: StudyBlockInput[]): { id: string; starts_at: string; ends_at: string; done: boolean }[] {
+  return blocks.map((b) => ({
+    id: b.id ?? crypto.randomUUID(),
+    starts_at: localToIso(b.date, b.start),
+    ends_at: localToIso(b.date, b.end),
+    done: b.done,
+  }))
+}
+
 /**
  * Speichert einen Eintrag samt Lernzeiten und Anhängen.
  * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, die in removedBlockIds gelöscht.
@@ -89,9 +104,9 @@ async function fetchOptional<T>(table: string, orderBy: string): Promise<T[] | n
  * Gelöscht wird nur, was im Formular entfernt wurde: Bearbeitet ein anderes Gerät denselben Eintrag und
  * fügt etwas hinzu, bleibt das stehen.
  *
- * Alle ids kommen vom Gerät (neuer Eintrag, neue Lernzeiten,
- * neue Anhänge) und es wird mit upsert geschrieben: Bricht das Speichern mittendrin ab (z. B. Netz weg)
- * und man versucht es nochmals, entstehen keine doppelten Einträge, Lernzeiten oder Anhänge.
+ * Eintrag und Lernzeiten speichert die Datenbank-Funktion save_entry (Migration 012) in einem Schritt:
+ * Reisst die Verbindung ab, ist entweder alles oder nichts gespeichert. Anhänge folgen danach.
+ * Alle ids kommen vom Gerät und es wird mit upsert geschrieben: Ein erneuter Versuch legt nichts doppelt an.
  */
 export async function saveEntry(
   target: { id: string; create: boolean },
@@ -100,6 +115,51 @@ export async function saveEntry(
   removedBlockIds: string[],
   attachments: { added: PendingAttachment[]; removed: Attachment[] } = { added: [], removed: [] },
 ): Promise<string> {
+  const keptIds = new Set(blocks.map((b) => b.id).filter(Boolean))
+  const removed = removedBlockIds.filter((bid) => !keptIds.has(bid))
+  const result = await saveEntryRows(target, input, blockRows(blocks), removed)
+  if (result === 'gone') throw new Error(GONE_MESSAGE)
+
+  // Anhänge
+  if (attachments.removed.length) await deleteAttachments(attachments.removed)
+  for (const a of attachments.added) await addAttachment(target.id, a)
+
+  return target.id
+}
+
+/**
+ * Eintrag und Lernzeiten speichern (ohne Anhänge). changedAt: Zeitpunkt einer offline gemachten Änderung –
+ * ist der Eintrag auf dem Server neuer, bleibt er stehen ('stale'). Fehlt Migration 012, wird in mehreren
+ * Schritten gespeichert (wie früher).
+ */
+export async function saveEntryRows(
+  target: { id: string; create: boolean },
+  input: EntryInput,
+  rows: { id: string; starts_at: string; ends_at: string; done: boolean }[],
+  removedBlockIds: string[],
+  changedAt?: number,
+): Promise<SaveResult> {
+  const { data, error } = await supabase.rpc('save_entry', {
+    p_id: target.id,
+    p_create: target.create,
+    p_entry: input,
+    p_blocks: rows,
+    p_removed_block_ids: removedBlockIds,
+    p_changed_at: changedAt === undefined ? null : new Date(changedAt).toISOString(),
+  })
+  // PGRST202 = Funktion unbekannt: 012_save_entry.sql noch nicht ausgeführt
+  if (error?.code === 'PGRST202') return saveEntryInSteps(target, input, rows, removedBlockIds)
+  if (error) throw error
+  return data as SaveResult
+}
+
+/** Früherer Weg ohne save_entry: mehrere Anfragen nacheinander (nicht atomar). */
+async function saveEntryInSteps(
+  target: { id: string; create: boolean },
+  input: EntryInput,
+  rows: { id: string; starts_at: string; ends_at: string; done: boolean }[],
+  removed: string[],
+): Promise<SaveResult> {
   // 1. Eintrag speichern (neu: upsert mit der vorab vergebenen id)
   const write = (row: Partial<EntryInput>) =>
     (target.create
@@ -115,37 +175,21 @@ export async function saveEntry(
     ;({ data, error } = await write(rest))
   }
   // PGRST116 = keine Zeile getroffen: Der Eintrag wurde inzwischen gelöscht (z. B. auf einem anderen Gerät)
-  if (!target.create && (error?.code === 'PGRST116' || (!error && !data)))
-    throw new Error('Diesen Eintrag gibt es nicht mehr – er wurde wohl auf einem anderen Gerät gelöscht.')
+  if (!target.create && (error?.code === 'PGRST116' || (!error && !data))) return 'gone'
   if (error || !data) throw error ?? new Error('Der Eintrag konnte nicht gespeichert werden.')
-  const id = data.id as string
 
   // 2. Im Formular entfernte Lernzeiten löschen
-  const keptIds = new Set(blocks.map((b) => b.id).filter(Boolean))
-  const removed = removedBlockIds.filter((bid) => !keptIds.has(bid))
   if (removed.length) {
     const { error: delError } = await supabase.from('study_blocks').delete().in('id', removed)
     if (delError) throw delError
   }
 
-  // 3. Bestehende aktualisieren, neue anlegen (in einem upsert; neue ohne id bekommen hier eine)
-  const rows = blocks.map((b) => ({
-    id: b.id ?? crypto.randomUUID(),
-    entry_id: id,
-    starts_at: localToIso(b.date, b.start),
-    ends_at: localToIso(b.date, b.end),
-    done: b.done,
-  }))
+  // 3. Bestehende aktualisieren, neue anlegen
   if (rows.length) {
-    const { error: upError } = await supabase.from('study_blocks').upsert(rows)
+    const { error: upError } = await supabase.from('study_blocks').upsert(rows.map((r) => ({ ...r, entry_id: target.id })))
     if (upError) throw upError
   }
-
-  // 4. Anhänge
-  if (attachments.removed.length) await deleteAttachments(attachments.removed)
-  for (const a of attachments.added) await addAttachment(id, a)
-
-  return id
+  return 'saved'
 }
 
 // ---------------------------------------------------------------------

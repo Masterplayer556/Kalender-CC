@@ -55,7 +55,8 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
    Danach `supabase/migrations/008_bm_yes_no.sql` (BM-Felder als Ja/Nein).
    Danach `supabase/migrations/009_user_prefs.sql` (Einstellungen wie Notenziele und Design auf allen Geräten gleich).
    Danach `supabase/migrations/010_user_prefs_newer_wins.sql` (bei Einstellungen gewinnt die neuere Änderung, Notenziele pro Fach).
-   Zum Schluss `supabase/migrations/011_revoke_truncate.sql` (entfernt überflüssige Rechte wie „ganze Tabelle leeren“).
+   Danach `supabase/migrations/011_revoke_truncate.sql` (entfernt überflüssige Rechte wie „ganze Tabelle leeren“).
+   Danach `supabase/migrations/012_save_entry.sql` (Eintrag und Lernzeiten in einem Schritt speichern – nie mehr nur halb gespeichert).
    **Schon eingerichtet?** Dann nur die neueren Dateien ausführen, die noch fehlen. Bestehende Daten bleiben erhalten.
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)
