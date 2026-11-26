@@ -7,7 +7,7 @@ import { useData } from '../data/DataProvider'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatDate, formatTime, formatWeekday, isoToLocal, isoWeek, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { compareEntries, entryCovers } from '../lib/grouping'
-import { busiestWeek, dayLoads, heatLevel, loadCount } from '../lib/heatmap'
+import { busiestWeek, dayLoads, heatLevel, loadCount, monthTotals } from '../lib/heatmap'
 import { PERIOD_KINDS, comparePeriods, periodCovers } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
 import { Icon } from '../components/Icon'
@@ -45,17 +45,8 @@ export function HeatmapView({
   const busiest = busiestWeek(weeks, loads, month)
   const [selected, setSelected] = useState<DateKey>(today.startsWith(month) ? today : `${month}-01`)
 
-  // Monat in Zahlen (nur Tage dieses Monats)
-  const totals = weeks
-    .flat()
-    .filter((d) => d.startsWith(month))
-    .reduce(
-      (sum, d) => {
-        const l = loads.get(d)!
-        return { tests: sum.tests + l.tests, others: sum.others + l.others, study: sum.study + l.study }
-      },
-      { tests: 0, others: 0, study: 0 },
-    )
+  // Monat in Zahlen: jeder Eintrag einmal, auch mehrtägige
+  const totals = useMemo(() => monthTotals(month, entries, blocks, openOnly), [month, entries, blocks, openOnly])
 
   // Gewählter Tag
   const selPeriods = periods.filter((p) => periodCovers(p, selected)).sort(comparePeriods)

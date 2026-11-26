@@ -84,12 +84,12 @@ async function fetchOptional<T>(table: string, orderBy: string): Promise<T[] | n
 
 /**
  * Speichert einen Eintrag samt Lernzeiten und Anhängen.
- * - entryId = null → neuer Eintrag
- * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, entfernte gelöscht.
- * - Anhänge: neue Dateien werden hochgeladen, neue Links gespeichert, entfernte gelöscht.
- */
-/**
- * Eintrag mit Lernzeiten und Anhängen speichern. Alle ids kommen vom Gerät (neuer Eintrag, neue Lernzeiten,
+ * - Lernzeiten: neue werden angelegt, geänderte aktualisiert, die in removedBlockIds gelöscht.
+ * - Anhänge: neue Dateien werden hochgeladen, neue Links gespeichert, die in attachments.removed gelöscht.
+ * Gelöscht wird nur, was im Formular entfernt wurde: Bearbeitet ein anderes Gerät denselben Eintrag und
+ * fügt etwas hinzu, bleibt das stehen.
+ *
+ * Alle ids kommen vom Gerät (neuer Eintrag, neue Lernzeiten,
  * neue Anhänge) und es wird mit upsert geschrieben: Bricht das Speichern mittendrin ab (z. B. Netz weg)
  * und man versucht es nochmals, entstehen keine doppelten Einträge, Lernzeiten oder Anhänge.
  */
@@ -97,7 +97,7 @@ export async function saveEntry(
   target: { id: string; create: boolean },
   input: EntryInput,
   blocks: StudyBlockInput[],
-  previousBlockIds: string[],
+  removedBlockIds: string[],
   attachments: { added: PendingAttachment[]; removed: Attachment[] } = { added: [], removed: [] },
 ): Promise<string> {
   // 1. Eintrag speichern (neu: upsert mit der vorab vergebenen id)
@@ -120,9 +120,9 @@ export async function saveEntry(
   if (error || !data) throw error ?? new Error('Der Eintrag konnte nicht gespeichert werden.')
   const id = data.id as string
 
-  // 2. Entfernte Lernzeiten löschen
+  // 2. Im Formular entfernte Lernzeiten löschen
   const keptIds = new Set(blocks.map((b) => b.id).filter(Boolean))
-  const removed = previousBlockIds.filter((bid) => !keptIds.has(bid))
+  const removed = removedBlockIds.filter((bid) => !keptIds.has(bid))
   if (removed.length) {
     const { error: delError } = await supabase.from('study_blocks').delete().in('id', removed)
     if (delError) throw delError
@@ -164,6 +164,12 @@ export function safeFileName(name: string): string {
   return cleaned.slice(-100) || 'datei'
 }
 
+/** Pfad einer Datei im Speicher. Aus der id des Anhangs: Ein zweiter Versuch ersetzt die Datei, statt eine
+ *  weitere abzulegen. Er beginnt mit der eigenen user_id – nur dort darf man laut Speicher-Regeln hochladen. */
+export function attachmentPath(userId: string, entryId: string, a: { id: string; name: string }): string {
+  return `${userId}/${entryId}/${a.id.slice(0, 8)}-${safeFileName(a.name)}`
+}
+
 async function addAttachment(entryId: string, a: PendingAttachment): Promise<void> {
   // Schon angelegt (früherer Versuch)? Dann nichts tun.
   const once = { onConflict: 'id', ignoreDuplicates: true }
@@ -172,12 +178,10 @@ async function addAttachment(entryId: string, a: PendingAttachment): Promise<voi
     if (error) throw error
     return
   }
-  // Pfad beginnt mit der eigenen user_id – nur dort darf man laut Speicher-Regeln hochladen
   const { data: auth } = await supabase.auth.getSession()
   const userId = auth.session?.user.id
   if (!userId) throw new Error('Nicht angemeldet.')
-  // Pfad aus der id des Anhangs: Ein zweiter Versuch ersetzt die Datei, statt eine weitere abzulegen
-  const path = `${userId}/${entryId}/${a.id.slice(0, 8)}-${safeFileName(a.name)}`
+  const path = attachmentPath(userId, entryId, a)
 
   const { error: upError } = await supabase.storage
     .from(BUCKET)
@@ -206,13 +210,28 @@ async function addAttachment(entryId: string, a: PendingAttachment): Promise<voi
 export async function deleteAttachments(list: Attachment[]): Promise<void> {
   const { error } = await supabase.from('attachments').delete().in('id', list.map((a) => a.id))
   if (error) throw error
-  await deleteAttachmentFiles(list)
+  // Klappt das Löschen der Dateien nicht, räumt die Aufräum-Liste sie später weg (DataProvider, lib/purge.ts)
+  await deleteAttachmentFiles(list).catch(() => {})
 }
 
-/** Nur die Dateien im Speicher löschen (z. B. wenn das Rückgängig-Fenster abgelaufen ist). */
+/** Nur die Dateien im Speicher löschen. */
 export async function deleteAttachmentFiles(list: Attachment[]): Promise<void> {
-  const paths = list.map((a) => a.storage_path).filter((p): p is string => !!p)
-  if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+  await removeFiles(list.map((a) => a.storage_path).filter((p): p is string => !!p))
+}
+
+/** Dateien im Speicher löschen (Fehler werden gemeldet, damit es später nochmals versucht werden kann). */
+export async function removeFiles(paths: string[]): Promise<void> {
+  if (paths.length === 0) return
+  const { error } = await supabase.storage.from(BUCKET).remove(paths)
+  if (error) throw error
+}
+
+/** Welche dieser Anhänge gibt es (noch) in der Datenbank? */
+export async function existingAttachmentIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set()
+  const { data, error } = await supabase.from('attachments').select('id').in('id', ids)
+  if (error) throw error
+  return new Set(data.map((r) => r.id as string))
 }
 
 /** So lange gelten die Datei-Links (Sekunden). */

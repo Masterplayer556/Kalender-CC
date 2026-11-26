@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
-import { addDays, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, monthGrid, todayKey, type DateKey } from '../lib/dates'
+import { blockEndTime, addDays, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, monthGrid, todayKey, type DateKey } from '../lib/dates'
 import { bandLanes } from '../lib/layout'
 import { PERIOD_KINDS, comparePeriods, periodCovers } from '../lib/periods'
 import type { Entry, Period, StudyBlock } from '../types'
@@ -410,7 +410,7 @@ function CompactMonth({
                     {blockTerms(entry.category).prefix}: {entry.title}
                   </span>
                   <span className="shrink-0 text-xs text-slate-500 tabular-nums">
-                    {isoToLocal(b.starts_at).time}–{isoToLocal(b.ends_at).time}
+                    {isoToLocal(b.starts_at).time}–{blockEndTime(b.starts_at, b.ends_at)}
                   </span>
                 </button>
               </li>

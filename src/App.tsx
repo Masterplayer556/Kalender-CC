@@ -7,8 +7,8 @@ import { DataProvider, useData } from './data/DataProvider'
 import { supabaseConfigured } from './lib/supabase'
 import { hasPeriod, isCalendarView, lastCalendarView, sectionOf, stepDate, useRoute, type Route, type Section } from './lib/router'
 import { HeatmapView } from './views/HeatmapView'
-import { todayKey, weekDays } from './lib/dates'
-import { asFilters, isFilterActive, matchesFilters, type Filters } from './lib/filters'
+import { toDateKey, todayKey, weekDays } from './lib/dates'
+import { asFilters, isFilterActive, matchesFilters, validFilters, type Filters } from './lib/filters'
 import { Header } from './components/Header'
 import { SideRail, TabBar } from './components/Nav'
 import { ThemeProvider } from './components/ThemeProvider'
@@ -25,6 +25,8 @@ import { GradesView } from './views/GradesView'
 import { ToastProvider } from './components/Toast'
 import { TodayPanel } from './components/TodayPanel'
 import { useMediaQuery } from './components/useMediaQuery'
+import { useClock } from './components/useClock'
+import { reducedMotion } from './lib/motion'
 import { useSwipe } from './components/useSwipe'
 import { MonthView } from './views/MonthView'
 import { TimeGrid } from './views/TimeGrid'
@@ -33,6 +35,8 @@ import { SearchView } from './views/SearchView'
 import { SubjectsView } from './views/SubjectsView'
 import { LoginView } from './views/LoginView'
 import { SetupMissingView } from './views/SetupMissingView'
+
+const dayOf = (ms: number) => toDateKey(new Date(ms))
 
 export default function App() {
   return (
@@ -65,11 +69,15 @@ function AuthGate() {
 }
 
 function Shell() {
-  const { entries, blocks, loading, online, prefs, setPref } = useData()
+  const { entries, blocks, subjects, loading, online, prefs, setPref } = useData()
   const [route, navigate] = useRoute()
   const [search, setSearch] = useState('')
   // Filter und zuletzt benutzte Kalender-Ansicht: auf allen Geräten gleich
-  const filters = useMemo(() => asFilters(prefs.filters), [prefs.filters])
+  // Gelöschte Fächer im Filter werden ignoriert (und beim nächsten Ändern des Filters entfernt)
+  const filters = useMemo(
+    () => validFilters(asFilters(prefs.filters), loading ? null : new Set(subjects.map((s) => s.id))),
+    [prefs.filters, subjects, loading],
+  )
   const setFilters = (f: Filters) => setPref('filters', f)
   useEffect(() => {
     if (isCalendarView(route.view) && prefs.calendarView !== route.view) setPref('calendarView', route.view)
@@ -83,16 +91,8 @@ function Shell() {
 
   // Tageswechsel: Bleibt die App über Mitternacht offen, zeichnet sie sich neu –
   // sonst zeigten "Heute", Countdowns und "Noch diese Woche" weiter den Stand von gestern.
-  const [, setDay] = useState(todayKey)
-  useEffect(() => {
-    const check = () => setDay(todayKey())
-    const timer = setInterval(check, 60_000)
-    document.addEventListener('visibilitychange', check)
-    return () => {
-      clearInterval(timer)
-      document.removeEventListener('visibilitychange', check)
-    }
-  }, [])
+  // (Was von der Uhrzeit abhängt, holt sich die Zeit selbst über useClock.)
+  useClock(dayOf)
   // Monat / Woche / Tag: Zeitraum, der sich vor/zurück wischen lässt
   const isCalendar = !search.trim() && hasPeriod(route.view)
   // iPad / Computer: Navigation als Leiste links, sonst unten (iPhone)
@@ -116,7 +116,8 @@ function Shell() {
   /** offset: wie weit die Ansicht beim Wischen schon verschoben war (0 bei den Pfeilen) */
   const slideTo = (date: string, direction: 1 | -1, offset = 0) => {
     setAnimation(direction === 1 ? 'view-next' : 'view-prev')
-    setLeaving({ key: viewKey, route, dir: direction, offset })
+    // "Bewegung reduzieren": keine Animation – die alte Ansicht bliebe sonst bis zu 600 ms stehen
+    setLeaving(reducedMotion() ? null : { key: viewKey, route, dir: direction, offset })
     navigate({ date })
   }
   const goStep = (direction: 1 | -1, offset = 0) => slideTo(stepDate(route, direction), direction, offset)
@@ -126,7 +127,7 @@ function Shell() {
     slideTo(today, today > route.date ? 1 : -1)
   }
 
-  // Sicherheitsnetz: falls animationend nie kommt (z. B. "Bewegung reduzieren"), die alte Ansicht trotzdem entfernen
+  // Sicherheitsnetz: falls animationend nie kommt, die alte Ansicht trotzdem entfernen
   useEffect(() => {
     if (!leaving) return
     const timer = setTimeout(() => setLeaving(null), 600)
@@ -294,7 +295,13 @@ function Shell() {
           </main>
           {wide && isCalendar && route.view !== 'heatmap' && !loading && (
             <aside className="w-80 shrink-0 overflow-y-auto p-3 pr-5 pb-10">
-              <TodayPanel onOpenEntry={openEntry} onOpenBlock={setBlockMenu} onOpenPeriod={setPeriodEditor} />
+              <TodayPanel
+                entries={visibleEntries}
+                blocks={visibleBlocks}
+                onOpenEntry={openEntry}
+                onOpenBlock={setBlockMenu}
+                onOpenPeriod={setPeriodEditor}
+              />
             </aside>
           )}
         </div>

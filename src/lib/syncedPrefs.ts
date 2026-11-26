@@ -1,12 +1,14 @@
 // Einstellungen, die auf allen Geräten gleich sein sollen (Tabelle user_prefs, Migration 009/010).
-// Zusätzlich liegen sie im localStorage: für den Start ohne Internet und damit beim Öffnen nichts aufblitzt.
+// Zusätzlich liegen sie im localStorage: für den Start ohne Internet und damit beim Öffnen nichts aufblitzt –
+// pro Benutzer ("kalender-pref:<user-id>:<name>"), damit auf einem geteilten Gerät niemand die
+// Einstellungen (Filter, Notenziele …) eines anderen sieht.
 // Offline geänderte Werte warten in einer Liste "ausstehend" und werden beim nächsten Laden hochgeladen.
 //
 // Jede Einstellung ist eine eigene Zeile mit dem Zeitpunkt der Änderung; Notenziele sogar eine Zeile pro
 // Fach ("gradeTarget:<fach-id>"). Beim Zusammenführen gewinnt pro Zeile die neuere Änderung – so
 // überschreibt ein Gerät nicht mehr, was ein anderes inzwischen an einer anderen Stelle geändert hat.
 
-import { loadPref, savePref } from './cache'
+import { hasPref, loadPref, removePref, savePref } from './cache'
 import type { Filters } from './filters'
 import { asTargets, type Targets } from './targets'
 
@@ -18,7 +20,7 @@ export interface SyncedPrefs {
   heatmapOpenOnly?: boolean // Heatmap: nur Offenes zählen
   filters?: Filters // Filter nach Kategorie und Fach
   calendarView?: string // zuletzt benutzte Kalender-Ansicht (monat, woche …)
-  gradeSemester?: string // gewähltes Semester im Noten-Tab, z. B. "2026-1"
+  gradeSemester?: string // gewähltes Semester im Noten-Tab, z. B. "2026-1", "alle" oder "aktuell"
 }
 export type PrefName = keyof SyncedPrefs
 
@@ -33,18 +35,34 @@ export const SYNCED_PREFS: PrefName[] = [
   'gradeSemester',
 ]
 
-/** Stand dieses Geräts (localStorage) */
-export function loadLocalPrefs(): SyncedPrefs {
+const localKey = (userId: string, name: PrefName) => `${userId}:${name}`
+
+/**
+ * Früher lagen die Einstellungen ohne Benutzer im localStorage ("kalender-pref:<name>"). Sie gehen einmalig an
+ * den ersten Benutzer, der sich danach anmeldet, und werden dann entfernt. Design (theme/themeMode) bleibt:
+ * Das ist die Einstellung des Geräts (auch für die Anmeldeseite, siehe lib/theme.ts).
+ */
+function adoptLegacyPrefs(userId: string): void {
+  for (const name of SYNCED_PREFS) {
+    if (name === 'theme' || name === 'themeMode' || !hasPref(name)) continue
+    if (!hasPref(localKey(userId, name))) savePref(localKey(userId, name), loadPref<unknown>(name, undefined))
+    removePref(name)
+  }
+}
+
+/** Stand dieses Geräts (localStorage) für diesen Benutzer */
+export function loadLocalPrefs(userId: string): SyncedPrefs {
+  adoptLegacyPrefs(userId)
   const prefs: Record<string, unknown> = {}
   for (const name of SYNCED_PREFS) {
-    const v = loadPref<unknown>(name, undefined)
+    const v = loadPref<unknown>(localKey(userId, name), undefined)
     if (v !== undefined) prefs[name] = v
   }
   return prefs as SyncedPrefs
 }
 
-export function saveLocalPrefs(prefs: SyncedPrefs): void {
-  for (const name of SYNCED_PREFS) if (prefs[name] !== undefined) savePref(name, prefs[name])
+export function saveLocalPrefs(userId: string, prefs: SyncedPrefs): void {
+  for (const name of SYNCED_PREFS) if (prefs[name] !== undefined) savePref(localKey(userId, name), prefs[name])
 }
 
 const pendingKey = (userId: string) => `prefs-pending:${userId}`

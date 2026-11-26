@@ -5,9 +5,10 @@
 //   iPad hoch und iPhone: dieselben Kacheln, enger angeordnet.
 
 import type { CSSProperties, ReactNode } from 'react'
+import { useClock } from '../components/useClock'
 import { useData } from '../data/DataProvider'
 import { blockTerms, entryColor } from '../lib/categories'
-import { addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
+import { blockEndTime, addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
 import { roundToHalf, semesterOf, weightedAverage } from '../lib/grades'
 import { overallTrend, trendDelta } from '../lib/gradeStats'
 import { compareEntries, entryCovers, entryEnd } from '../lib/grouping'
@@ -67,7 +68,7 @@ export function HomeView({
   const neon = theme === 'neon'
   const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradesByEntry, online, setEntryDone } = useData()
   const today = todayKey()
-  const nowIso = new Date().toISOString()
+  const nowIso = new Date(useClock()).toISOString() // „vorbei – abhaken?“ aktualisiert sich jede Minute
   const colorOf = (e: Entry) => entryColor(e, subjectById)
 
   // --- Nächster Test ---
@@ -130,7 +131,7 @@ export function HomeView({
           key: b.id,
           sort: isoToLocal(b.starts_at).time,
           time: isoToLocal(b.starts_at).time,
-          sub: `bis ${isoToLocal(b.ends_at).time}`,
+          sub: `bis ${blockEndTime(b.starts_at, b.ends_at)}`,
           node: (
             <button
               className={`study-stripes flex min-h-16 w-full items-center gap-3 rounded-[calc(var(--r-tile)-8px)] border-[1.5px] border-dashed px-3.5 py-2.5 text-left ${b.done ? 'opacity-55' : ''}`}

@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   changedRows,
   fromRows,
+  loadLocalPrefs,
   mergePrefs,
   missingOnServer,
   normalizePending,
+  saveLocalPrefs,
   serverRows,
   stamp,
   toRows,
@@ -128,5 +130,35 @@ describe('asTargets', () => {
     expect(asTargets({ gesamt: 5, abc: 'x' })).toEqual({ gesamt: 5 })
     expect(asTargets(null)).toEqual({})
     expect(asTargets([1, 2])).toEqual({})
+  })
+})
+
+describe('Einstellungen im localStorage pro Benutzer', () => {
+  let store: Map<string, string>
+  beforeEach(() => {
+    store = new Map()
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('ein anderer Benutzer sieht die Einstellungen nicht', () => {
+    saveLocalPrefs('anna', { filters: { categories: [], subjects: ['mathe'] }, showDone: true })
+    expect(loadLocalPrefs('anna').showDone).toBe(true)
+    expect(loadLocalPrefs('ben')).toEqual({})
+  })
+
+  it('alte Einstellungen ohne Benutzer gehen einmalig an den ersten Benutzer, das Design bleibt beim Gerät', () => {
+    store.set('kalender-pref:showDone', 'true')
+    store.set('kalender-pref:theme', '"neon"')
+    store.set('andere-app:showDone', 'false')
+    expect(loadLocalPrefs('anna')).toEqual({ showDone: true })
+    expect(store.has('kalender-pref:showDone')).toBe(false)
+    expect(store.get('kalender-pref:theme')).toBe('"neon"')
+    expect(store.get('andere-app:showDone')).toBe('false') // fremde Schlüssel (gleiche Origin) bleiben
+    expect(loadLocalPrefs('ben')).toEqual({})
   })
 })

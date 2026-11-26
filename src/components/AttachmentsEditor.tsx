@@ -9,8 +9,12 @@ import { friendlyError } from '../lib/supabase'
 import type { Attachment, PendingAttachment } from '../types'
 import { Icon } from './Icon'
 
-// Datei-Links 5 Minuten vor Ablauf erneuern
-const REFRESH_MS = (SIGNED_URL_SECONDS - 5 * 60) * 1000
+// Datei-Links gelten 1 Stunde ab dem Erzeugen. Wer eine Datei öffnet, soll (fast) die ganze Stunde haben –
+// v. a. im Office-Viewer, der die Datei erst beim Anzeigen bzw. Neuladen über den Link holt. Deshalb werden
+// die Links laufend frisch erzeugt (alle 4 Minuten, solange der Eintrag offen und sichtbar ist), und ein
+// Link, der älter als 5 Minuten ist, wird beim Antippen nicht mehr benutzt.
+const REFRESH_MS = 4 * 60 * 1000
+const MAX_AGE_MS = Math.min(5 * 60, SIGNED_URL_SECONDS - 60) * 1000
 
 /**
  * Holt die Adressen der Anhänge schon beim Anzeigen – nicht erst beim Antippen.
@@ -49,8 +53,16 @@ function useAttachmentUrls(list: Attachment[], online: boolean) {
     // attachmentUrls wird bei jeder Datenänderung neu erzeugt – nur die Liste selbst zählt
   }, [list, online, reloadCount])
 
-  // Im Hintergrund (iPad gesperrt) laufen keine Timer – deshalb abgelaufene Links beim Antippen erkennen
-  const isStale = () => Date.now() - fetchedAt > REFRESH_MS
+  // Im Hintergrund (iPad gesperrt, Datei in anderer App geöffnet) laufen keine Timer: beim Zurückkommen
+  // sofort erneuern – und alte Links zusätzlich beim Antippen erkennen
+  const isStale = () => Date.now() - fetchedAt > MAX_AGE_MS
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && fetchedAt && Date.now() - fetchedAt > REFRESH_MS) setReloadCount((n) => n + 1)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [fetchedAt])
   return { urls, isStale, error, reload: () => setReloadCount((n) => n + 1) }
 }
 
@@ -102,7 +114,7 @@ export function AttachmentsEditor({
     if (a.kind === 'file' && isStale()) {
       e.preventDefault()
       reloadUrls()
-      setMessage('Der Datei-Link war abgelaufen und wird erneuert – bitte gleich nochmals antippen.')
+      setMessage('Der Datei-Link wird erneuert – bitte gleich nochmals antippen.')
     }
   }
 

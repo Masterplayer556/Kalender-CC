@@ -53,16 +53,38 @@ export function semesterOf(date: DateKey): Semester {
   const month = Number(date.slice(5, 7))
   const schoolYear = month >= 8 ? year : year - 1 // Schuljahr beginnt im August
   const half = month >= 8 || month === 1 ? 1 : 2
-  const next = String((schoolYear + 1) % 100).padStart(2, '0')
-  return { key: `${schoolYear}-${half}`, label: `${schoolYear}/${next} · ${half}. Semester` }
+  const key = `${schoolYear}-${half}`
+  return { key, label: semesterLabel(key) }
 }
 
 /** Auswahl "Alle Noten" (alle Semester zusammen) */
 export const ALL_SEMESTERS = 'alle'
 
-/** Gespeicherte Semester-Auswahl prüfen: "alle" oder ein Semester wie "2026-1", sonst das Ersatz-Semester */
+/**
+ * Gespeicherte Auswahl "das jeweils aktuelle Semester": Wer das aktuelle Semester wählt, will nach dem
+ * Semesterwechsel (1. Februar, 1. August) das neue sehen – nicht weiter das alte.
+ */
+export const CURRENT_SEMESTER = 'aktuell'
+
+/** Wert zum Speichern, wenn `key` gewählt wird (das aktuelle Semester wird als "aktuell" gespeichert) */
+export function semesterChoice(key: string, current: string): string {
+  return key === current ? CURRENT_SEMESTER : key
+}
+
+/**
+ * Gespeicherte Semester-Auswahl prüfen: "alle" oder ein Semester wie "2026-1", sonst (auch bei "aktuell")
+ * das Ersatz-Semester = das aktuelle.
+ */
 export function pickSemester(saved: unknown, fallback: string): string {
   return typeof saved === 'string' && (saved === ALL_SEMESTERS || /^\d{4}-[12]$/.test(saved)) ? saved : fallback
+}
+
+/** Anzeigename einer Semester-Auswahl: "2026-1" → "2026/27 · 1. Semester", "alle" → "Alle Noten" */
+export function semesterLabel(key: string): string {
+  if (key === ALL_SEMESTERS) return 'Alle Noten'
+  const [year, half] = key.split('-').map(Number)
+  const next = String((year + 1) % 100).padStart(2, '0')
+  return `${year}/${next} · ${half}. Semester`
 }
 
 /** Note hübsch anzeigen: 5 → "5", 4.5 → "4.5", 4.75 → "4.75" */

@@ -8,12 +8,13 @@
 //   │ 07:00│ ▓▓▓▓   │ ////   │      ← Einträge (gefüllt) und Lernblöcke (gestreift)
 //   │ 08:00│        │ ─────● │      ← rote Linie = jetzt
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useLayoutEffect, useMemo, useRef, type MouseEvent } from 'react'
+import { useClock } from '../components/useClock'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatWeekday, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
 import { entryCovers } from '../lib/grouping'
-import { MINUTES_PER_DAY, clipToDay, layoutDay } from '../lib/layout'
+import { MINUTES_PER_DAY, clipToDay, layoutDay, tappedSlot } from '../lib/layout'
 import { PERIOD_KINDS, periodsByDay } from '../lib/periods'
 import type { Entry, StudyBlock } from '../types'
 import { InlineIcon } from '../components/Icon'
@@ -31,18 +32,10 @@ interface GridItem {
   end: number
 }
 
-/** Aktuelle Uhrzeit in Minuten, aktualisiert jede Minute (für die rote Linie). */
-function useNowMinutes(): number {
-  const read = () => {
-    const d = new Date()
-    return d.getHours() * 60 + d.getMinutes()
-  }
-  const [now, setNow] = useState(read)
-  useEffect(() => {
-    const t = setInterval(() => setNow(read()), 60_000)
-    return () => clearInterval(t)
-  }, [])
-  return now
+/** Aktuelle Uhrzeit in Minuten seit Mitternacht (für die rote Linie) */
+const minutesOfDay = (ms: number) => {
+  const d = new Date(ms)
+  return d.getHours() * 60 + d.getMinutes()
 }
 
 export function TimeGrid({
@@ -68,7 +61,7 @@ export function TimeGrid({
 }) {
   const { subjectById, entryById, periods } = useData()
   const today = todayKey()
-  const now = useNowMinutes()
+  const now = useClock(minutesOfDay)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const colorOf = (e: Entry) => entryColor(e, subjectById)
@@ -107,8 +100,7 @@ export function TimeGrid({
 
   function handleColumnClick(day: DateKey, e: MouseEvent<HTMLDivElement>) {
     const y = e.clientY - e.currentTarget.getBoundingClientRect().top
-    const minutes = Math.floor(y / PX_PER_MIN / SLOT_MINUTES) * SLOT_MINUTES
-    onCreateAt(day, minutesToTime(Math.min(minutes, MINUTES_PER_DAY - 60)))
+    onCreateAt(day, minutesToTime(tappedSlot(y / PX_PER_MIN, SLOT_MINUTES)))
   }
 
   // narrow = mehrere Tage auf dem iPhone: schmale Spalten, kleinere Schrift

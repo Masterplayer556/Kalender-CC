@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   addDays,
   addMonths,
+  blockEndTime,
   countdown,
   daysBetween,
+  endTimeOf,
   formatDate,
   isoWeek,
   isoToLocal,
@@ -125,5 +127,20 @@ describe('Wochen und Tage (Ferien-Countdown)', () => {
     expect(weeksAndDays(8)).toBe('1 Woche und 1 Tag')
     expect(weeksAndDays(14)).toBe('2 Wochen')
     expect(weeksAndDays(45)).toBe('6 Wochen und 3 Tage')
+  })
+})
+
+describe('Endzeit 24:00', () => {
+  it('Minuten ab 1440 sind „24:00“', () => {
+    expect(endTimeOf(23 * 60 + 30 + 60)).toBe('24:00')
+    expect(endTimeOf(18 * 60)).toBe('18:00')
+    expect(timeToMinutes('24:00')).toBe(1440)
+  })
+  it('Lernzeit bis Mitternacht: gespeichert als 00:00 am Folgetag, angezeigt als 24:00', () => {
+    const starts = localToIso('2026-11-26', '23:00')
+    const ends = localToIso('2026-11-26', '24:00')
+    expect(isoToLocal(ends)).toEqual({ date: '2026-11-27', time: '00:00' })
+    expect(blockEndTime(starts, ends)).toBe('24:00')
+    expect(blockEndTime(starts, localToIso('2026-11-26', '23:45'))).toBe('23:45')
   })
 })

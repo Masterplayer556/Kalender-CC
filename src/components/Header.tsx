@@ -4,10 +4,12 @@
 import { useState } from 'react'
 import { useAuth } from '../data/AuthProvider'
 import { formatWeekRange, formatWeekday, isoWeek, parseDateKey, todayKey } from '../lib/dates'
-import { semesterOf } from '../lib/grades'
+import { useData } from '../data/DataProvider'
+import { pickSemester, semesterLabel, semesterOf } from '../lib/grades'
 import { hasPeriod, isCalendarView, type CalendarView, type Route } from '../lib/router'
 import { Icon } from './Icon'
 import { useMediaQuery } from './useMediaQuery'
+import { useClock } from './useClock'
 
 const CAL_BUTTONS: { view: CalendarView; label: string; short?: string }[] = [
   { view: 'monat', label: 'Monat' },
@@ -17,8 +19,9 @@ const CAL_BUTTONS: { view: CalendarView; label: string; short?: string }[] = [
   { view: 'heatmap', label: 'Heatmap', short: 'Heat' },
 ]
 
-function greeting(): string {
-  const h = new Date().getHours()
+const hourOf = (ms: number) => new Date(ms).getHours()
+
+function greeting(h: number): string {
   if (h < 5) return 'Gute Nacht'
   if (h < 11) return 'Guten Morgen'
   if (h < 17) return 'Guten Tag'
@@ -29,13 +32,13 @@ const monthName = (key: string) => parseDateKey(key).toLocaleDateString('de-CH',
 const longDay = (key: string) => parseDateKey(key).toLocaleDateString('de-CH', { day: 'numeric', month: 'long' })
 
 /** Eyebrow und Titel je nach Ansicht */
-function heading(route: Route, email: string, compact: boolean): { eyebrow: string; title: string } {
+function heading(route: Route, email: string, compact: boolean, hour: number, semester: string): { eyebrow: string; title: string } {
   const d = route.date
   switch (route.view) {
     case 'heute': {
       const today = todayKey()
       const date = `${formatWeekday(today, 'long')}, ${longDay(today)}`
-      return { eyebrow: compact ? date : `${greeting()} · ${date}`, title: 'Heute' }
+      return { eyebrow: compact ? date : `${greeting(hour)} · ${date}`, title: 'Heute' }
     }
     case 'monat':
       return { eyebrow: d.slice(0, 4), title: monthName(d) }
@@ -48,7 +51,7 @@ function heading(route: Route, email: string, compact: boolean): { eyebrow: stri
     case 'liste':
       return { eyebrow: 'Kalender', title: 'Als Nächstes' }
     case 'noten':
-      return { eyebrow: semesterOf(todayKey()).label, title: 'Noten' }
+      return { eyebrow: semesterLabel(semester), title: 'Noten' }
     case 'mehr':
       return { eyebrow: email, title: 'Mehr' }
   }
@@ -76,13 +79,17 @@ export function Header({
   onToday: () => void
 }) {
   const { session } = useAuth()
+  const { prefs } = useData()
+  // Im Noten-Tab: das dort gewählte Semester (nicht einfach das aktuelle)
+  const semester = pickSemester(prefs.gradeSemester, semesterOf(todayKey()).key)
   const isCalendar = isCalendarView(route.view)
   const showsDates = hasPeriod(route.view)
   // iPhone (schmal): Pfeile weg (dort wird gewischt), Suche hinter einer Lupe
   const compact = useMediaQuery('(max-width: 639px)')
+  const hour = useClock(hourOf) // Begrüssung wechselt auch bei offener App
   const [searchOpen, setSearchOpen] = useState(false)
   const showSearchField = !compact || searchOpen || search !== ''
-  const { eyebrow, title } = search ? { eyebrow: 'Titel und Notizen', title: 'Suche' } : heading(route, session?.user.email ?? '', compact)
+  const { eyebrow, title } = search ? { eyebrow: 'Titel und Notizen', title: 'Suche' } : heading(route, session?.user.email ?? '', compact, hour, semester)
   const canFilter = isCalendar || route.view === 'heute' || !!search
 
   const searchField = (

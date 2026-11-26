@@ -108,3 +108,12 @@ export function bandLanes<T extends { start: DateKey; end: DateKey }>(items: T[]
     return Array.from(row, (it) => it ?? null) // Lücken (sparse array) als null
   })
 }
+
+/**
+ * Angetippte Stelle im Zeitraster (Minuten seit Mitternacht) → Beginn des Felds, in dem sie liegt
+ * (abgerundet auf slot Minuten). 23:40 → 23:30; das letzte Feld beginnt slot Minuten vor Mitternacht.
+ */
+export function tappedSlot(minutes: number, slot: number): number {
+  const start = Math.floor(minutes / slot) * slot
+  return Math.max(0, Math.min(start, MINUTES_PER_DAY - slot))
+}
