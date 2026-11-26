@@ -164,6 +164,12 @@ export function safeFileName(name: string): string {
   return cleaned.slice(-100) || 'datei'
 }
 
+/** Pfad einer Datei im Speicher. Aus der id des Anhangs: Ein zweiter Versuch ersetzt die Datei, statt eine
+ *  weitere abzulegen. Er beginnt mit der eigenen user_id – nur dort darf man laut Speicher-Regeln hochladen. */
+export function attachmentPath(userId: string, entryId: string, a: { id: string; name: string }): string {
+  return `${userId}/${entryId}/${a.id.slice(0, 8)}-${safeFileName(a.name)}`
+}
+
 async function addAttachment(entryId: string, a: PendingAttachment): Promise<void> {
   // Schon angelegt (früherer Versuch)? Dann nichts tun.
   const once = { onConflict: 'id', ignoreDuplicates: true }
@@ -172,12 +178,10 @@ async function addAttachment(entryId: string, a: PendingAttachment): Promise<voi
     if (error) throw error
     return
   }
-  // Pfad beginnt mit der eigenen user_id – nur dort darf man laut Speicher-Regeln hochladen
   const { data: auth } = await supabase.auth.getSession()
   const userId = auth.session?.user.id
   if (!userId) throw new Error('Nicht angemeldet.')
-  // Pfad aus der id des Anhangs: Ein zweiter Versuch ersetzt die Datei, statt eine weitere abzulegen
-  const path = `${userId}/${entryId}/${a.id.slice(0, 8)}-${safeFileName(a.name)}`
+  const path = attachmentPath(userId, entryId, a)
 
   const { error: upError } = await supabase.storage
     .from(BUCKET)
@@ -206,13 +210,28 @@ async function addAttachment(entryId: string, a: PendingAttachment): Promise<voi
 export async function deleteAttachments(list: Attachment[]): Promise<void> {
   const { error } = await supabase.from('attachments').delete().in('id', list.map((a) => a.id))
   if (error) throw error
-  await deleteAttachmentFiles(list)
+  // Klappt das Löschen der Dateien nicht, räumt die Aufräum-Liste sie später weg (DataProvider, lib/purge.ts)
+  await deleteAttachmentFiles(list).catch(() => {})
 }
 
-/** Nur die Dateien im Speicher löschen (z. B. wenn das Rückgängig-Fenster abgelaufen ist). */
+/** Nur die Dateien im Speicher löschen. */
 export async function deleteAttachmentFiles(list: Attachment[]): Promise<void> {
-  const paths = list.map((a) => a.storage_path).filter((p): p is string => !!p)
-  if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+  await removeFiles(list.map((a) => a.storage_path).filter((p): p is string => !!p))
+}
+
+/** Dateien im Speicher löschen (Fehler werden gemeldet, damit es später nochmals versucht werden kann). */
+export async function removeFiles(paths: string[]): Promise<void> {
+  if (paths.length === 0) return
+  const { error } = await supabase.storage.from(BUCKET).remove(paths)
+  if (error) throw error
+}
+
+/** Welche dieser Anhänge gibt es (noch) in der Datenbank? */
+export async function existingAttachmentIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set()
+  const { data, error } = await supabase.from('attachments').select('id').in('id', ids)
+  if (error) throw error
+  return new Set(data.map((r) => r.id as string))
 }
 
 /** So lange gelten die Datei-Links (Sekunden). */

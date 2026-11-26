@@ -12,7 +12,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as api from './api'
 import { useOnline } from './useOnline'
-import { loadSnapshot, saveSnapshot } from '../lib/cache'
+import { loadPref, loadSnapshot, savePref, saveSnapshot } from '../lib/cache'
+import { asQueue, dueItems, enqueue, type PurgeItem } from '../lib/purge'
 import { friendlyError } from '../lib/supabase'
 import {
   TARGET_ROW,
@@ -104,6 +105,11 @@ interface DataValue {
 
 const DataContext = createContext<DataValue | null>(null)
 
+/** So lange bleiben Dateien eines gelöschten Eintrags mindestens liegen ("Rückgängig" dauert 6 s) */
+const UNDO_GRACE_MS = 60_000
+/** So lange darf ein Speichern mit hochgeladener Datei dauern bzw. wiederholt werden, bevor aufgeräumt wird */
+const UPLOAD_GRACE_MS = 60 * 60_000
+
 export function DataProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const cached = useMemo(() => loadSnapshot(userId), [userId])
   const [subjects, setSubjects] = useState<Subject[]>(cached?.subjects ?? [])
@@ -159,6 +165,32 @@ export function DataProvider({ userId, children }: { userId: string; children: R
     [userId, flushPrefs],
   )
 
+  // --- Dateien aufräumen, die zu keinem Anhang mehr gehören (lib/purge.ts) ---
+  const purgeKey = `purge:${userId}`
+  const purgeQueue = useRef<Promise<void>>(Promise.resolve())
+  const queuePurge = useCallback(
+    (items: PurgeItem[]) => items.length > 0 && savePref(purgeKey, enqueue(asQueue(loadPref(purgeKey, [])), items)),
+    [purgeKey],
+  )
+  /** Fällige (bzw. die mit diesen ids) aufräumen: Datei löschen, wenn es die Anhang-Zeile nicht mehr gibt. */
+  const flushPurge = useCallback(
+    (force: string[] = []) => {
+      const job = purgeQueue.current.then(async () => {
+        if (!navigator.onLine) return
+        const items = dueItems(asQueue(loadPref(purgeKey, [])), Date.now(), new Set(force))
+        if (items.length === 0) return
+        const alive = await api.existingAttachmentIds(items.map((i) => i.id))
+        await api.removeFiles(items.filter((i) => !alive.has(i.id)).map((i) => i.path))
+        // Erledigt – ausser, derselbe Anhang wurde inzwischen neu aufgenommen (z. B. erneuter Versuch)
+        const done = (q: PurgeItem) => items.some((i) => i.id === q.id && i.due === q.due)
+        savePref(purgeKey, asQueue(loadPref(purgeKey, [])).filter((q) => !done(q)))
+      })
+      purgeQueue.current = job.catch(() => {}) // fehlgeschlagen → bleibt in der Liste, nächster Versuch beim Laden
+      return purgeQueue.current
+    },
+    [purgeKey],
+  )
+
   // Mehrere Ladevorgänge können sich überholen (z. B. App kommt in den Vordergrund, während gerade
   // gespeichert wird). Nur die zuletzt gestartete Abfrage darf den Stand setzen – sonst könnte eine
   // ältere, langsamere Antwort die frischen Daten wieder mit dem alten Stand überschreiben.
@@ -207,12 +239,13 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       setLastSync(savedAt)
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
+      void flushPurge()
     } catch (err) {
       if (isLatest()) setError(friendlyError(err))
     } finally {
       if (isLatest()) setLoading(false)
     }
-  }, [userId, flushPrefs])
+  }, [userId, flushPrefs, flushPurge])
 
   // Laden beim Start, beim Wiederverbinden und wenn die App wieder sichtbar wird
   useEffect(() => {
@@ -295,13 +328,28 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       attachmentsByEntry,
       gradesByEntry,
       reload,
-      saveEntry: (target, input, newBlocks, removedBlockIds, att) =>
-        mutate(async () => {
-          await api.saveEntry(target, input, newBlocks, removedBlockIds, att)
-        }),
-      deleteEntry: (id) => mutate(() => api.deleteEntry(id)),
+      saveEntry: async (target, input, newBlocks, removedBlockIds, att) => {
+        // Hochgeladene Dateien vormerken: Scheitert das Speichern und wird es nicht wiederholt, liegt die
+        // Datei sonst ohne Anhang im Speicher. Entfernte Anhänge: falls das Löschen der Datei nicht klappt.
+        const now = Date.now()
+        const uploads = (att?.added ?? []).filter((a) => a.kind === 'file')
+        queuePurge([
+          ...uploads.map((a) => ({ id: a.id, path: api.attachmentPath(userId, target.id, a), due: now + UPLOAD_GRACE_MS })),
+          ...(att?.removed ?? []).flatMap((a) => (a.storage_path ? [{ id: a.id, path: a.storage_path, due: now }] : [])),
+        ])
+        await mutate(() => api.saveEntry(target, input, newBlocks, removedBlockIds, att).then(() => {}))
+        void flushPurge(uploads.map((a) => a.id)) // gespeichert → die Anhänge gibt es, nichts zu löschen
+      },
+      deleteEntry: (id) => {
+        // Dateien bleiben für "Rückgängig" liegen; danach (auch wenn die App vorher geschlossen wird) weg damit
+        const files = (attachmentsByEntry.get(id) ?? []).flatMap((a) =>
+          a.storage_path ? [{ id: a.id, path: a.storage_path, due: Date.now() + UNDO_GRACE_MS }] : [],
+        )
+        queuePurge(files)
+        return mutate(() => api.deleteEntry(id))
+      },
       restoreEntry: (entry, entryBlocks, att, gradeIds) => mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
-      purgeAttachmentFiles: (list) => api.deleteAttachmentFiles(list),
+      purgeAttachmentFiles: (list) => flushPurge(list.map((a) => a.id)),
       attachmentUrls: (list) => api.attachmentUrls(list),
       setEntryDone: (id, done) => mutate(() => api.setEntryDone(id, done)),
       setBlockDone: (id, done) => mutate(() => api.setBlockDone(id, done)),
@@ -317,7 +365,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       prefs,
       setPref,
     }
-  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, reload, mutate, saveBm, prefs, setPref])
+  }, [subjects, entries, blocks, grades, gradesMissing, attachments, periods, periodsMissing, bm, bmMissing, loading, error, lastSync, online, reload, mutate, saveBm, prefs, setPref, userId, queuePurge, flushPurge])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }
