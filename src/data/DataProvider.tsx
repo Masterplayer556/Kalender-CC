@@ -4,7 +4,8 @@
 // Ablauf beim Start:
 // 1. Sofort die zuletzt gespeicherten Daten aus dem Offline-Cache anzeigen (falls vorhanden).
 // 2. Frische Daten von Supabase laden und den Cache aktualisieren.
-// 3. Erneut laden, wenn die App wieder in den Vordergrund kommt (z. B. Wechsel iPad ↔ Computer).
+// 3. Erneut laden, wenn die App wieder in den Vordergrund kommt (z. B. Wechsel iPad ↔ Computer) –
+//    aber nur, wenn das letzte Laden mindestens 30 s her ist (lib/refresh.ts).
 //
 // Dazu kommen Einstellungen wie Notenziele und Design (lib/syncedPrefs.ts): Sie gelten auf allen
 // Geräten, lassen sich aber auch offline ändern und werden dann beim nächsten Laden hochgeladen.
@@ -14,6 +15,7 @@ import * as api from './api'
 import { useOnline } from './useOnline'
 import { loadPref, loadSnapshot, savePref, saveSnapshot } from '../lib/cache'
 import { asQueue, dueItems, enqueue, type PurgeItem } from '../lib/purge'
+import { shouldReloadOnReturn } from '../lib/refresh'
 import { friendlyError } from '../lib/supabase'
 import {
   TARGET_ROW,
@@ -215,6 +217,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   // gespeichert wird). Nur die zuletzt gestartete Abfrage darf den Stand setzen – sonst könnte eine
   // ältere, langsamere Antwort die frischen Daten wieder mit dem alten Stand überschreiben.
   const loadSeq = useRef(0)
+  const lastLoadAt = useRef<number | null>(null) // Beginn des letzten erfolgreichen Ladens (Date.now())
   const reload = useCallback(async () => {
     const seq = ++loadSeq.current
     const isLatest = () => seq === loadSeq.current
@@ -259,6 +262,7 @@ export function DataProvider({ userId, children }: { userId: string; children: R
       setPeriodsMissing(data.periodsMissing)
       setBmMissing(data.bmMissing)
       lastSyncRef.current = savedAt
+      lastLoadAt.current = startedAt
       setError(null)
       saveSnapshot(userId, { ...data, savedAt })
       void flushPurge()
@@ -275,7 +279,8 @@ export function DataProvider({ userId, children }: { userId: string; children: R
   // Laden beim Start, beim Wiederverbinden und wenn die App wieder sichtbar wird
   useEffect(() => {
     reload()
-    const onVisible = () => document.visibilityState === 'visible' && reload()
+    const onVisible = () =>
+      document.visibilityState === 'visible' && shouldReloadOnReturn(lastLoadAt.current, Date.now()) && reload()
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('online', reload)
     return () => {
