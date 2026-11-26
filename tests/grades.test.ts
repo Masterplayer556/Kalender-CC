@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatGrade, requiredGrade, roundToHalf, semesterOf, weightedAverage } from '../src/lib/grades'
+import { ALL_SEMESTERS, formatGrade, pickSemester, requiredGrade, roundToHalf, semesterOf, weightedAverage } from '../src/lib/grades'
 
 describe('Durchschnitt', () => {
   it('ohne Noten → null', () => {
@@ -68,5 +68,17 @@ describe('Anzeige', () => {
     expect(formatGrade(5)).toBe('5')
     expect(formatGrade(4.5)).toBe('4.5')
     expect(formatGrade(4.75)).toBe('4.75')
+  })
+})
+
+describe('Gespeicherte Semester-Auswahl', () => {
+  it('"Alle Noten" bleibt gewählt', () => {
+    expect(pickSemester(ALL_SEMESTERS, '2026-1')).toBe('alle')
+  })
+  it('gültiges Semester bleibt', () => {
+    expect(pickSemester('2025-2', '2026-1')).toBe('2025-2')
+  })
+  it.each([undefined, null, 42, '', '2025-3', 'irgendwas'])('ungültig (%s) → aktuelles Semester', (v) => {
+    expect(pickSemester(v, '2026-1')).toBe('2026-1')
   })
 })

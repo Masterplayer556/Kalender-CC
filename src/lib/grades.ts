@@ -57,6 +57,14 @@ export function semesterOf(date: DateKey): Semester {
   return { key: `${schoolYear}-${half}`, label: `${schoolYear}/${next} · ${half}. Semester` }
 }
 
+/** Auswahl "Alle Noten" (alle Semester zusammen) */
+export const ALL_SEMESTERS = 'alle'
+
+/** Gespeicherte Semester-Auswahl prüfen: "alle" oder ein Semester wie "2026-1", sonst das Ersatz-Semester */
+export function pickSemester(saved: unknown, fallback: string): string {
+  return typeof saved === 'string' && (saved === ALL_SEMESTERS || /^\d{4}-[12]$/.test(saved)) ? saved : fallback
+}
+
 /** Note hübsch anzeigen: 5 → "5", 4.5 → "4.5", 4.75 → "4.75" */
 export function formatGrade(x: number): string {
   return String(Math.round(x * 100) / 100)
