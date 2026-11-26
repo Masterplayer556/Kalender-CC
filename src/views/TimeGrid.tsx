@@ -8,7 +8,8 @@
 //   │ 07:00│ ▓▓▓▓   │ ////   │      ← Einträge (gefüllt) und Lernblöcke (gestreift)
 //   │ 08:00│        │ ─────● │      ← rote Linie = jetzt
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useLayoutEffect, useMemo, useRef, type MouseEvent } from 'react'
+import { useClock } from '../components/useClock'
 import { useData } from '../data/DataProvider'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
 import { formatWeekday, minutesToTime, timeToMinutes, todayKey, type DateKey } from '../lib/dates'
@@ -31,18 +32,10 @@ interface GridItem {
   end: number
 }
 
-/** Aktuelle Uhrzeit in Minuten, aktualisiert jede Minute (für die rote Linie). */
-function useNowMinutes(): number {
-  const read = () => {
-    const d = new Date()
-    return d.getHours() * 60 + d.getMinutes()
-  }
-  const [now, setNow] = useState(read)
-  useEffect(() => {
-    const t = setInterval(() => setNow(read()), 60_000)
-    return () => clearInterval(t)
-  }, [])
-  return now
+/** Aktuelle Uhrzeit in Minuten seit Mitternacht (für die rote Linie) */
+const minutesOfDay = (ms: number) => {
+  const d = new Date(ms)
+  return d.getHours() * 60 + d.getMinutes()
 }
 
 export function TimeGrid({
@@ -68,7 +61,7 @@ export function TimeGrid({
 }) {
   const { subjectById, entryById, periods } = useData()
   const today = todayKey()
-  const now = useNowMinutes()
+  const now = useClock(minutesOfDay)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const colorOf = (e: Entry) => entryColor(e, subjectById)

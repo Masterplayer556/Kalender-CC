@@ -1,6 +1,7 @@
 // "Heute"-Übersicht: was heute ansteht, die heutigen Lernzeiten, der nächste Test und der Ferien-Countdown.
 // Erscheint oben in der Liste und – im iPad-Querformat – als Seitenleiste neben dem Kalender.
 
+import { useClock } from './useClock'
 import { useData } from '../data/DataProvider'
 import { Icon, InlineIcon } from './Icon'
 import { CATEGORIES, blockTerms, entryColor } from '../lib/categories'
@@ -21,7 +22,7 @@ export function TodayPanel({
 }) {
   const { entries, blocks, entryById, subjectById, blocksByEntry, periods, periodsMissing } = useData()
   const today = todayKey()
-  const now = new Date().toISOString()
+  const now = new Date(useClock()).toISOString() // aktualisiert sich jede Minute
   const colorOf = (e: Entry) => entryColor(e, subjectById)
 
   const todayEntries = entries.filter((e) => entryCovers(e, today)).sort(compareEntries)

@@ -5,6 +5,7 @@
 //   iPad hoch und iPhone: dieselben Kacheln, enger angeordnet.
 
 import type { CSSProperties, ReactNode } from 'react'
+import { useClock } from '../components/useClock'
 import { useData } from '../data/DataProvider'
 import { blockTerms, entryColor } from '../lib/categories'
 import { blockEndTime, addDays, countdown, daysBetween, formatDate, formatTime, formatWeekday, isoToLocal, todayKey, weekDays, weeksAndDays, type DateKey } from '../lib/dates'
@@ -67,7 +68,7 @@ export function HomeView({
   const neon = theme === 'neon'
   const { subjectById, entryById, blocksByEntry, periods, periodsMissing, grades, gradesMissing, gradesByEntry, online, setEntryDone } = useData()
   const today = todayKey()
-  const nowIso = new Date().toISOString()
+  const nowIso = new Date(useClock()).toISOString() // „vorbei – abhaken?“ aktualisiert sich jede Minute
   const colorOf = (e: Entry) => entryColor(e, subjectById)
 
   // --- Nächster Test ---
