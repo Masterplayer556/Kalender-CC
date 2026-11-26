@@ -26,6 +26,7 @@ import { ToastProvider } from './components/Toast'
 import { TodayPanel } from './components/TodayPanel'
 import { useMediaQuery } from './components/useMediaQuery'
 import { useClock } from './components/useClock'
+import { reducedMotion } from './lib/motion'
 import { useSwipe } from './components/useSwipe'
 import { MonthView } from './views/MonthView'
 import { TimeGrid } from './views/TimeGrid'
@@ -115,7 +116,8 @@ function Shell() {
   /** offset: wie weit die Ansicht beim Wischen schon verschoben war (0 bei den Pfeilen) */
   const slideTo = (date: string, direction: 1 | -1, offset = 0) => {
     setAnimation(direction === 1 ? 'view-next' : 'view-prev')
-    setLeaving({ key: viewKey, route, dir: direction, offset })
+    // "Bewegung reduzieren": keine Animation – die alte Ansicht bliebe sonst bis zu 600 ms stehen
+    setLeaving(reducedMotion() ? null : { key: viewKey, route, dir: direction, offset })
     navigate({ date })
   }
   const goStep = (direction: 1 | -1, offset = 0) => slideTo(stepDate(route, direction), direction, offset)
@@ -125,7 +127,7 @@ function Shell() {
     slideTo(today, today > route.date ? 1 : -1)
   }
 
-  // Sicherheitsnetz: falls animationend nie kommt (z. B. "Bewegung reduzieren"), die alte Ansicht trotzdem entfernen
+  // Sicherheitsnetz: falls animationend nie kommt, die alte Ansicht trotzdem entfernen
   useEffect(() => {
     if (!leaving) return
     const timer = setTimeout(() => setLeaving(null), 600)

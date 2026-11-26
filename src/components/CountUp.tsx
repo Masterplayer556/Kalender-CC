@@ -2,10 +2,10 @@
 // Bei "Bewegung reduzieren" steht sofort der Endwert da.
 
 import { useEffect, useRef, useState } from 'react'
+import { reducedMotion } from '../lib/motion'
 
 const DURATION_MS = 900
 
-const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 /** Schneller Start, sanftes Auslaufen */
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 4)
