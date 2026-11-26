@@ -370,8 +370,21 @@ export function DataProvider({ userId, children }: { userId: string; children: R
         mutate(() => api.restoreEntry(entry, entryBlocks, att, gradeIds)),
       purgeAttachmentFiles: (list: Attachment[]) => flushPurge(list.map((a) => a.id)),
       attachmentUrls: (list: Attachment[]) => api.attachmentUrls(list),
-      setEntryDone: (id: string, done: boolean) => mutate(() => api.setEntryDone(id, done)),
-      setBlockDone: (id: string, done: boolean) => mutate(() => api.setBlockDone(id, done)),
+      // Abhaken: sofort anzeigen, dann speichern (bei einem Fehler zeigt das Neuladen wieder den Server-Stand)
+      setEntryDone: (id: string, done: boolean) => {
+        if (navigator.onLine) {
+          delete loadedJson.current.entries
+          setEntries((list) => list.map((e) => (e.id === id ? { ...e, done } : e)))
+        }
+        return mutate(() => api.setEntryDone(id, done))
+      },
+      setBlockDone: (id: string, done: boolean) => {
+        if (navigator.onLine) {
+          delete loadedJson.current.blocks
+          setBlocks((list) => list.map((b) => (b.id === id ? { ...b, done } : b)))
+        }
+        return mutate(() => api.setBlockDone(id, done))
+      },
       saveSubject: (id: string | null, name: string, color: string) => mutate(() => api.saveSubject(id, name, color)),
       deleteSubject: (id: string) => mutate(() => api.deleteSubject(id)),
       saveGrade: (id: string | null, input: GradeInput) => mutate(() => api.saveGrade(id, input)),
