@@ -1,0 +1,73 @@
+# Datenbank-Migrationen (supabase/migrations) automatisch prüfen – und auf Knopfdruck anwenden.
+#
+# Prüfen (bei jeder Änderung an supabase/): Alle Migrationen laufen der Reihe nach gegen ein leeres
+# Postgres (mit nachgebildeten Supabase-Teilen, supabase/ci/stubs.sql). Danach prüft
+# supabase/ci/checks.sql die Regeln: RLS überall, keine Rechte für anon, kein TRUNCATE,
+# Funktionen als security invoker, Tabellen in der Realtime-Publication, save_entry mit RLS.
+#
+# Anwenden (nur von Hand: Actions → "Migrationen prüfen" → "Run workflow" → Dateiname eintragen):
+# wendet genau diese eine Datei auf Supabase an und trägt sie in die Historie ein
+# (scripts/apply-migration.sh). Bewusst nicht automatisch per "supabase db push": Das Projekt teilt
+# Datenbank und Migrations-Historie mit der Game-Bibliothek – siehe README "Datenbank-Migrationen".
+# Braucht das Secret SUPABASE_DB_URL (Session-Pooler-Verbindung mit Datenbank-Passwort).
+
+name: Migrationen prüfen
+
+on:
+  push:
+    paths: ['supabase/**', 'scripts/check-migrations.sh', 'scripts/apply-migration.sh', '.github/workflows/migrations.yml']
+  pull_request:
+    paths: ['supabase/**', 'scripts/check-migrations.sh', 'scripts/apply-migration.sh', '.github/workflows/migrations.yml']
+  workflow_dispatch:
+    inputs:
+      datei:
+        description: 'Migration anwenden, z. B. 015_beispiel.sql (leer = nur prüfen)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Migrationen gegen leeres Postgres prüfen
+        run: scripts/check-migrations.sh
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+  apply:
+    # Nur von Hand gestartet, mit Dateiname, und nur wenn die Prüfung bestanden ist
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.datei != ''
+    needs: check
+    runs-on: ubuntu-latest
+    # Unter Settings → Environments → "supabase" lässt sich zusätzlich eine Freigabe verlangen
+    environment: supabase
+    concurrency:
+      group: supabase-migration
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: psql bereitstellen
+        run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      - name: Migration anwenden
+        run: scripts/apply-migration.sh --yes "supabase/migrations/$DATEI"
+        env:
+          DATEI: ${{ github.event.inputs.datei }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

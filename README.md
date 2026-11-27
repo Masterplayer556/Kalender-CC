@@ -125,7 +125,22 @@ Ab jetzt wird die App bei jedem `git push` automatisch neu veröffentlicht.
 
 ---
 
-## Supabase-Projekt pausiert?
+## Datenbank-Migrationen (neue Dateien in `supabase/migrations`)
+
+**Automatisch geprüft:** Bei jeder Änderung an `supabase/` prüft der Workflow „Migrationen prüfen“ (`.github/workflows/migrations.yml`), dass alle Migrationen der Reihe nach fehlerfrei durchlaufen – gegen ein leeres Postgres, nicht gegen deine Daten – und dass die Regeln stimmen: RLS auf jeder Tabelle, keine Rechte für nicht angemeldete Besucher, kein „Tabelle leeren“, Funktionen ohne Sonderrechte, alle Tabellen in Realtime. Lokal geht das mit `DATABASE_URL=… scripts/check-migrations.sh` (nur mit einer leeren Test-Datenbank!).
+
+**Anwenden** (eine neue Datei auf Supabase übertragen), drei Wege:
+1. Wie bisher von Hand im Supabase-Dashboard → **SQL Editor** (siehe Einrichtung, Schritt 3).
+2. Auf GitHub: **Actions** → „Migrationen prüfen“ → **Run workflow** → bei „Migration anwenden“ den Dateinamen eintragen (z. B. `015_beispiel.sql`). Der Workflow prüft zuerst alles und wendet dann genau diese Datei an – in einer Transaktion zusammen mit dem Eintrag in der Migrations-Historie. Ist sie schon eingetragen, passiert nichts.
+3. Im Terminal: `SUPABASE_DB_URL='…' scripts/apply-migration.sh supabase/migrations/015_beispiel.sql` (`--status` zeigt, was schon eingetragen ist).
+
+Für Weg 2 braucht es **ein Secret** (Settings → Secrets and variables → Actions → New repository secret):
+- `SUPABASE_DB_URL`: im Supabase-Dashboard oben auf **Connect** → **Session pooler** → die Adresse kopieren und `[YOUR-PASSWORD]` durch das Datenbank-Passwort ersetzen (vergessen? Project Settings → Database → Reset database password). Die Session-Pooler-Adresse ist nötig, weil GitHub die direkte Verbindung (nur IPv6) nicht erreicht.
+- Optional: Unter Settings → Environments ein Environment `supabase` anlegen und dort „Required reviewers“ setzen – dann wartet jedes Anwenden auf deine Freigabe.
+
+**Warum nicht vollautomatisch mit `supabase db push`?** Dieses Supabase-Projekt teilt sich die Datenbank und die Migrations-Historie mit einer anderen App (Game-Bibliothek, eigenes Schema). `db push` erwartet, dass jeder Eintrag der Historie als Datei hier liegt, und Dateinamen wie `20261126120000_name.sql` – es würde abbrechen oder zum „Reparieren“ der gemeinsamen Historie auffordern und so der anderen App in die Quere kommen. Der Workflow fasst deshalb nur die Datei an, die du nennst.
+
+
 
 Im kostenlosen Plan pausiert Supabase ein Projekt, wenn es etwa **eine Woche lang nicht benutzt** wurde. Die App zeigt dann „Keine Verbindung zum Server“, obwohl du online bist. Deine Daten gehen dabei **nicht** verloren.
 
