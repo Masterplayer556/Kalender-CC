@@ -40,7 +40,6 @@ export function EntryRow({
           type="checkbox"
           className="h-5 w-5"
           checked={entry.done}
-          disabled={!online}
           aria-label={`${entry.title} erledigt`}
           onChange={(e) => setEntryDone(entry.id, e.target.checked).catch((err) => alert(err.message))}
         />

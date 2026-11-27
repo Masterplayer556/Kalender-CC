@@ -87,6 +87,55 @@ export function semesterLabel(key: string): string {
   return `${year}/${next} · ${half}. Semester`
 }
 
+/** Zeitraum eines Semesters: "2026-1" → 01.08.2026–31.01.2027, "2026-2" → 01.02.2027–31.07.2027 */
+export function semesterRange(key: string): [DateKey, DateKey] {
+  const [y, half] = key.split('-').map(Number)
+  return half === 1 ? [`${y}-08-01`, `${y + 1}-01-31`] : [`${y + 1}-02-01`, `${y + 1}-07-31`]
+}
+
+/** Noten einer Semester-Auswahl ("alle" = alle Noten) */
+export function gradesInSemester<T extends { date: DateKey }>(grades: T[], semester: string): T[] {
+  return semester === ALL_SEMESTERS ? grades : grades.filter((g) => semesterOf(g.date).key === semester)
+}
+
+/** Noten nach Fach gruppiert (Reihenfolge der Liste bleibt erhalten) */
+export function groupBySubject<T extends { subject_id: string }>(grades: T[]): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const g of grades) {
+    const list = map.get(g.subject_id)
+    if (list) list.push(g)
+    else map.set(g.subject_id, [g])
+  }
+  return map
+}
+
+export interface OverallAverage {
+  /** Gesamtschnitt wie im Zeugnis: Durchschnitt der auf halbe Noten gerundeten Fachnoten */
+  overall: number
+  /** Durchschnitt der ungerundeten Fachschnitte */
+  raw: number
+  /** Zeugnisnote (gerundet) pro Fach */
+  reports: Map<string, number>
+}
+
+/**
+ * Gesamtschnitt über alle Fächer der übergebenen Noten (vorher nach Semester filtern).
+ * null, wenn es keine Noten gibt. Heute-Kachel und Noten-Tab rechnen beide hiermit.
+ */
+export function overallAverage(grades: (Weighted & { subject_id: string })[]): OverallAverage | null {
+  const bySubject = groupBySubject(grades)
+  if (bySubject.size === 0) return null
+  const reports = new Map<string, number>()
+  let rawSum = 0
+  for (const [subject, list] of bySubject) {
+    const avg = weightedAverage(list)!
+    rawSum += avg
+    reports.set(subject, roundToHalf(avg))
+  }
+  const overall = [...reports.values()].reduce((a, b) => a + b, 0) / reports.size
+  return { overall, raw: rawSum / reports.size, reports }
+}
+
 /** Note hübsch anzeigen: 5 → "5", 4.5 → "4.5", 4.75 → "4.75" */
 export function formatGrade(x: number): string {
   return String(Math.round(x * 100) / 100)

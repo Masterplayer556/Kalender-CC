@@ -1,0 +1,39 @@
+# Prüft jeden Pull Request und jeden Push auf andere Branches als "main": Lint, Tests und Bauen.
+# (Auf "main" macht das der Workflow "Veröffentlichen" vor dem Deploy.) Braucht keine Secrets.
+
+name: Prüfen
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Typen prüfen und bauen
+        run: npm run build

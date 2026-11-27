@@ -20,18 +20,19 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
 - **Verschieben:** Änderst du das Datum eines Eintrags mit offenen Lernzeiten, bietet das Formular an, die offenen Lernzeiten um gleich viele Tage mitzuverschieben (erledigte bleiben stehen).
 - **Duplizieren:** Im geöffneten Eintrag auf „Duplizieren“ tippen, z. B. für „Vokabeltest Unité 4“.
 - **Rückgängig:** Nach dem Löschen bleibt ein paar Sekunden lang „Rückgängig“ eingeblendet.
-- **Noten** (eigener Tab): Noten pro Fach mit Gewichtung, gewichteter Schnitt, Zeugnisnote (auf halbe Noten gerundet), Gesamtschnitt und Semester-Auswahl (1. Semester Aug–Jan, 2. Semester Feb–Jul). Der **Notenrechner** sagt dir, welche Note du in der nächsten Prüfung brauchst. Frühere Tests trägst du einfach mit ihrem Datum ein.
+- **Noten** (eigener Tab): Noten pro Fach mit Gewichtung, gewichteter Schnitt, Zeugnisnote (auf halbe Noten gerundet), Gesamtschnitt und Semester-Auswahl (1. Semester Aug–Jan, 2. Semester Feb–Jul). Der **Notenrechner** sagt dir, welche Note du in der nächsten Prüfung brauchst – und, wenn im Kalender bis Semesterende noch mehrere Tests des Fachs ohne Note stehen, welche Note es in jedem davon braucht (z. B. „Noch 2 Tests → je mindestens 4.8 für eine 5“). Mit **„Was wäre, wenn …“** tippst du eine erwartete Note ein und siehst den neuen Schnitt und die neue Zeugnisnote. Frühere Tests trägst du einfach mit ihrem Datum ein.
 - **Note ↔ Test:** Noten lassen sich mit einem Test aus dem Kalender verknüpfen. Im Test steht dann die Note, und vergangene Tests ohne Note erscheinen 30 Tage lang in der Liste unter „Note eintragen?“. Gibt ein Test mehrere Noten (z. B. Grammatik und Wortschatz), schalte im Test **„für mehrere Noten“** ein: Dann bleibt er in der Test-Auswahl beim Note-Eintragen, und im Test erscheinen alle verknüpften Noten.
 - **Anhänge:** Dateien (Word, PowerPoint, PDF, Fotos … aus der Dateien-App, max. 50 MB) und Links (OneDrive, iCloud, Teams …) an jedem Eintrag, z. B. das Lernzielblatt zum Test.
 - **Wischen:** In Monat, Woche und Tag nach links/rechts wischen, um den Zeitraum zu wechseln.
 - **Navigation** mit vier Bereichen: **Heute · Kalender · Noten · Mehr**. Auf dem iPad als Leiste links, auf dem iPhone als Leiste unten, jeweils mit „+“ für neue Einträge. Im Kalender schaltest du oben zwischen Monat, Woche, Tag, Liste und Heatmap um.
-- **Heute-Übersicht** (Startseite) in Kacheln: Countdown bis zum nächsten Test mit Lernfortschritt, **Tage bis zu den Ferien** mit den verbleibenden Schultagen, Notenschnitt mit Mini-Graph, Lernzeiten der Woche, **„Noch diese Woche“** (offene Tests und Aufgaben von heute bis Sonntag – Erledigtes und Vergangenes zählt nicht mehr – sowie Überfälliges), „Dein Tag“ als Zeitstrahl (zum Abhaken) und „Als Nächstes“. Im iPad-Querformat steht „Heute“ zusätzlich als Seitenleiste neben dem Kalender.
+- **Heute-Übersicht** (Startseite) in Kacheln: Countdown bis zum nächsten Test mit Lernfortschritt, **Tage bis zu den Ferien** mit den verbleibenden Schultagen, Notenschnitt mit Mini-Graph, Lernzeiten der Woche in Stunden (z. B. „2.5 von 4 h“, dazu ein Balken pro Fach), **„Noch diese Woche“** (offene Tests und Aufgaben von heute bis Sonntag – Erledigtes und Vergangenes zählt nicht mehr – sowie Überfälliges), „Dein Tag“ als Zeitstrahl (zum Abhaken) und „Als Nächstes“. Im iPad-Querformat steht „Heute“ zusätzlich als Seitenleiste neben dem Kalender.
 - **Heatmap** (im Kalender): der Monat als „Belastung pro Tag“ – je kräftiger ein Tag, desto mehr steht an (Test = 2 Punkte, andere Einträge und Lernzeiten je 1). Die Zahl im Feld ist die Anzahl Einträge und Lernzeiten an diesem Tag (ein Test = 1). Mit **„Nur Offenes“** zählt Erledigtes nicht mit. Punkt = Test, gestrichelter Rand = Ferien, freie Tage oder Lager. Daneben: stressigste Woche, Monat in Zahlen und die Einträge des gewählten Tags (nochmals antippen öffnet den Tag).
-- **Noten-Graphen:** Verlauf des Gesamtschnitts und pro Fach ein eigener Graph (Punkte = einzelne Noten, grösser = höheres Gewicht; Linie = laufender Schnitt; gestrichelt = Grenze 4). Ein Punkt öffnet die Note. Pro Fach und für den Gesamtschnitt lässt sich ein **Ziel** setzen (z. B. 5.5 im Zeugnis): Der Graph zeigt die Ziellinie, die Karte sagt, welche Note es in der nächsten Prüfung mindestens braucht (auf allen Geräten gleich).
+- **Noten-Graphen:** Verlauf des Gesamtschnitts und pro Fach ein eigener Graph (Punkte = einzelne Noten, grösser = höheres Gewicht; Linie = laufender Schnitt; gestrichelt = Grenze 4). Ein Punkt öffnet die Note. Pro Fach und für den Gesamtschnitt lässt sich ein **Ziel** setzen (z. B. 5.5 im Zeugnis): Der Graph zeigt die Ziellinie, die Karte sagt, welche Note es in der nächsten Prüfung (bzw. in jedem der geplanten Tests) mindestens braucht (auf allen Geräten gleich).
 - **BM-Einschätzung** (ganz unten im Noten-Tab): kleine Tabelle mit den Fächern Mathe, Deutsch, Franz und NMG (NT & RZG) nebeneinander und darunter je einem Feld für die **fachliche** und die **persönliche Kompetenz** (8 Felder). Jedes Feld ist **Ja**, **Nein** oder noch offen; nochmals tippen macht es wieder offen. **Ziel: 6 × Ja** – die Sektion zeigt, wie viele Ja noch fehlen, ob das Ziel noch erreichbar ist und den Vergleich mit dem letzten Semester (▲/▼). Gespeichert pro Semester (gleiche Auswahl wie oben bei den Noten) und auf allen Geräten gleich.
 - **Design** (unter „Mehr“): **Sunset** (warm, farbige Kacheln, grosse Zahlen, Sonne mit Strahlen) oder **Neon** (Raster, Mono-Schrift, Lime mit Cyan und Pink – hell mit harten Schatten, dunkel leuchtend) – jeweils **hell, dunkel oder automatisch** nach Systemeinstellung. Gilt auf allen Geräten. Zahlen zählen beim Öffnen hoch und einiges bewegt sich dezent; mit „Bewegung reduzieren“ in den Geräte-Einstellungen bleibt alles ruhig.
 - **Einstellungen auf allen Geräten:** Notenziele, Design (Sunset/Neon, hell/dunkel), Filter, die zuletzt benutzte Kalender-Ansicht, das gewählte Noten-Semester, „Erledigte anzeigen“ und „Nur Offenes“ in der Heatmap sind auf iPad, Handy und Computer gleich. Sie lassen sich auch offline ändern und werden hochgeladen, sobald wieder Internet da ist.
-- **Offline:** Die zuletzt geladenen Einträge bleiben sichtbar. Ändern geht erst wieder mit Internet.
+- **Sofort auf allen Geräten:** Sind iPad und iPhone gleichzeitig offen, erscheint eine Änderung auf dem einen Gerät nach etwa einer Sekunde auch auf dem anderen (Supabase Realtime). War die App länger als 30 Sekunden im Hintergrund, lädt sie beim Zurückkehren einmal alles neu.
+- **Offline:** Die zuletzt geladenen Daten bleiben sichtbar. **Abhaken** (Einträge und Lernzeiten) sowie **Einträge anlegen und bearbeiten** (samt Lernzeiten) gehen auch ohne Internet: Die Änderung erscheint sofort und wird hochgeladen, sobald wieder Internet da ist (die Leiste oben zeigt, wie viele Änderungen noch warten). Wurde derselbe Eintrag inzwischen auf einem anderen Gerät gelöscht, bleibt er gelöscht; wurde er dort geändert, gewinnt die neuere Änderung. Anhänge, Löschen, Duplizieren, Noten, Fächer und Ferien brauchen weiterhin Internet.
 
 ---
 
@@ -55,7 +56,10 @@ Eine Kalender-App für **Tests, Aufgaben und Lernzeiten**. Sie läuft im Browser
    Danach `supabase/migrations/008_bm_yes_no.sql` (BM-Felder als Ja/Nein).
    Danach `supabase/migrations/009_user_prefs.sql` (Einstellungen wie Notenziele und Design auf allen Geräten gleich).
    Danach `supabase/migrations/010_user_prefs_newer_wins.sql` (bei Einstellungen gewinnt die neuere Änderung, Notenziele pro Fach).
-   Zum Schluss `supabase/migrations/011_revoke_truncate.sql` (entfernt überflüssige Rechte wie „ganze Tabelle leeren“).
+   Danach `supabase/migrations/011_revoke_truncate.sql` (entfernt überflüssige Rechte wie „ganze Tabelle leeren“).
+   Danach `supabase/migrations/012_save_entry.sql` (Eintrag und Lernzeiten in einem Schritt speichern – nie mehr nur halb gespeichert).
+   Danach `supabase/migrations/013_study_blocks_updated_at.sql` (Lernzeiten merken sich ihre letzte Änderung – für offline abgehakte Lernzeiten).
+   Danach `supabase/migrations/014_realtime.sql` (Änderungen erscheinen sofort auf allen offenen Geräten).
    **Schon eingerichtet?** Dann nur die neueren Dateien ausführen, die noch fehlen. Bestehende Daten bleiben erhalten.
 4. **Schlüssel kopieren:** Klicke links unten auf **Project Settings** (Zahnrad) und dann auf **API Keys** bzw. **Data API**.
    - **Project URL** (z. B. `https://abcdefgh.supabase.co`)
@@ -85,7 +89,9 @@ Voraussetzung: [Node.js](https://nodejs.org) (LTS) ist installiert.
    ```
 3. Öffne **http://localhost:5173/kalender-tracker/** und erstelle über „Konto erstellen“ dein Konto.
 
-Tests ausführen: `npm test`
+Tests ausführen: `npm test` · Code prüfen (Lint): `npm run lint`
+
+Die Tests decken die Logik in `src/lib/` ab und zusätzlich mit `@testing-library/react` einige Oberflächen-Teile (Eintrag-Formular, Lernzeit-Menü, Notenrechner) sowie das Offline-Speichern im DataProvider. Gelintet wird mit [oxlint](https://oxc.rs) (Einstellungen in `.oxlintrc.json`) – ESLint mit TypeScript-Regeln läuft mit TypeScript 7 noch nicht. Auf GitHub laufen Lint und Tests vor jedem Veröffentlichen sowie bei jedem Pull Request (Workflow „Prüfen“).
 
 ### 4. Auf GitHub Pages veröffentlichen
 
@@ -119,7 +125,22 @@ Ab jetzt wird die App bei jedem `git push` automatisch neu veröffentlicht.
 
 ---
 
-## Supabase-Projekt pausiert?
+## Datenbank-Migrationen (neue Dateien in `supabase/migrations`)
+
+**Automatisch geprüft:** Bei jeder Änderung an `supabase/` prüft der Workflow „Migrationen prüfen“ (`.github/workflows/migrations.yml`), dass alle Migrationen der Reihe nach fehlerfrei durchlaufen – gegen ein leeres Postgres, nicht gegen deine Daten – und dass die Regeln stimmen: RLS auf jeder Tabelle, keine Rechte für nicht angemeldete Besucher, kein „Tabelle leeren“, Funktionen ohne Sonderrechte, alle Tabellen in Realtime. Lokal geht das mit `DATABASE_URL=… scripts/check-migrations.sh` (nur mit einer leeren Test-Datenbank!).
+
+**Anwenden** (eine neue Datei auf Supabase übertragen), drei Wege:
+1. Wie bisher von Hand im Supabase-Dashboard → **SQL Editor** (siehe Einrichtung, Schritt 3).
+2. Auf GitHub: **Actions** → „Migrationen prüfen“ → **Run workflow** → bei „Migration anwenden“ den Dateinamen eintragen (z. B. `015_beispiel.sql`). Der Workflow prüft zuerst alles und wendet dann genau diese Datei an – in einer Transaktion zusammen mit dem Eintrag in der Migrations-Historie. Ist sie schon eingetragen, passiert nichts.
+3. Im Terminal: `SUPABASE_DB_URL='…' scripts/apply-migration.sh supabase/migrations/015_beispiel.sql` (`--status` zeigt, was schon eingetragen ist).
+
+Für Weg 2 braucht es **ein Secret** (Settings → Secrets and variables → Actions → New repository secret):
+- `SUPABASE_DB_URL`: im Supabase-Dashboard oben auf **Connect** → **Session pooler** → die Adresse kopieren und `[YOUR-PASSWORD]` durch das Datenbank-Passwort ersetzen (vergessen? Project Settings → Database → Reset database password). Die Session-Pooler-Adresse ist nötig, weil GitHub die direkte Verbindung (nur IPv6) nicht erreicht.
+- Optional: Unter Settings → Environments ein Environment `supabase` anlegen und dort „Required reviewers“ setzen – dann wartet jedes Anwenden auf deine Freigabe.
+
+**Warum nicht vollautomatisch mit `supabase db push`?** Dieses Supabase-Projekt teilt sich die Datenbank und die Migrations-Historie mit einer anderen App (Game-Bibliothek, eigenes Schema). `db push` erwartet, dass jeder Eintrag der Historie als Datei hier liegt, und Dateinamen wie `20261126120000_name.sql` – es würde abbrechen oder zum „Reparieren“ der gemeinsamen Historie auffordern und so der anderen App in die Quere kommen. Der Workflow fasst deshalb nur die Datei an, die du nennst.
+
+
 
 Im kostenlosen Plan pausiert Supabase ein Projekt, wenn es etwa **eine Woche lang nicht benutzt** wurde. Die App zeigt dann „Keine Verbindung zum Server“, obwohl du online bist. Deine Daten gehen dabei **nicht** verloren.
 
@@ -143,9 +164,10 @@ src/
 │  ├─ dates.ts       Datumsrechnung und -formatierung (TT.MM.JJJJ, Wochenstart Montag)
 │  ├─ layout.ts      Position der Blöcke im Zeitraster, Überlappungen
 │  ├─ grouping.ts    Gruppen der Liste „Als Nächstes“
-│  ├─ grades.ts      Notenschnitt, Zeugnisnote, Notenrechner, Semester
+│  ├─ grades.ts      Notenschnitt, Gesamtschnitt, Zeugnisnote, Notenrechner, Semester
+│  ├─ targets.ts     Notenziele, geplante Tests, „Was wäre, wenn“
 │  ├─ overdue.ts     Gruppen „Überfällig“ und „Note eintragen?“
-│  ├─ week.ts        Kachel „Noch diese Woche“ (offene Tests und Aufgaben bis Sonntag)
+│  ├─ week.ts        Kacheln „Noch diese Woche“ und „Lernwoche“ (Stunden pro Fach)
 │  ├─ heatmap.ts     Heatmap: Punkte und Anzahl pro Tag, stressigste Woche
 │  ├─ studyBlocks.ts Lernzeiten mit dem Termin mitverschieben
 │  ├─ periods.ts     Ferien & freie Tage: Arten, Tage nachschlagen, Countdown und Schultage
@@ -154,10 +176,16 @@ src/
 │  ├─ filters.ts     Filter und Suche
 │  ├─ categories.ts  Kategorien mit Symbolen, Farbvorschläge für Fächer
 │  ├─ cache.ts       Offline-Speicher
+│  ├─ outbox.ts      Offline-Warteschlange (Abhaken, Einträge) und Konflikte
+│  ├─ refresh.ts     Wann beim Zurückkehren in die App neu geladen wird
 │  ├─ router.ts      Adressen wie #/woche/2026-10-20
 │  └─ ics.ts         Notizen für einen späteren Export in den Apple-Kalender
-├─ data/           Verbindung zu Supabase (Laden, Speichern, Login)
+├─ data/           Verbindung zu Supabase (Laden, Speichern, Login, Realtime)
+│  └─ api/           Alle Datenbank-Zugriffe, nach Bereich (Laden, Einträge, Anhänge, Noten …)
 ├─ components/     Bausteine (Formular, Kopfzeile, Filter …)
+│  ├─ home/          Kacheln der Heute-Übersicht
+│  └─ grades/        Fach-Karte, Notenrechner, Ziel-Auswahl des Noten-Tabs
+├─ styles/         Gestaltung (Designs Sunset und Neon), eingebunden über index.css
 └─ views/          Die Ansichten Monat, Woche/Tag, Liste, Suche, Fächer, Login
 supabase/migrations/  Datenbankstruktur (SQL)
 tests/                Automatische Tests (npm test)

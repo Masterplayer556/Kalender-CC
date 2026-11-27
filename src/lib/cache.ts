@@ -36,9 +36,11 @@ export function saveSnapshot(userId: string, data: Snapshot): void {
   }
 }
 
+/** Offline-Kopie löschen – samt noch nicht hochgeladener Offline-Änderungen (lib/outbox.ts) */
 export function clearSnapshot(userId: string): void {
   try {
     localStorage.removeItem(key(userId))
+    localStorage.removeItem(`kalender-pref:outbox:${userId}`)
   } catch {
     /* ignorieren */
   }

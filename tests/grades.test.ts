@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { ALL_SEMESTERS, formatGrade, pickSemester, semesterChoice, semesterLabel, requiredGrade, roundToHalf, semesterOf, weightedAverage } from '../src/lib/grades'
+import {
+  ALL_SEMESTERS,
+  formatGrade,
+  gradesInSemester,
+  groupBySubject,
+  overallAverage,
+  pickSemester,
+  semesterChoice,
+  semesterLabel,
+  semesterRange,
+  requiredGrade,
+  roundToHalf,
+  semesterOf,
+  weightedAverage,
+} from '../src/lib/grades'
 
 describe('Durchschnitt', () => {
   it('ohne Noten → null', () => {
@@ -94,5 +108,51 @@ describe('semesterLabel', () => {
     expect(semesterLabel('2026-1')).toBe('2026/27 · 1. Semester')
     expect(semesterLabel('2025-2')).toBe('2025/26 · 2. Semester')
     expect(semesterLabel(ALL_SEMESTERS)).toBe('Alle Noten')
+  })
+})
+
+describe('semesterRange', () => {
+  it('1. Semester: August bis Januar', () => {
+    expect(semesterRange('2026-1')).toEqual(['2026-08-01', '2027-01-31'])
+  })
+  it('2. Semester: Februar bis Juli des Folgejahrs', () => {
+    expect(semesterRange('2026-2')).toEqual(['2027-02-01', '2027-07-31'])
+  })
+  it('passt zu semesterOf', () => {
+    for (const key of ['2026-1', '2026-2']) {
+      const [start, end] = semesterRange(key)
+      expect(semesterOf(start).key).toBe(key)
+      expect(semesterOf(end).key).toBe(key)
+    }
+  })
+})
+
+describe('Gesamtschnitt (overallAverage)', () => {
+  const g = (subject_id: string, grade: number, weight = 1, date = '2026-09-01') => ({ subject_id, grade, weight, date })
+
+  it('ohne Noten → null', () => {
+    expect(overallAverage([])).toBeNull()
+  })
+  it('Durchschnitt der gerundeten Fachnoten, nicht aller Noten', () => {
+    // Mathe: (4 + 4.5) / 2 = 4.25 → 4.5; Deutsch: 6 → 6; Gesamt (4.5 + 6) / 2 = 5.25
+    const result = overallAverage([g('m', 4), g('m', 4.5), g('d', 6)])!
+    expect(result.overall).toBeCloseTo(5.25)
+    expect(result.raw).toBeCloseTo((4.25 + 6) / 2)
+    expect(result.reports).toEqual(new Map([['m', 4.5], ['d', 6]]))
+  })
+  it('Gewichte zählen pro Fach', () => {
+    // (4 + 6·3) / 4 = 5.5
+    expect(overallAverage([g('m', 4), g('m', 6, 3)])!.overall).toBeCloseTo(5.5)
+  })
+  it('nach Semester gefiltert', () => {
+    const list = [g('m', 4, 1, '2026-09-01'), g('m', 6, 1, '2027-03-01')]
+    expect(gradesInSemester(list, '2026-1')).toHaveLength(1)
+    expect(gradesInSemester(list, ALL_SEMESTERS)).toHaveLength(2)
+    expect(overallAverage(gradesInSemester(list, '2026-2'))!.overall).toBe(6)
+  })
+  it('groupBySubject behält die Reihenfolge', () => {
+    const map = groupBySubject([g('a', 1), g('b', 2), g('a', 3)])
+    expect([...map.keys()]).toEqual(['a', 'b'])
+    expect(map.get('a')!.map((x) => x.grade)).toEqual([1, 3])
   })
 })

@@ -30,6 +30,10 @@ jobs:
 
       - run: npm ci
 
+      # Erst prüfen, dann veröffentlichen: Schlägt Lint oder ein Test fehl, bleibt die alte Version online
+      - name: Lint
+        run: npm run lint
+
       - name: Tests
         run: npm test
 

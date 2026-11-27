@@ -33,6 +33,7 @@ export interface StudyBlock {
   starts_at: string // ISO-Zeitstempel mit Zeitzone
   ends_at: string
   done: boolean
+  updated_at?: string // fehlt vor 013_study_blocks_updated_at.sql
 }
 
 export interface Grade {

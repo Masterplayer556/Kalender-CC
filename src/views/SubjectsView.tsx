@@ -193,13 +193,18 @@ function PeriodsSection({ onOpenPeriod }: { onOpenPeriod: (req: PeriodRequest) =
  *  damit man nicht versehentlich draufkommt – normalerweise bleibt man dauerhaft angemeldet. */
 function AccountSection() {
   const { session, signOut } = useAuth()
+  const { pendingChanges } = useData()
+  const question =
+    pendingChanges > 0
+      ? `Wirklich abmelden? ${pendingChanges === 1 ? 'Eine offline gemachte Änderung ist' : `${pendingChanges} offline gemachte Änderungen sind`} noch nicht hochgeladen und ginge${pendingChanges === 1 ? '' : 'n'} verloren.`
+      : 'Wirklich abmelden?'
   return (
     <section className="tile space-y-2 p-4">
       <h2 className="font-bold">Konto</h2>
       <p className="text-sm text-slate-500">
         Angemeldet als <strong>{session?.user.email}</strong>. Du bleibst auf diesem Gerät angemeldet, bis du dich abmeldest.
       </p>
-      <button className="btn-secondary" onClick={() => confirm('Wirklich abmelden?') && signOut()}>
+      <button className="btn-secondary" onClick={() => confirm(question) && signOut()}>
         <Icon name="logout" /> Abmelden
       </button>
     </section>

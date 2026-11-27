@@ -1,0 +1,296 @@
+/* =====================================================================
+   Themes
+   ---------------------------------------------------------------------
+   Zwei Designs, beide hell und dunkel (siehe src/lib/theme.ts):
+     • Sunset – warm, grosse Kacheln, riesige Zahlen. Himmel mit Lichtflecken im Hintergrund,
+                farbige Kacheln (Gold, Rosa, Lila), Sonne mit Strahlen in der grossen Kachel.
+     • Neon   – Raster im Hintergrund, Mono-Schrift, scharfe Kanten. Lime plus Cyan und Pink.
+                Hell: schwarze Rahmen mit harten Schatten. Dunkel: dünne Linien, die leuchten.
+   Gesteuert über <html data-theme="sunset|neon"> und die Klasse "dark".
+
+   Trick: Tailwind-Farben "slate" (Grautöne) und "blue" (Akzent) zeigen auf
+   Variablen. So übernehmen auch ältere Ansichten (Formulare, Monat, Woche)
+   automatisch die Farben des gewählten Themes.
+   ===================================================================== */
+
+/* Schriften liegen in der App (nicht bei Google), damit sie offline funktionieren. Nur lateinische Zeichen. */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url('@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* Dunkelmodus per Klasse (statt nur Systemeinstellung), damit man ihn in der App wählen kann */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-body);
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-accent: var(--accent);
+
+  --color-slate-50: var(--n-50);
+  --color-slate-100: var(--n-100);
+  --color-slate-200: var(--n-200);
+  --color-slate-300: var(--n-300);
+  --color-slate-400: var(--n-400);
+  --color-slate-500: var(--n-500);
+  --color-slate-600: var(--n-600);
+  --color-slate-700: var(--n-700);
+  --color-slate-800: var(--n-800);
+  --color-slate-900: var(--n-900);
+  --color-slate-950: var(--n-950);
+
+  --color-blue-50: var(--a-50);
+  --color-blue-100: var(--a-100);
+  --color-blue-200: var(--a-200);
+  --color-blue-300: var(--a-300);
+  --color-blue-400: var(--a-400);
+  --color-blue-500: var(--a-500);
+  --color-blue-600: var(--a-600);
+  --color-blue-700: var(--a-700);
+  --color-blue-800: var(--a-800);
+  --color-blue-900: var(--a-900);
+  --color-blue-950: var(--a-950);
+}
+
+/* ---------- Sunset ---------- */
+:root,
+:root[data-theme='sunset'] {
+  /* Grautöne mit warmem Pflaumen-Stich */
+  --n-50: #fff6ef; --n-100: #fbeae0; --n-200: #f0d9cf; --n-300: #ddbfb4; --n-400: #b4949f;
+  --n-500: #8a6c7c; --n-600: #6e5264; --n-700: #4e3546; --n-800: #2e1726; --n-900: #22121d; --n-950: #140a11;
+  /* Akzent: Rose */
+  --a-50: #fff1f2; --a-100: #ffe4e6; --a-200: #fecdd3; --a-300: #fda4af; --a-400: #fb7185;
+  --a-500: #f43f5e; --a-600: #e11d48; --a-700: #be123c; --a-800: #9f1239; --a-900: #881337; --a-950: #4c0519;
+
+  --font-body: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: var(--font-body);
+  --font-num: var(--font-body);
+
+  --bg: #fff4ea;
+  --surface: #ffffff;
+  --surface-2: #ffe6d5;
+  --ink: #24101c;
+  --muted: #6e5264;
+  --line: rgb(36 16 28 / 0.1);
+  --accent: #e11d48;
+  --on-accent: #ffffff;
+  --accent-text: #be123c;
+  /* Zweit- und Drittfarbe: Orange und Violett – die drei zusammen ergeben den Sonnenuntergang */
+  --accent-2: #c2410c;
+  --accent-3: #9333ea;
+  --hero: linear-gradient(135deg, #d9480f 0%, #e11d48 46%, #b01fb4 80%, #7c3aed 100%);
+  --on-hero: #ffffff;
+  --hero-border: transparent;
+  --hero-glow: 0 18px 38px -10px rgb(225 29 72 / 0.5), 0 6px 14px rgb(217 72 15 / 0.18);
+  /* Knöpfe und Verlaufs-Schrift */
+  --btn-bg: linear-gradient(135deg, #e8590c 0%, #e11d48 55%, #c026d3 100%);
+  --btn-glow: 0 8px 18px -6px rgb(225 29 72 / 0.55);
+  --grad-text: linear-gradient(120deg, #ea580c 0%, #e11d48 50%, #9333ea 100%);
+  --tile-shadow: 0 1px 0 rgb(36 16 28 / 0.04), 0 10px 26px -8px rgb(150 60 40 / 0.2);
+  --tile-shadow-up: 0 1px 0 rgb(36 16 28 / 0.04), 0 18px 34px -10px rgb(150 60 40 / 0.3);
+  --tile-border: transparent;
+  --tile-border-w: 1px;
+  /* Farbige Kacheln: 1 = Gold, 2 = Rosa-Lila, 3 = Pfirsich */
+  --tone-1: #c2410c;
+  --tone-1-bg: linear-gradient(155deg, #ffeab8 0%, #ffcfa6 100%);
+  --tone-2: #a21caf;
+  --tone-2-bg: linear-gradient(155deg, #ffe1ec 0%, #eedcff 100%);
+  --tone-3: #be123c;
+  --tone-3-bg: linear-gradient(155deg, #fff0db 0%, #ffdcdc 100%);
+  /* Himmel hinter der App: drei weiche Lichtflecken */
+  --ambient:
+    radial-gradient(46% 34% at 10% 26%, rgb(255 190 110 / 0.5), transparent 72%),
+    radial-gradient(42% 32% at 94% 30%, rgb(255 140 175 / 0.42), transparent 72%),
+    radial-gradient(60% 40% at 62% 104%, rgb(205 165 255 / 0.42), transparent 72%);
+  --nav-bg: #24101c;
+  --nav-fg: #d8c3cf;
+  --nav-on: #ffb38a;
+  --now: #e11d48;
+  --hour-line: #f0d9cf;
+  --r-tile: 28px;
+  --r-ctl: 14px;
+  --r-chip: 999px;
+  --good-bg: #dcfce7; --good-fg: #166534;
+  --ok-bg: #fef3c7; --ok-fg: #92400e;
+  --bad-bg: #ffe4e6; --bad-fg: #9f1239;
+}
+:root.dark,
+:root[data-theme='sunset'].dark {
+  --bg: #130910;
+  --surface: #21111c;
+  --surface-2: #2e1525;
+  --ink: #fff1e6;
+  --muted: #c3a7b6;
+  --line: rgb(255 241 230 / 0.09);
+  --accent-text: #fda4af;
+  --accent-2: #fdba74;
+  --accent-3: #d8b4fe;
+  --hero-glow: 0 18px 40px -10px rgb(225 29 72 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --grad-text: linear-gradient(120deg, #fdba74 0%, #fb7185 50%, #d8b4fe 100%);
+  --tile-shadow: 0 0 0 1px rgb(255 241 230 / 0.06), 0 10px 26px -10px rgb(0 0 0 / 0.5);
+  --tile-shadow-up: 0 0 0 1px rgb(255 241 230 / 0.12), 0 18px 34px -10px rgb(0 0 0 / 0.6);
+  --tone-1: #fdba74;
+  --tone-1-bg: linear-gradient(155deg, #45290f 0%, #3c1523 100%);
+  --tone-2: #f0abfc;
+  --tone-2-bg: linear-gradient(155deg, #40132f 0%, #2b1746 100%);
+  --tone-3: #fda4af;
+  --tone-3-bg: linear-gradient(155deg, #3a1d14 0%, #3a1224 100%);
+  --ambient:
+    radial-gradient(46% 34% at 10% 26%, rgb(234 88 12 / 0.2), transparent 72%),
+    radial-gradient(42% 32% at 94% 30%, rgb(225 29 72 / 0.2), transparent 72%),
+    radial-gradient(60% 40% at 62% 104%, rgb(124 58 237 / 0.24), transparent 72%);
+  --nav-bg: #2a1621;
+  --nav-fg: #b89aab;
+  --hour-line: #2c1523;
+  --good-bg: rgb(34 197 94 / 0.16); --good-fg: #86efac;
+  --ok-bg: rgb(245 158 11 / 0.16); --ok-fg: #fcd34d;
+  --bad-bg: rgb(244 63 94 / 0.18); --bad-fg: #fda4af;
+}
+
+/* ---------- Neon ---------- */
+:root[data-theme='neon'] {
+  /* kühle Oliv-Grautöne */
+  --n-50: #f6f7f2; --n-100: #eceee6; --n-200: #dcdfd4; --n-300: #c2c6b9; --n-400: #969b8e;
+  --n-500: #6a7064; --n-600: #555b50; --n-700: #3a3f36; --n-800: #1e231f; --n-900: #111513; --n-950: #07090b;
+  /* Akzent: Lime */
+  --a-50: #f7fee7; --a-100: #ecfccb; --a-200: #d9f99d; --a-300: #bef264; --a-400: #a3e635;
+  --a-500: #84cc16; --a-600: #4d7c0f; --a-700: #3f6212; --a-800: #365314; --a-900: #1a2e05; --a-950: #10200a;
+
+  --font-body: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: var(--font-body);
+  --font-num: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Hell: wie gedruckt – schwarze Rahmen und harte, versetzte Schatten */
+  --bg: #f3f4ee;
+  --grid: rgb(11 13 10 / 0.06);
+  --surface: #ffffff;
+  --surface-2: #eceee6;
+  --ink: #0b0d0a;
+  --muted: #565c53;
+  --line: rgb(11 13 10 / 0.16);
+  --accent: #c6ff3d;
+  --on-accent: #0a0d06;
+  --accent-text: #3f6212;
+  /* Zweit- und Drittfarbe: Cyan und Pink (Leuchtfarbe = *-neon, lesbare Textfarbe = ohne Zusatz) */
+  --accent-2: #0e7490;
+  --accent-3: #be185d;
+  --neon-2: #22d3ee;
+  --neon-3: #ff4d9a;
+  /* Grosse Kachel: schwarze Insel mit Lime-Schatten */
+  --hero: #0b0d0a;
+  --on-hero: #eef1e8;
+  --hero-border: #0b0d0a;
+  --hero-glow: 5px 5px 0 0 var(--accent), 5px 5px 0 1.5px #0b0d0a;
+  --btn-bg: var(--accent);
+  --btn-glow: 2px 2px 0 #0b0d0a;
+  --grad-text: none;
+  --tile-shadow: 3px 3px 0 #0b0d0a;
+  --tile-shadow-up: 5px 5px 0 #0b0d0a;
+  --tile-border: #0b0d0a;
+  --tile-border-w: 1.5px;
+  --tone-1: var(--neon-2);
+  --tone-1-bg: var(--surface);
+  --tone-2: var(--neon-3);
+  --tone-2-bg: var(--surface);
+  --tone-3: var(--accent);
+  --tone-3-bg: var(--surface);
+  --ambient:
+    radial-gradient(40% 30% at 4% 30%, rgb(198 255 61 / 0.3), transparent 72%),
+    radial-gradient(40% 32% at 98% 62%, rgb(34 211 238 / 0.18), transparent 72%),
+    radial-gradient(44% 30% at 70% 104%, rgb(255 77 154 / 0.14), transparent 72%);
+  --nav-bg: var(--bg);
+  --nav-fg: #565c53;
+  --nav-on: #0b0d0a;
+  --now: #be185d;
+  --hour-line: #dcdfd4;
+  --r-tile: 16px;
+  --r-ctl: 10px;
+  --r-chip: 6px;
+  --good-bg: #c6ff3d; --good-fg: #0a0d06;
+  --ok-bg: transparent; --ok-fg: #92400e;
+  --bad-bg: #be185d; --bad-fg: #ffffff;
+}
+:root[data-theme='neon'].dark {
+  /* Dunkel: Anzeige im Dunkeln – dünne Linien, alles Wichtige leuchtet */
+  --bg: #07090b;
+  --grid: rgb(198 255 61 / 0.05);
+  --surface: #0d1110;
+  --surface-2: #151a17;
+  --ink: #edefe8;
+  --muted: #949b90;
+  --line: rgb(237 239 232 / 0.13);
+  --accent-text: #c6ff3d;
+  --accent-2: #3df5ff;
+  --accent-3: #ff4d9a;
+  --neon-2: #3df5ff;
+  --hero: linear-gradient(150deg, rgb(198 255 61 / 0.1) 0%, rgb(61 245 255 / 0.05) 55%, transparent 100%), #0d1110;
+  --on-hero: var(--ink);
+  --hero-border: #c6ff3d;
+  --hero-glow: 0 0 0 1px rgb(198 255 61 / 0.5), 0 0 34px rgb(198 255 61 / 0.2), inset 0 0 46px rgb(198 255 61 / 0.05);
+  --btn-glow: 0 0 22px rgb(198 255 61 / 0.35);
+  --tile-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --tile-shadow-up: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 1px rgb(198 255 61 / 0.35), 0 0 26px rgb(198 255 61 / 0.12);
+  --tile-border: var(--line);
+  --tile-border-w: 1px;
+  --ambient:
+    radial-gradient(40% 30% at 4% 30%, rgb(198 255 61 / 0.1), transparent 72%),
+    radial-gradient(40% 32% at 98% 62%, rgb(61 245 255 / 0.09), transparent 72%),
+    radial-gradient(44% 30% at 70% 104%, rgb(255 77 154 / 0.1), transparent 72%);
+  --nav-fg: #949b90;
+  --nav-on: #c6ff3d;
+  --now: #ff4d9a;
+  --hour-line: #151a17;
+  --a-600: #a3e635; --a-700: #bef264;
+  --ok-fg: #fcd34d;
+  --bad-bg: #ff4d9a; --bad-fg: #0a0d06;
+}
+
+@layer base {
+  /* Hintergrund auch auf <html>: iOS färbt damit die Leiste mit der Uhrzeit oben */
+  html {
+    background: var(--bg);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    overscroll-behavior-y: none;
+    font-feature-settings: 'tnum' 1;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  button {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  input[type='checkbox'], input[type='radio'] {
+    accent-color: var(--accent-text);
+  }
+  input, select, textarea {
+    font-size: 16px; /* verhindert das automatische Hineinzoomen von Safari */
+  }
+}

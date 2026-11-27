@@ -45,6 +45,6 @@ export default defineConfig({
   test: {
     // Tests laufen in einer festen Zeitzone, damit Sommer-/Winterzeit-Tests reproduzierbar sind.
     env: { TZ: 'Europe/Zurich' },
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
   },
 })
